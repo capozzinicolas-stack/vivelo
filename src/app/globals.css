@@ -2,26 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Vivelo Design Tokens */
+    --background: 22 60% 97%;       /* #fcf7f4 Off-White */
+    --foreground: 263 45% 15%;       /* Dark purple text */
+    --card: 0 0% 100%;              /* #ffffff */
+    --card-foreground: 263 45% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 263 45% 15%;
+    --primary: 263 45% 29%;          /* #43276c Deep Purple */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 46 80% 57%;         /* #ecbe38 Gold */
+    --secondary-foreground: 263 45% 15%;
+    --muted: 22 30% 93%;
+    --muted-foreground: 263 20% 45%;
+    --accent: 46 80% 57%;            /* Gold accent */
+    --accent-foreground: 263 45% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 22 20% 88%;
+    --input: 22 20% 88%;
+    --ring: 263 45% 29%;
+    --chart-1: 263 45% 29%;
+    --chart-2: 46 80% 57%;
+    --chart-3: 173 58% 39%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 197 37% 24%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 263 45% 8%;
+    --foreground: 0 0% 98%;
+    --card: 263 45% 12%;
+    --card-foreground: 0 0% 98%;
+    --popover: 263 45% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 46 80% 57%;
+    --primary-foreground: 263 45% 15%;
+    --secondary: 263 45% 29%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 263 30% 18%;
+    --muted-foreground: 263 10% 60%;
+    --accent: 263 30% 18%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 263 30% 18%;
+    --input: 263 30% 18%;
+    --ring: 46 80% 57%;
+    --chart-1: 46 80% 57%;
+    --chart-2: 263 45% 50%;
+    --chart-3: 173 58% 39%;
+    --chart-4: 12 76% 61%;
+    --chart-5: 197 37% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Helvetica Now Display', 'Helvetica Neue', Helvetica, Arial, system-ui, -apple-system, sans-serif;
   }
 }
