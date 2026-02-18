@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, getExtrasForService } from '@/data/mock-services';
+import { getServiceById, createBooking } from '@/lib/supabase/queries';
 import { categoryMap } from '@/data/categories';
 import { COMMISSION_RATE } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -18,21 +18,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Star, MapPin, ArrowLeft, CalendarIcon, Users } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { Service } from '@/types/database';
 
 export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const service = getServiceById(id);
-  const extras = service ? getExtrasForService(service.id) : [];
+  const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
 
+  const [service, setService] = useState<Service | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [date, setDate] = useState<Date>();
-  const [guests, setGuests] = useState(service?.min_guests || 1);
+  const [guests, setGuests] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    getServiceById(id).then(s => {
+      setService(s);
+      if (s) setGuests(s.min_guests);
+    }).finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
+  }
 
   if (!service) {
     return (
@@ -44,8 +58,8 @@ export default function ServiceDetailPage() {
   }
 
   const cat = categoryMap[service.category];
+  const extras = service.extras || [];
 
-  // Price calculations
   const isPerPerson = service.price_unit.includes('persona');
   const baseTotal = isPerPerson ? service.base_price * guests : service.base_price;
   const extrasTotal = selectedExtras.reduce((sum, sel) => {
@@ -58,10 +72,36 @@ export default function ServiceDetailPage() {
   const commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100;
   const total = subtotal + commission;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) return;
     if (!date) { toast({ title: 'Selecciona una fecha', variant: 'destructive' }); return; }
-    toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
+
+    setSubmitting(true);
+    try {
+      await createBooking({
+        service_id: service.id,
+        client_id: user.id,
+        provider_id: service.provider_id,
+        event_date: format(date, 'yyyy-MM-dd'),
+        guest_count: guests,
+        base_total: baseTotal,
+        extras_total: extrasTotal,
+        commission,
+        total,
+        selected_extras: selectedExtras.map(sel => {
+          const extra = extras.find(e => e.id === sel.extra_id)!;
+          return { extra_id: sel.extra_id, name: extra.name, quantity: sel.quantity, price: extra.price * sel.quantity };
+        }),
+        notes: notes || null,
+      });
+
+      toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
+      router.push('/dashboard/cliente/reservas');
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo crear la reserva. Intenta de nuevo.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -69,14 +109,11 @@ export default function ServiceDetailPage() {
       <Button variant="ghost" asChild className="mb-6"><Link href="/servicios"><ArrowLeft className="h-4 w-4 mr-2" />Volver</Link></Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left column */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Image placeholder */}
           <div className={`${cat?.color.split(' ')[0] || 'bg-gray-200'} h-64 md:h-96 rounded-xl flex items-center justify-center`}>
             {cat && <cat.icon className="h-20 w-20 text-muted-foreground/30" />}
           </div>
 
-          {/* Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
               {cat && <Badge className={cat.color}>{cat.label}</Badge>}
@@ -89,7 +126,6 @@ export default function ServiceDetailPage() {
             </div>
           </div>
 
-          {/* Extras */}
           {extras.length > 0 && (
             <>
               <Separator />
@@ -98,7 +134,6 @@ export default function ServiceDetailPage() {
           )}
         </div>
 
-        {/* Right column - Booking card */}
         <div className="lg:col-span-1">
           <Card className="sticky top-24">
             <CardHeader>
@@ -152,7 +187,9 @@ export default function ServiceDetailPage() {
                     <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${total.toLocaleString()}</span></div>
                   </div>
 
-                  <Button className="w-full" size="lg" onClick={handleSubmit}>Solicitar Reserva</Button>
+                  <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</> : 'Solicitar Reserva'}
+                  </Button>
                 </>
               )}
             </CardContent>

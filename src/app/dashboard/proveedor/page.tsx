@@ -1,21 +1,30 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/dashboard/stats-card';
-import { mockServices } from '@/data/mock-services';
-import { mockBookings } from '@/data/mock-bookings';
+import { useAuthContext } from '@/providers/auth-provider';
+import { getProviderStats } from '@/lib/supabase/queries';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
-import { Package, CalendarCheck, DollarSign, Star, Plus } from 'lucide-react';
+import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2 } from 'lucide-react';
+import type { Booking } from '@/types/database';
 
 export default function ProveedorDashboard() {
-  const servicios = mockServices.filter((s) => s.status === 'active');
-  const reservas = mockBookings;
-  const pendientes = reservas.filter((b) => b.status === 'pending');
-  const ingresos = reservas.filter((b) => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + b.base_total + b.extras_total, 0);
-  const avgRating = servicios.length ? (servicios.reduce((s, sv) => s + sv.avg_rating, 0) / servicios.length).toFixed(1) : '0';
+  const { user } = useAuthContext();
+  const [stats, setStats] = useState<{ activeServices: number; pendingBookings: Booking[]; revenue: number; avgRating: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    getProviderStats(user.id).then(setStats).finally(() => setLoading(false));
+  }, [user]);
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+
+  const pendientes = stats?.pendingBookings || [];
 
   return (
     <div className="space-y-8">
@@ -24,10 +33,10 @@ export default function ProveedorDashboard() {
         <Button asChild><Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Crear Servicio</Link></Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Servicios Activos" value={servicios.length} icon={Package} />
+        <StatsCard title="Servicios Activos" value={stats?.activeServices || 0} icon={Package} />
         <StatsCard title="Reservas Pendientes" value={pendientes.length} icon={CalendarCheck} />
-        <StatsCard title="Ingresos" value={`$${ingresos.toLocaleString()}`} icon={DollarSign} trend={{ value: 12, direction: 'up' }} />
-        <StatsCard title="Rating Promedio" value={avgRating} icon={Star} />
+        <StatsCard title="Ingresos" value={`$${(stats?.revenue || 0).toLocaleString()}`} icon={DollarSign} trend={{ value: 12, direction: 'up' }} />
+        <StatsCard title="Rating Promedio" value={stats?.avgRating || 0} icon={Star} />
       </div>
 
       <Card>

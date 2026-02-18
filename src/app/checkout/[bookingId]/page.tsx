@@ -1,17 +1,26 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { mockBookings } from '@/data/mock-bookings';
+import { getBookingById } from '@/lib/supabase/queries';
 import { BookingSummary } from '@/components/checkout/booking-summary';
 import { PaymentForm } from '@/components/checkout/payment-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { Booking } from '@/types/database';
 
 export default function CheckoutPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const booking = mockBookings.find((b) => b.id === bookingId);
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getBookingById(bookingId).then(setBooking).finally(() => setLoading(false));
+  }, [bookingId]);
+
+  if (loading) return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
 
   if (!booking) {
     return (

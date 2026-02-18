@@ -28,7 +28,7 @@ export function RegisterForm() {
 
     try {
       await signUp(email, password, fullName, role);
-      router.push(role === 'provider' ? '/dashboard' : '/home');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
     } finally {

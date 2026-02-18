@@ -27,8 +27,17 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
-        console.log(`[Stripe] Pago exitoso: ${pi.id}, Booking: ${pi.metadata?.bookingId}`);
-        // TODO: Update booking status to 'confirmed'
+        const bookingId = pi.metadata?.bookingId;
+        console.log(`[Stripe] Pago exitoso: ${pi.id}, Booking: ${bookingId}`);
+
+        if (bookingId) {
+          const { createServerSupabaseClient } = await import('@/lib/supabase/server');
+          const supabase = createServerSupabaseClient();
+          await supabase
+            .from('bookings')
+            .update({ status: 'confirmed', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
+            .eq('id', bookingId);
+        }
         break;
       }
       case 'payment_intent.payment_failed': {

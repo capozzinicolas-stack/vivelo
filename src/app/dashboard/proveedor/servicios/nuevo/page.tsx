@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { categories } from '@/data/categories';
 import { ZONES } from '@/lib/constants';
+import { useAuthContext } from '@/providers/auth-provider';
+import { createService } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,12 +14,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
+import type { ServiceCategory } from '@/types/database';
 
 interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person'; max_quantity: string; }
 
 export default function NuevoServicioPage() {
   const router = useRouter();
+  const { user } = useAuthContext();
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -28,6 +32,7 @@ export default function NuevoServicioPage() {
   const [maxGuests, setMaxGuests] = useState('100');
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraInput[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleZone = (zone: string) => {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
@@ -41,14 +46,42 @@ export default function NuevoServicioPage() {
     setExtras(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     if (!title || !category || !basePrice) {
       toast({ title: 'Campos requeridos', description: 'Completa titulo, categoria y precio.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
-    router.push('/dashboard/proveedor/servicios');
+
+    setSubmitting(true);
+    try {
+      await createService(
+        {
+          provider_id: user.id,
+          title,
+          description,
+          category: category as ServiceCategory,
+          base_price: parseFloat(basePrice),
+          price_unit: priceUnit || 'por evento',
+          min_guests: parseInt(minGuests) || 1,
+          max_guests: parseInt(maxGuests) || 100,
+          zones: selectedZones,
+        },
+        extras.filter(e => e.name && e.price).map(e => ({
+          name: e.name,
+          price: parseFloat(e.price),
+          price_type: e.price_type,
+          max_quantity: parseInt(e.max_quantity) || 1,
+        }))
+      );
+      toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
+      router.push('/dashboard/proveedor/servicios');
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo crear el servicio.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -118,7 +151,9 @@ export default function NuevoServicioPage() {
           </CardContent>
         </Card>
 
-        <Button type="submit" size="lg" className="w-full">Crear Servicio</Button>
+        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+          {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creando...</> : 'Crear Servicio'}
+        </Button>
       </form>
     </div>
   );
