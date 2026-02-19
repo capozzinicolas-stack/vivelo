@@ -129,8 +129,10 @@ export default function AdminEditarServicioPage() {
       await updateServiceStatus(id, status);
       toast({ title: 'Servicio actualizado!' });
       router.push('/dashboard/admin/servicios');
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar el servicio.', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error('Error updating service:', msg, err);
+      toast({ title: 'Error', description: msg || 'No se pudo actualizar el servicio.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

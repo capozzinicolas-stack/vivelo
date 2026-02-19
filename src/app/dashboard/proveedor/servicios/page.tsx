@@ -27,8 +27,14 @@ export default function ProveedorServiciosPage() {
 
   useEffect(() => {
     if (!user) return;
-    getServicesByProvider(user.id).then(setServices).finally(() => setLoading(false));
-  }, [user]);
+    getServicesByProvider(user.id)
+      .then(setServices)
+      .catch((err) => {
+        console.error('[ProveedorServicios] Error loading services:', err);
+        toast({ title: 'Error cargando servicios', description: err?.message || 'Intenta recargar la pagina.', variant: 'destructive' });
+      })
+      .finally(() => setLoading(false));
+  }, [user, toast]);
 
   const handleTogglePause = async (s: Service) => {
     const newStatus: ServiceStatus = s.status === 'active' ? 'paused' : 'active';

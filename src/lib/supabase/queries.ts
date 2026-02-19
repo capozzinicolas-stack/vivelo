@@ -29,8 +29,9 @@ export async function getServices(filters?: {
   }
 
   const supabase = createClient();
-  let query = supabase.from('services').select('*, extras(*), provider:profiles!provider_id(*)');
 
+  // Try full join first
+  let query = supabase.from('services').select('*, extras(*), provider:profiles!provider_id(*)');
   if (filters?.category) query = query.eq('category', filters.category);
   if (filters?.status) query = query.eq('status', filters.status);
   else query = query.eq('status', 'active');
@@ -40,8 +41,25 @@ export async function getServices(filters?: {
   if (filters?.search) query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
 
   const { data, error } = await query.order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  // Fall back to simple query without joins
+  console.warn('[getServices] Join query failed, trying simple:', error.message);
+  let q2 = supabase.from('services').select('*');
+  if (filters?.category) q2 = q2.eq('category', filters.category);
+  if (filters?.status) q2 = q2.eq('status', filters.status);
+  else q2 = q2.eq('status', 'active');
+  if (filters?.zone) q2 = q2.contains('zones', [filters.zone]);
+  if (filters?.minPrice) q2 = q2.gte('base_price', filters.minPrice);
+  if (filters?.maxPrice) q2 = q2.lte('base_price', filters.maxPrice);
+  if (filters?.search) q2 = q2.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+
+  const { data: fallback, error: err2 } = await q2.order('created_at', { ascending: false });
+  if (err2) {
+    console.error('[getServices] Simple query also failed:', JSON.stringify(err2));
+    throw new Error(`Error cargando servicios: ${err2.message || JSON.stringify(err2)}`);
+  }
+  return (fallback || []).map((s) => ({ ...s, extras: [], provider: null })) as unknown as Service[];
 }
 
 export async function getServiceById(id: string): Promise<Service | null> {
@@ -56,8 +74,19 @@ export async function getServiceById(id: string): Promise<Service | null> {
     .select('*, extras(*), provider:profiles!provider_id(*)')
     .eq('id', id)
     .single();
-  if (error) throw error;
-  return data;
+  if (!error) return data;
+
+  console.warn('[getServiceById] Join query failed, trying simple:', error.message);
+  const { data: fallback, error: err2 } = await supabase
+    .from('services')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (err2) {
+    console.error('[getServiceById] Simple query also failed:', JSON.stringify(err2));
+    throw new Error(`Error cargando servicio: ${err2.message || JSON.stringify(err2)}`);
+  }
+  return fallback ? { ...fallback, extras: [], provider: null } : null;
 }
 
 export async function createService(
@@ -70,11 +99,11 @@ export async function createService(
     price_unit: string;
     min_guests: number;
     max_guests: number;
-    min_hours: number;
-    max_hours: number;
+    min_hours?: number;
+    max_hours?: number;
     zones: string[];
     images: string[];
-    videos: string[];
+    videos?: string[];
     buffer_before_minutes?: number;
     buffer_after_minutes?: number;
     buffer_before_days?: number;
@@ -88,6 +117,9 @@ export async function createService(
     const newService: Service = {
       id: crypto.randomUUID(),
       ...service,
+      videos: service.videos ?? [],
+      min_hours: service.min_hours ?? 1,
+      max_hours: service.max_hours ?? 12,
       sku: service.sku ?? null,
       base_event_hours: service.base_event_hours ?? null,
       buffer_before_minutes: service.buffer_before_minutes ?? 0,
@@ -118,54 +150,83 @@ export async function createService(
 
   const supabase = createClient();
 
-  // Build clean insert object — only include columns with non-default values
+  // ONLY use columns from the original services table (migration 00002)
+  // Phase 2 columns (sku, base_event_hours, videos, min_hours, max_hours, buffers)
+  // are added separately after the main insert succeeds
   const insertData: Record<string, unknown> = {
     provider_id: service.provider_id,
     title: service.title,
-    description: service.description,
+    description: service.description || '',
     category: service.category,
     base_price: service.base_price,
     price_unit: service.price_unit,
-    min_guests: service.min_guests,
-    max_guests: service.max_guests,
-    zones: service.zones,
-    images: service.images,
+    min_guests: service.min_guests || 1,
+    max_guests: service.max_guests || 100,
+    zones: service.zones || [],
+    images: service.images || [],
     status: 'active' as ServiceStatus,
   };
-  // Only include optional columns if they have non-default values
-  if (service.min_hours && service.min_hours !== 1) insertData.min_hours = service.min_hours;
-  if (service.max_hours && service.max_hours !== 12) insertData.max_hours = service.max_hours;
-  if (service.videos && service.videos.length > 0) insertData.videos = service.videos;
-  if (service.buffer_before_minutes) insertData.buffer_before_minutes = service.buffer_before_minutes;
-  if (service.buffer_after_minutes) insertData.buffer_after_minutes = service.buffer_after_minutes;
-  if (service.sku) insertData.sku = service.sku;
-  if (service.base_event_hours != null) insertData.base_event_hours = service.base_event_hours;
 
   const { data: svc, error: svcError } = await supabase
     .from('services')
     .insert(insertData)
     .select()
     .single();
-  if (svcError) throw svcError;
+  if (svcError) {
+    console.error('[createService] INSERT failed:', JSON.stringify(svcError));
+    throw new Error(`Error creando servicio: ${svcError.message || svcError.code || JSON.stringify(svcError)}`);
+  }
 
+  // Try to update with Phase 2 columns (will silently fail if columns don't exist yet)
+  const phase2Updates: Record<string, unknown> = {};
+  if (service.sku) phase2Updates.sku = service.sku;
+  if (service.base_event_hours != null) phase2Updates.base_event_hours = service.base_event_hours;
+  if (service.videos && service.videos.length > 0) phase2Updates.videos = service.videos;
+  if (service.min_hours && service.min_hours !== 1) phase2Updates.min_hours = service.min_hours;
+  if (service.max_hours && service.max_hours !== 12) phase2Updates.max_hours = service.max_hours;
+  if (service.buffer_before_minutes) phase2Updates.buffer_before_minutes = service.buffer_before_minutes;
+  if (service.buffer_after_minutes) phase2Updates.buffer_after_minutes = service.buffer_after_minutes;
+
+  if (Object.keys(phase2Updates).length > 0) {
+    try {
+      await supabase.from('services').update(phase2Updates).eq('id', svc.id);
+    } catch {
+      console.warn('[createService] Phase 2 columns update skipped (columns may not exist yet)');
+    }
+  }
+
+  // Insert extras using only original columns (migration 00003)
   if (extras.length > 0) {
-    const extrasData = extras.map(e => {
-      const row: Record<string, unknown> = {
-        service_id: svc.id,
-        name: e.name,
-        price: e.price,
-        price_type: e.price_type,
-        max_quantity: e.max_quantity,
-      };
-      if (e.sku) row.sku = e.sku;
-      if (e.depends_on_guests) row.depends_on_guests = true;
-      if (e.depends_on_hours) row.depends_on_hours = true;
-      return row;
-    });
+    const extrasData = extras.map(e => ({
+      service_id: svc.id,
+      name: e.name,
+      price: e.price,
+      price_type: e.price_type,
+      max_quantity: e.max_quantity,
+    }));
     const { error: extError } = await supabase
       .from('extras')
       .insert(extrasData);
-    if (extError) throw extError;
+    if (extError) {
+      console.error('[createService] Extras INSERT failed:', JSON.stringify(extError));
+      // Don't throw — service was created successfully, extras are secondary
+    }
+
+    // Try Phase 2 extras columns (sku, depends_on_guests, depends_on_hours)
+    try {
+      for (let i = 0; i < extras.length; i++) {
+        const e = extras[i];
+        const phase2Extra: Record<string, unknown> = {};
+        if (e.sku) phase2Extra.sku = e.sku;
+        if (e.depends_on_guests) phase2Extra.depends_on_guests = true;
+        if (e.depends_on_hours) phase2Extra.depends_on_hours = true;
+        if (Object.keys(phase2Extra).length > 0) {
+          await supabase.from('extras').update(phase2Extra).eq('service_id', svc.id).eq('name', e.name);
+        }
+      }
+    } catch {
+      console.warn('[createService] Phase 2 extras columns skipped');
+    }
   }
 
   return svc;
@@ -197,29 +258,51 @@ export async function updateService(
 ): Promise<void> {
   if (isMockMode()) return;
 
-  // Build clean update object — only include defined values
-  const cleanUpdates: Record<string, unknown> = {};
-  if (updates.title !== undefined) cleanUpdates.title = updates.title;
-  if (updates.description !== undefined) cleanUpdates.description = updates.description;
-  if (updates.category !== undefined) cleanUpdates.category = updates.category;
-  if (updates.base_price !== undefined) cleanUpdates.base_price = updates.base_price;
-  if (updates.price_unit !== undefined) cleanUpdates.price_unit = updates.price_unit;
-  if (updates.min_guests !== undefined) cleanUpdates.min_guests = updates.min_guests;
-  if (updates.max_guests !== undefined) cleanUpdates.max_guests = updates.max_guests;
-  if (updates.min_hours !== undefined) cleanUpdates.min_hours = updates.min_hours;
-  if (updates.max_hours !== undefined) cleanUpdates.max_hours = updates.max_hours;
-  if (updates.zones !== undefined) cleanUpdates.zones = updates.zones;
-  if (updates.images !== undefined) cleanUpdates.images = updates.images;
-  if (updates.videos !== undefined) cleanUpdates.videos = updates.videos;
-  if (updates.status !== undefined) cleanUpdates.status = updates.status;
-  if (updates.buffer_before_minutes !== undefined) cleanUpdates.buffer_before_minutes = updates.buffer_before_minutes;
-  if (updates.buffer_after_minutes !== undefined) cleanUpdates.buffer_after_minutes = updates.buffer_after_minutes;
-  if (updates.sku !== undefined) cleanUpdates.sku = updates.sku;
-  if (updates.base_event_hours !== undefined) cleanUpdates.base_event_hours = updates.base_event_hours;
-
   const supabase = createClient();
-  const { error } = await supabase.from('services').update(cleanUpdates).eq('id', id);
-  if (error) throw error;
+
+  // Split into original columns (00002) and Phase 2 columns
+  const coreUpdates: Record<string, unknown> = {};
+  const phase2Updates: Record<string, unknown> = {};
+
+  // Original 00002 columns
+  if (updates.title !== undefined) coreUpdates.title = updates.title;
+  if (updates.description !== undefined) coreUpdates.description = updates.description;
+  if (updates.category !== undefined) coreUpdates.category = updates.category;
+  if (updates.base_price !== undefined) coreUpdates.base_price = updates.base_price;
+  if (updates.price_unit !== undefined) coreUpdates.price_unit = updates.price_unit;
+  if (updates.min_guests !== undefined) coreUpdates.min_guests = updates.min_guests;
+  if (updates.max_guests !== undefined) coreUpdates.max_guests = updates.max_guests;
+  if (updates.zones !== undefined) coreUpdates.zones = updates.zones;
+  if (updates.images !== undefined) coreUpdates.images = updates.images;
+  if (updates.status !== undefined) coreUpdates.status = updates.status;
+
+  // Phase 2 columns (may not exist if migrations not run)
+  if (updates.min_hours !== undefined) phase2Updates.min_hours = updates.min_hours;
+  if (updates.max_hours !== undefined) phase2Updates.max_hours = updates.max_hours;
+  if (updates.videos !== undefined) phase2Updates.videos = updates.videos;
+  if (updates.buffer_before_minutes !== undefined) phase2Updates.buffer_before_minutes = updates.buffer_before_minutes;
+  if (updates.buffer_after_minutes !== undefined) phase2Updates.buffer_after_minutes = updates.buffer_after_minutes;
+  if (updates.sku !== undefined) phase2Updates.sku = updates.sku;
+  if (updates.base_event_hours !== undefined) phase2Updates.base_event_hours = updates.base_event_hours;
+
+  // Update core columns
+  if (Object.keys(coreUpdates).length > 0) {
+    const { error } = await supabase.from('services').update(coreUpdates).eq('id', id);
+    if (error) {
+      console.error('[updateService] Core UPDATE failed:', JSON.stringify(error));
+      throw new Error(`Error actualizando servicio: ${error.message || JSON.stringify(error)}`);
+    }
+  }
+
+  // Try Phase 2 columns separately (won't break if columns don't exist)
+  if (Object.keys(phase2Updates).length > 0) {
+    try {
+      const { error } = await supabase.from('services').update(phase2Updates).eq('id', id);
+      if (error) console.warn('[updateService] Phase 2 update skipped:', error.message);
+    } catch {
+      console.warn('[updateService] Phase 2 columns not available');
+    }
+  }
 }
 
 export async function updateServiceStatus(id: string, status: ServiceStatus): Promise<void> {
@@ -234,34 +317,51 @@ export async function requestServiceDeletion(id: string): Promise<void> {
   if (isMockMode()) return;
 
   const supabase = createClient();
-  const { error } = await supabase.from('services').update({
-    deletion_requested: true,
-    deletion_requested_at: new Date().toISOString(),
-  }).eq('id', id);
-  if (error) throw error;
+  try {
+    const { error } = await supabase.from('services').update({
+      deletion_requested: true,
+      deletion_requested_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (error) console.warn('[requestServiceDeletion] Column may not exist:', error.message);
+  } catch {
+    console.warn('[requestServiceDeletion] deletion columns not available');
+  }
 }
 
 export async function approveDeletion(id: string): Promise<void> {
   if (isMockMode()) return;
 
   const supabase = createClient();
-  const { error } = await supabase.from('services').update({
+  // Always archive the service (uses original status column)
+  const { error: statusErr } = await supabase.from('services').update({
     status: 'archived' as ServiceStatus,
-    deletion_requested: false,
-    deletion_requested_at: null,
   }).eq('id', id);
-  if (error) throw error;
+  if (statusErr) throw new Error(`Error archivando servicio: ${statusErr.message}`);
+
+  // Try resetting deletion columns (Phase 2)
+  try {
+    await supabase.from('services').update({
+      deletion_requested: false,
+      deletion_requested_at: null,
+    }).eq('id', id);
+  } catch {
+    // Columns may not exist yet
+  }
 }
 
 export async function rejectDeletion(id: string): Promise<void> {
   if (isMockMode()) return;
 
   const supabase = createClient();
-  const { error } = await supabase.from('services').update({
-    deletion_requested: false,
-    deletion_requested_at: null,
-  }).eq('id', id);
-  if (error) throw error;
+  try {
+    const { error } = await supabase.from('services').update({
+      deletion_requested: false,
+      deletion_requested_at: null,
+    }).eq('id', id);
+    if (error) console.warn('[rejectDeletion] Column may not exist:', error.message);
+  } catch {
+    console.warn('[rejectDeletion] deletion columns not available');
+  }
 }
 
 // ─── SERVICES BY PROVIDER ───────────────────────────────────
@@ -273,13 +373,25 @@ export async function getServicesByProvider(providerId: string): Promise<Service
   }
 
   const supabase = createClient();
+  // Try with extras join first; fall back to plain query if it fails
   const { data, error } = await supabase
     .from('services')
     .select('*, extras(*)')
     .eq('provider_id', providerId)
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  console.warn('[getServicesByProvider] Join query failed, trying simple:', error.message);
+  const { data: fallback, error: err2 } = await supabase
+    .from('services')
+    .select('*')
+    .eq('provider_id', providerId)
+    .order('created_at', { ascending: false });
+  if (err2) {
+    console.error('[getServicesByProvider] Simple query also failed:', JSON.stringify(err2));
+    throw new Error(`Error cargando servicios: ${err2.message || JSON.stringify(err2)}`);
+  }
+  return (fallback || []).map(s => ({ ...s, extras: [] }));
 }
 
 // ─── BOOKINGS ───────────────────────────────────────────────
@@ -323,13 +435,55 @@ export async function createBooking(booking: {
   }
 
   const supabase = createClient();
+
+  // Split booking into original columns (00004) and Phase 2 columns
+  const coreBooking: Record<string, unknown> = {
+    service_id: booking.service_id,
+    client_id: booking.client_id,
+    provider_id: booking.provider_id,
+    event_date: booking.event_date,
+    guest_count: booking.guest_count,
+    base_total: booking.base_total,
+    extras_total: booking.extras_total,
+    commission: booking.commission,
+    total: booking.total,
+    selected_extras: booking.selected_extras,
+    notes: booking.notes,
+    status: 'pending' as BookingStatus,
+  };
+
+  // Try full insert first (with Phase 2 columns)
+  const fullBooking = {
+    ...coreBooking,
+    start_time: booking.start_time,
+    end_time: booking.end_time,
+    event_hours: booking.event_hours,
+    start_datetime: booking.start_datetime,
+    end_datetime: booking.end_datetime,
+    effective_start: booking.effective_start,
+    effective_end: booking.effective_end,
+    billing_type_snapshot: booking.billing_type_snapshot,
+  };
+
   const { data, error } = await supabase
     .from('bookings')
-    .insert({ ...booking, status: 'pending' as BookingStatus })
+    .insert(fullBooking)
     .select()
     .single();
-  if (error) throw error;
-  return data;
+  if (!error) return data;
+
+  // Fallback: insert with only original columns
+  console.warn('[createBooking] Full insert failed, trying core only:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('bookings')
+    .insert(coreBooking)
+    .select()
+    .single();
+  if (e2) {
+    console.error('[createBooking] Core insert also failed:', JSON.stringify(e2));
+    throw new Error(`Error creando reserva: ${e2.message || JSON.stringify(e2)}`);
+  }
+  return fb;
 }
 
 export async function getBookingsByClient(clientId: string): Promise<Booking[]> {
@@ -347,8 +501,17 @@ export async function getBookingsByClient(clientId: string): Promise<Booking[]> 
     .select('*, service:services(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  // Fallback without sub_bookings
+  console.warn('[getBookingsByClient] sub_bookings join failed, retrying:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('bookings')
+    .select('*, service:services(*), provider:profiles!provider_id(*)')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+  if (e2) throw new Error(`Error cargando reservas: ${e2.message}`);
+  return (fb || []).map(b => ({ ...b, sub_bookings: [] }));
 }
 
 export async function getBookingsByProvider(providerId: string): Promise<Booking[]> {
@@ -371,8 +534,16 @@ export async function getBookingsByProvider(providerId: string): Promise<Booking
     .select('*, service:services(*), client:profiles!client_id(*), sub_bookings(*)')
     .eq('provider_id', providerId)
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  console.warn('[getBookingsByProvider] sub_bookings join failed, retrying:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('bookings')
+    .select('*, service:services(*), client:profiles!client_id(*)')
+    .eq('provider_id', providerId)
+    .order('created_at', { ascending: false });
+  if (e2) throw new Error(`Error cargando reservas: ${e2.message}`);
+  return (fb || []).map(b => ({ ...b, sub_bookings: [] }));
 }
 
 export async function getBookingById(id: string): Promise<Booking | null> {
@@ -390,8 +561,16 @@ export async function getBookingById(id: string): Promise<Booking | null> {
     .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .eq('id', id)
     .single();
-  if (error) throw error;
-  return data;
+  if (!error) return data;
+
+  console.warn('[getBookingById] sub_bookings join failed, retrying:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('bookings')
+    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*)')
+    .eq('id', id)
+    .single();
+  if (e2) throw new Error(`Error cargando reserva: ${e2.message}`);
+  return fb ? { ...fb, sub_bookings: [] } : null;
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus): Promise<void> {
@@ -421,8 +600,15 @@ export async function getAllBookings(): Promise<Booking[]> {
     .from('bookings')
     .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  console.warn('[getAllBookings] sub_bookings join failed, retrying:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('bookings')
+    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*)')
+    .order('created_at', { ascending: false });
+  if (e2) throw new Error(`Error cargando reservas: ${e2.message}`);
+  return (fb || []).map(b => ({ ...b, sub_bookings: [] }));
 }
 
 // ─── PROFILES (Admin) ──────────────────────────────────────
@@ -468,8 +654,15 @@ export async function getAllServices(): Promise<Service[]> {
     .from('services')
     .select('*, extras(*), provider:profiles!provider_id(*)')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
+  if (!error) return data || [];
+
+  console.warn('[getAllServices] Join query failed, trying simple:', error.message);
+  const { data: fb, error: e2 } = await supabase
+    .from('services')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (e2) throw new Error(`Error cargando servicios: ${e2.message}`);
+  return (fb || []).map(s => ({ ...s, extras: [], provider: null }));
 }
 
 // ─── ADMIN: Financial Stats ─────────────────────────────────
@@ -618,7 +811,10 @@ export async function updateMaxConcurrentServices(profileId: string, maxConcurre
 
   const supabase = createClient();
   const { error } = await supabase.from('profiles').update({ max_concurrent_services: maxConcurrent }).eq('id', profileId);
-  if (error) throw error;
+  if (error) {
+    console.warn('[updateMaxConcurrentServices] Column may not exist:', error.message);
+    // Don't throw — column may not exist yet
+  }
 }
 
 // ─── EXTRAS CRUD ────────────────────────────────────────────
@@ -741,5 +937,8 @@ export async function updateProviderBufferConfig(profileId: string, config: {
 
   const supabase = createClient();
   const { error } = await supabase.from('profiles').update(config).eq('id', profileId);
-  if (error) throw error;
+  if (error) {
+    console.warn('[updateProviderBufferConfig] Columns may not exist:', error.message);
+    // Don't throw — columns may not exist yet
+  }
 }

@@ -111,9 +111,10 @@ export default function NuevoServicioPage() {
       );
       toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
       router.push('/dashboard/proveedor/servicios');
-    } catch (err) {
-      console.error('Error creating service:', err);
-      toast({ title: 'Error', description: 'No se pudo crear el servicio.', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error('Error creating service:', msg, err);
+      toast({ title: 'Error', description: msg || 'No se pudo crear el servicio.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
