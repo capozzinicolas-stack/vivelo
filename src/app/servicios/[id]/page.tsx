@@ -135,7 +135,7 @@ export default function ServiceDetailPage() {
     setSubmitting(true);
     try {
       const eventDate = format(date, 'yyyy-MM-dd');
-      const buffers = resolveBuffers(service, service.provider);
+      const buffers = resolveBuffers(service, service.provider ?? undefined);
       const effective = calculateEffectiveTimes({
         eventDate,
         startTime,
@@ -212,8 +212,10 @@ export default function ServiceDetailPage() {
 
       toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
       router.push('/dashboard/cliente/reservas');
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo crear la reserva. Intenta de nuevo.', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error('Error creating booking:', msg, err);
+      toast({ title: 'Error', description: msg || 'No se pudo crear la reserva. Intenta de nuevo.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

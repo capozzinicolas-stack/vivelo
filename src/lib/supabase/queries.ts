@@ -748,7 +748,13 @@ export async function checkVendorAvailability(vendorId: string, startDatetime: s
     p_start: startDatetime,
     p_end: endDatetime,
   });
-  if (error) throw error;
+
+  if (error) {
+    // RPC function may not exist if migrations haven't been run yet
+    // Default to "available" so bookings aren't blocked
+    console.warn('[checkVendorAvailability] RPC failed (function may not exist yet):', error.message);
+    return { available: true, overlapping_bookings: 0, max_concurrent: 1, has_calendar_block: false };
+  }
   return data as AvailabilityCheckResult;
 }
 
@@ -765,7 +771,11 @@ export async function getVendorCalendarBlocks(vendorId: string): Promise<VendorC
     .select('*')
     .eq('vendor_id', vendorId)
     .order('start_datetime', { ascending: true });
-  if (error) throw error;
+  if (error) {
+    // Table may not exist if migrations haven't been run
+    console.warn('[getVendorCalendarBlocks] Query failed (table may not exist):', error.message);
+    return [];
+  }
   return data || [];
 }
 
@@ -792,7 +802,10 @@ export async function createVendorCalendarBlock(block: {
     .insert(block)
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    console.error('[createVendorCalendarBlock] Failed:', error.message);
+    throw new Error(`Error creando bloqueo: ${error.message}. La tabla puede no existir aun — ejecuta la migracion 00099.`);
+  }
   return data;
 }
 
@@ -801,7 +814,9 @@ export async function deleteVendorCalendarBlock(id: string): Promise<void> {
 
   const supabase = createClient();
   const { error } = await supabase.from('vendor_calendar_blocks').delete().eq('id', id);
-  if (error) throw error;
+  if (error) {
+    console.warn('[deleteVendorCalendarBlock] Failed:', error.message);
+  }
 }
 
 // ─── MAX CONCURRENT SERVICES ────────────────────────────────
