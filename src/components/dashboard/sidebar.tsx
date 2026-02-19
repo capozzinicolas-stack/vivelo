@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/database';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutDashboard, CalendarCheck, Package, Users, ShieldCheck, Menu, LogOut } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings } from 'lucide-react';
 
 const navByRole: Record<UserRole, { label: string; href: string; icon: React.ElementType }[]> = {
   client: [
@@ -19,11 +20,16 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
     { label: 'Resumen', href: '/dashboard/proveedor', icon: LayoutDashboard },
     { label: 'Mis Servicios', href: '/dashboard/proveedor/servicios', icon: Package },
     { label: 'Reservas', href: '/dashboard/proveedor/reservas', icon: CalendarCheck },
+    { label: 'Calendario', href: '/dashboard/proveedor/calendario', icon: CalendarDays },
+    { label: 'Configuracion', href: '/dashboard/proveedor/configuracion', icon: Settings },
   ],
   admin: [
     { label: 'Resumen', href: '/dashboard/admin', icon: LayoutDashboard },
     { label: 'Usuarios', href: '/dashboard/admin/usuarios', icon: Users },
     { label: 'Servicios', href: '/dashboard/admin/servicios', icon: ShieldCheck },
+    { label: 'Reservas', href: '/dashboard/admin/reservas', icon: CalendarCheck },
+    { label: 'Finanzas', href: '/dashboard/admin/finanzas', icon: DollarSign },
+    { label: 'Configuracion', href: '/dashboard/admin/configuracion', icon: Settings },
   ],
 };
 
@@ -64,7 +70,7 @@ export function Sidebar({ role }: { role: UserRole }) {
       </div>
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-card min-h-screen">
         <div className="flex h-full flex-col">
-          <div className="border-b p-4"><Link href="/" className="text-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Vivelo</Link></div>
+          <div className="border-b p-4"><Link href="/"><Image src="/logo-vivelo.png" alt="Vivelo" width={110} height={33} className="h-8 w-auto" /></Link></div>
           <div className="flex flex-1 flex-col justify-between p-4">
             <div>
               {user && <div className="mb-6 rounded-lg bg-muted p-3"><p className="text-sm font-medium">{user.full_name}</p><p className="text-xs text-muted-foreground">{user.email}</p></div>}

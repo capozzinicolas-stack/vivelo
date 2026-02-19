@@ -13,6 +13,7 @@ export interface Profile {
   company_name: string | null;
   bio: string | null;
   verified: boolean;
+  max_concurrent_services: number;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,15 @@ export interface Service {
   max_guests: number;
   zones: string[];
   images: string[];
+  videos: string[];
+  min_hours: number;
+  max_hours: number;
+  buffer_before_minutes: number;
+  buffer_after_minutes: number;
+  buffer_before_days: number;
+  buffer_after_days: number;
+  deletion_requested: boolean;
+  deletion_requested_at: string | null;
   avg_rating: number;
   review_count: number;
   view_count: number;
@@ -46,7 +56,7 @@ export interface Extra {
   name: string;
   description: string | null;
   price: number;
-  price_type: 'fixed' | 'per_person';
+  price_type: 'fixed' | 'per_person' | 'per_hour';
   max_quantity: number;
   created_at: string;
 }
@@ -63,6 +73,14 @@ export interface Booking {
   commission: number;
   total: number;
   selected_extras: SelectedExtra[];
+  start_time: string;
+  end_time: string;
+  event_hours: number;
+  start_datetime: string | null;
+  end_datetime: string | null;
+  effective_start: string | null;
+  effective_end: string | null;
+  billing_type_snapshot: string | null;
   notes: string | null;
   status: BookingStatus;
   stripe_payment_intent_id: string | null;
@@ -89,6 +107,22 @@ export interface BlockedDate {
   created_at: string;
 }
 
+export interface VendorCalendarBlock {
+  id: string;
+  vendor_id: string;
+  start_datetime: string;
+  end_datetime: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export interface AvailabilityCheckResult {
+  available: boolean;
+  overlapping_bookings: number;
+  max_concurrent: number;
+  has_calendar_block: boolean;
+}
+
 export interface Review {
   id: string;
   service_id: string;
@@ -109,6 +143,7 @@ export interface Database {
       extras: { Row: Extra; Insert: Partial<Extra> & Pick<Extra, 'service_id' | 'name' | 'price'>; Update: Partial<Extra> };
       bookings: { Row: Booking; Insert: Partial<Booking> & Pick<Booking, 'service_id' | 'client_id' | 'provider_id' | 'event_date' | 'guest_count'>; Update: Partial<Booking> };
       blocked_dates: { Row: BlockedDate; Insert: Partial<BlockedDate> & Pick<BlockedDate, 'service_id' | 'blocked_date'>; Update: Partial<BlockedDate> };
+      vendor_calendar_blocks: { Row: VendorCalendarBlock; Insert: Partial<VendorCalendarBlock> & Pick<VendorCalendarBlock, 'vendor_id' | 'start_datetime' | 'end_datetime'>; Update: Partial<VendorCalendarBlock> };
       reviews: { Row: Review; Insert: Partial<Review> & Pick<Review, 'service_id' | 'client_id' | 'rating'>; Update: Partial<Review> };
     };
   };

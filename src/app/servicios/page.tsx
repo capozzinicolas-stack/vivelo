@@ -13,7 +13,8 @@ import type { Service } from '@/types/database';
 function ServiciosContent() {
   const searchParams = useSearchParams();
   const initialCat = searchParams.get('categoria') || '';
-  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: initialCat });
+  const initialZone = searchParams.get('zona') || '';
+  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: initialCat, zone: initialZone });
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +26,7 @@ function ServiciosContent() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Servicios para Eventos</h1>
-        <p className="text-muted-foreground mt-2">Encuentra el servicio perfecto para tu evento en Puerto Rico</p>
+        <p className="text-muted-foreground mt-2">Encuentra el servicio perfecto para tu evento en México</p>
       </div>
 
       {loading ? (

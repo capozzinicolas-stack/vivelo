@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { categories } from '@/data/categories';
-import { ZONES } from '@/lib/constants';
+import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { createService } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
+import { MediaUpload } from '@/components/media-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import type { ServiceCategory } from '@/types/database';
 
-interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person'; max_quantity: string; }
+interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; }
 
 export default function NuevoServicioPage() {
   const router = useRouter();
@@ -27,12 +28,20 @@ export default function NuevoServicioPage() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [basePrice, setBasePrice] = useState('');
-  const [priceUnit, setPriceUnit] = useState('');
+  const [priceUnit, setPriceUnit] = useState('por evento');
   const [minGuests, setMinGuests] = useState('1');
   const [maxGuests, setMaxGuests] = useState('100');
+  const [minHours, setMinHours] = useState('1');
+  const [maxHours, setMaxHours] = useState('12');
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [extras, setExtras] = useState<ExtraInput[]>([]);
+  const [images, setImages] = useState<string[]>([]);
+  const [videos, setVideos] = useState<string[]>([]);
+  const [bufferBeforeMinutes, setBufferBeforeMinutes] = useState('0');
+  const [bufferAfterMinutes, setBufferAfterMinutes] = useState('0');
   const [submitting, setSubmitting] = useState(false);
+
+  const isPerHour = priceUnit === 'por hora';
 
   const toggleZone = (zone: string) => {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
@@ -63,10 +72,16 @@ export default function NuevoServicioPage() {
           description,
           category: category as ServiceCategory,
           base_price: parseFloat(basePrice),
-          price_unit: priceUnit || 'por evento',
+          price_unit: priceUnit,
           min_guests: parseInt(minGuests) || 1,
           max_guests: parseInt(maxGuests) || 100,
+          min_hours: parseFloat(minHours) || 1,
+          max_hours: parseFloat(maxHours) || 12,
           zones: selectedZones,
+          images,
+          videos,
+          buffer_before_minutes: parseInt(bufferBeforeMinutes) || 0,
+          buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
@@ -91,7 +106,7 @@ export default function NuevoServicioPage() {
         <Card>
           <CardHeader><CardTitle>Informacion Basica</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div><Label>Titulo *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Buffet Criollo Premium" className="mt-1" /></div>
+            <div><Label>Titulo *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Buffet Mexicano Premium" className="mt-1" /></div>
             <div><Label>Descripcion</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe tu servicio..." className="mt-1" rows={4} /></div>
             <div><Label>Categoria *</Label>
               <Select value={category} onValueChange={setCategory}>
@@ -101,12 +116,45 @@ export default function NuevoServicioPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Precio Base *</Label><Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="0.00" className="mt-1" /></div>
-              <div><Label>Unidad de Precio</Label><Input value={priceUnit} onChange={(e) => setPriceUnit(e.target.value)} placeholder="por persona, por evento..." className="mt-1" /></div>
+              <div><Label>Unidad de Precio *</Label>
+                <Select value={priceUnit} onValueChange={setPriceUnit}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRICE_UNITS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
               <div><Label>Max. Invitados</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className="mt-1" /></div>
             </div>
+            {isPerHour && (
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Min. Horas</Label><Input type="number" step="0.5" value={minHours} onChange={(e) => setMinHours(e.target.value)} className="mt-1" /></div>
+                <div><Label>Max. Horas</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} className="mt-1" /></div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Fotos y Videos</CardTitle>
+            <p className="text-sm text-muted-foreground">Sube hasta 5 imagenes y 2 videos de tu servicio</p>
+          </CardHeader>
+          <CardContent>
+            {user && (
+              <MediaUpload
+                userId={user.id}
+                images={images}
+                videos={videos}
+                onImagesChange={setImages}
+                onVideosChange={setVideos}
+                maxImages={5}
+                maxVideos={2}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -120,6 +168,17 @@ export default function NuevoServicioPage() {
                   <span className="text-sm">{z}</span>
                 </label>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Tiempos de Preparacion</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">Tiempo adicional antes y despues del evento para montaje y desmontaje.</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Minutos antes</Label><Input type="number" min="0" step="15" value={bufferBeforeMinutes} onChange={(e) => setBufferBeforeMinutes(e.target.value)} className="mt-1" /></div>
+              <div><Label>Minutos despues</Label><Input type="number" min="0" step="15" value={bufferAfterMinutes} onChange={(e) => setBufferAfterMinutes(e.target.value)} className="mt-1" /></div>
             </div>
           </CardContent>
         </Card>
@@ -142,7 +201,11 @@ export default function NuevoServicioPage() {
                   <Input type="number" placeholder="Precio" value={ex.price} onChange={(e) => updateExtra(i, 'price', e.target.value)} />
                   <Select value={ex.price_type} onValueChange={(v) => updateExtra(i, 'price_type', v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="fixed">Fijo</SelectItem><SelectItem value="per_person">Por persona</SelectItem></SelectContent>
+                    <SelectContent>
+                      <SelectItem value="fixed">Fijo</SelectItem>
+                      <SelectItem value="per_person">Por persona</SelectItem>
+                      <SelectItem value="per_hour">Por hora</SelectItem>
+                    </SelectContent>
                   </Select>
                   <Input type="number" placeholder="Max cant." value={ex.max_quantity} onChange={(e) => updateExtra(i, 'max_quantity', e.target.value)} />
                 </div>

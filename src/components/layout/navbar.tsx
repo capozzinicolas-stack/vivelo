@@ -24,6 +24,7 @@ import {
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
+import Image from 'next/image';
 import { Menu, LogOut, LayoutDashboard } from 'lucide-react';
 
 const navLinks = [{ href: '/servicios', label: 'Servicios' }];
@@ -46,8 +47,8 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-          Vivelo
+        <Link href="/" className="flex items-center">
+          <Image src="/logo-vivelo.png" alt="Vivelo" width={120} height={36} className="h-9 w-auto" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
@@ -109,7 +110,7 @@ export function Navbar() {
             <Button variant="ghost" size="sm" className="px-2"><Menu className="h-5 w-5" /></Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-[300px]">
-            <SheetHeader><SheetTitle className="text-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Vivelo</SheetTitle></SheetHeader>
+            <SheetHeader><SheetTitle><Image src="/logo-vivelo.png" alt="Vivelo" width={100} height={30} className="h-7 w-auto" /></SheetTitle></SheetHeader>
             <nav className="flex flex-col gap-4 mt-8">
               {navLinks.map((link) => (
                 <SheetClose asChild key={link.href}>

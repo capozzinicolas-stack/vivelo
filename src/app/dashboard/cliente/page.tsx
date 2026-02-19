@@ -30,7 +30,7 @@ export default function ClienteDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard title="Total Reservas" value={stats?.totalBookings || 0} icon={CalendarCheck} />
         <StatsCard title="Gasto Total" value={`$${(stats?.totalSpent || 0).toLocaleString()}`} icon={DollarSign} />
-        <StatsCard title="Proximo Evento" value={stats?.nextEvent ? new Date(stats.nextEvent.event_date).toLocaleDateString('es-PR') : 'N/A'} icon={Clock} />
+        <StatsCard title="Proximo Evento" value={stats?.nextEvent ? new Date(stats.nextEvent.event_date).toLocaleDateString('es-MX') : 'N/A'} icon={Clock} />
       </div>
 
       <Card>
@@ -47,7 +47,7 @@ export default function ClienteDashboard() {
                 <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
                   <div>
                     <p className="font-medium">{b.service?.title || 'Servicio'}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-PR')}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-MX')}</p>
                   </div>
                   <div className="text-right">
                     <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>

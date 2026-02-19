@@ -96,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         company_name: null,
         bio: null,
         verified: false,
+        max_concurrent_services: 1,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

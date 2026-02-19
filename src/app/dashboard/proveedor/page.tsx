@@ -48,7 +48,7 @@ export default function ProveedorDashboard() {
                 <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
                   <div>
                     <p className="font-medium">{b.service?.title || 'Servicio'}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-PR')} - {b.guest_count} invitados</p>
+                    <p className="text-sm text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-MX')} - {b.guest_count} invitados</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>

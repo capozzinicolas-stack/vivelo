@@ -48,7 +48,7 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Pr
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{extra.name}</span>
-                    <Badge variant="outline" className="text-xs">{extra.price_type === 'fixed' ? 'Precio fijo' : 'Por persona'}</Badge>
+                    <Badge variant="outline" className="text-xs">{extra.price_type === 'fixed' ? 'Precio fijo' : extra.price_type === 'per_hour' ? 'Por hora' : 'Por persona'}</Badge>
                   </div>
                   <span className="font-semibold">${extra.price.toLocaleString()}</span>
                 </div>

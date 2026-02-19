@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { categories, categoryMap } from '@/data/categories';
 import { mockServices } from '@/data/mock-services';
+import { HomeSearchBar } from '@/components/home-search-bar';
+import Image from 'next/image';
 import { Search, Calendar, PartyPopper, Star, MapPin, ArrowRight } from 'lucide-react';
 
 const featured = mockServices.slice(0, 4);
@@ -13,7 +15,7 @@ const featured = mockServices.slice(0, 4);
 const steps = [
   { icon: Search, title: 'Busca servicios', desc: 'Explora cientos de proveedores verificados por categoria, zona y presupuesto.' },
   { icon: Calendar, title: 'Reserva al instante', desc: 'Selecciona fecha, extras y confirma tu reserva con pago seguro.' },
-  { icon: PartyPopper, title: 'Celebra tu evento', desc: 'Disfruta de un evento increible con los mejores proveedores de PR.' },
+  { icon: PartyPopper, title: 'Celebra tu evento', desc: 'Disfruta de un evento increible con los mejores proveedores de México.' },
 ];
 
 const placeholderColors: Record<string, string> = {
@@ -24,13 +26,23 @@ const placeholderColors: Record<string, string> = {
 export default function Home() {
   return (
     <div>
-      <section className="bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
-        <div className="container mx-auto px-4 py-24 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Encuentra los mejores servicios para tu evento</h1>
-          <p className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto">La plataforma #1 en Puerto Rico para conectar con proveedores de eventos. Catering, audio, decoracion, fotografia y mucho mas.</p>
+      <section className="relative text-white overflow-hidden">
+        <Image
+          src="/hero-bg.jpg"
+          alt="Personas celebrando en un evento"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="relative container mx-auto px-4 pt-24 pb-16 text-center">
+          <h1 className="text-4xl md:text-6xl font-bold mb-2">Hazlo unico, hazlo facil.</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">Solo <span className="italic">Vivelo</span></h1>
+          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">Los mejores proveedores para tus eventos</p>
           <Button size="lg" variant="secondary" asChild>
             <Link href="/servicios" className="gap-2">Explorar Servicios <ArrowRight className="h-5 w-5" /></Link>
           </Button>
+          <HomeSearchBar />
         </div>
       </section>
 
@@ -110,7 +122,7 @@ export default function Home() {
       <section className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Eres proveedor de servicios?</h2>
-          <p className="text-white/80 mb-8 max-w-xl mx-auto">Unete a Vivelo y conecta con miles de clientes buscando servicios para sus eventos en Puerto Rico.</p>
+          <p className="text-white/80 mb-8 max-w-xl mx-auto">Unete a Vivelo y conecta con miles de clientes buscando servicios para sus eventos en México.</p>
           <Button size="lg" variant="secondary" asChild><Link href="/register">Registrate como Proveedor</Link></Button>
         </div>
       </section>

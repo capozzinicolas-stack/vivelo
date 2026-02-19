@@ -68,7 +68,7 @@ export default function ProveedorReservasPage() {
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.service?.title || 'Servicio'}</TableCell>
                     <TableCell>{b.client?.full_name || 'Cliente'}</TableCell>
-                    <TableCell>{new Date(b.event_date).toLocaleDateString('es-PR')}</TableCell>
+                    <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell>{b.guest_count}</TableCell>
                     <TableCell className="font-medium">${b.total.toLocaleString()}</TableCell>
                     <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>

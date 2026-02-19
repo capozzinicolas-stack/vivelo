@@ -14,13 +14,19 @@ export function ServiceCard({ service }: { service: Service }) {
   const cat = categoryMap[service.category];
   const visibleZones = service.zones.slice(0, 2);
   const remaining = service.zones.length - 2;
+  const coverImage = service.images?.[0];
 
   return (
     <Link href={`/servicios/${service.id}`}>
       <Card className="group overflow-hidden transition-shadow hover:shadow-lg cursor-pointer h-full">
-        <div className={`${placeholderColors[service.category] || 'bg-gray-200'} h-48 w-full flex items-center justify-center`}>
-          {cat && <cat.icon className="h-12 w-12 text-muted-foreground/50" />}
-        </div>
+        {coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={coverImage} alt={service.title} className="h-48 w-full object-cover" />
+        ) : (
+          <div className={`${placeholderColors[service.category] || 'bg-gray-200'} h-48 w-full flex items-center justify-center`}>
+            {cat && <cat.icon className="h-12 w-12 text-muted-foreground/50" />}
+          </div>
+        )}
         <CardContent className="p-4 space-y-3">
           {cat && <Badge className={cat.color} variant="secondary">{cat.label}</Badge>}
           <h3 className="font-semibold text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">{service.title}</h3>

@@ -8,7 +8,7 @@ export function BookingSummary({ booking }: { booking: Booking }) {
     <div className="space-y-4">
       <h3 className="font-semibold text-lg">{booking.service?.title || 'Servicio'}</h3>
       <div className="space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-muted-foreground">Fecha</span><span>{new Date(booking.event_date).toLocaleDateString('es-PR')}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">Fecha</span><span>{new Date(booking.event_date).toLocaleDateString('es-MX')}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Invitados</span><span>{booking.guest_count}</span></div>
       </div>
       <Separator />

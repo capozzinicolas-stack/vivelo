@@ -1,17 +1,30 @@
 export const COMMISSION_RATE = 0.12;
 
 export const ZONES = [
-  'San Juan',
-  'Bayamon',
-  'Carolina',
-  'Ponce',
-  'Caguas',
-  'Mayaguez',
-  'Arecibo',
-  'Guaynabo',
-  'Toa Baja',
-  'Trujillo Alto',
+  'Ciudad de México',
+  'Estado de México',
+  'Puebla',
+  'Toluca',
+  'Cuernavaca',
+  'Querétaro',
+  'Pachuca',
 ] as const;
+
+export const PRICE_UNITS = [
+  { value: 'por evento', label: 'Precio fijo (por evento)' },
+  { value: 'por persona', label: 'Por persona' },
+  { value: 'por hora', label: 'Por hora' },
+] as const;
+
+export const TIME_SLOTS = Array.from({ length: 33 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 6; // 6:00 AM to 22:00
+  const min = i % 2 === 0 ? '00' : '30';
+  const h24 = `${hour.toString().padStart(2, '0')}:${min}`;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+  const label = `${h12}:${min} ${ampm}`;
+  return { value: h24, label };
+}) as readonly { value: string; label: string }[];
 
 export const CANCELLATION_POLICY = {
   FULL_REFUND_DAYS: 15,

@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, createBooking } from '@/lib/supabase/queries';
+import { getServiceById, createBooking, checkVendorAvailability } from '@/lib/supabase/queries';
+import { calculateEffectiveTimes } from '@/lib/availability';
 import { categoryMap } from '@/data/categories';
-import { COMMISSION_RATE } from '@/lib/constants';
+import { COMMISSION_RATE, TIME_SLOTS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { ExtrasSelector, type SelectedExtraItem } from '@/components/services/extras-selector';
+import { MediaGallery } from '@/components/services/media-gallery';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,12 +18,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Loader2 } from 'lucide-react';
+import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Service } from '@/types/database';
+
+function calcHours(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return Math.max(diff / 60, 0.5);
+}
 
 export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +43,8 @@ export default function ServiceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [date, setDate] = useState<Date>();
+  const [startTime, setStartTime] = useState('10:00');
+  const [endTime, setEndTime] = useState('14:00');
   const [guests, setGuests] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
@@ -59,15 +71,24 @@ export default function ServiceDetailPage() {
 
   const cat = categoryMap[service.category];
   const extras = service.extras || [];
+  const eventHours = calcHours(startTime, endTime);
+  const isPerPerson = service.price_unit === 'por persona';
+  const isPerHour = service.price_unit === 'por hora';
 
-  const isPerPerson = service.price_unit.includes('persona');
-  const baseTotal = isPerPerson ? service.base_price * guests : service.base_price;
+  // Base calculation
+  let baseTotal = service.base_price;
+  if (isPerPerson) baseTotal = service.base_price * guests;
+  if (isPerHour) baseTotal = service.base_price * eventHours;
+
   const extrasTotal = selectedExtras.reduce((sum, sel) => {
     const extra = extras.find((e) => e.id === sel.extra_id);
     if (!extra) return sum;
-    const price = extra.price_type === 'per_person' ? extra.price * guests * sel.quantity : extra.price * sel.quantity;
+    let price = extra.price * sel.quantity;
+    if (extra.price_type === 'per_person') price = extra.price * guests * sel.quantity;
+    if (extra.price_type === 'per_hour') price = extra.price * eventHours * sel.quantity;
     return sum + price;
   }, 0);
+
   const subtotal = baseTotal + extrasTotal;
   const commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100;
   const total = subtotal + commission;
@@ -75,14 +96,44 @@ export default function ServiceDetailPage() {
   const handleSubmit = async () => {
     if (!user) return;
     if (!date) { toast({ title: 'Selecciona una fecha', variant: 'destructive' }); return; }
+    if (endTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
+    if (isPerHour && eventHours < (service.min_hours || 1)) { toast({ title: `Minimo ${service.min_hours} horas para este servicio`, variant: 'destructive' }); return; }
+    if (isPerHour && eventHours > (service.max_hours || 12)) { toast({ title: `Maximo ${service.max_hours} horas para este servicio`, variant: 'destructive' }); return; }
 
     setSubmitting(true);
     try {
+      const eventDate = format(date, 'yyyy-MM-dd');
+      const effective = calculateEffectiveTimes({
+        eventDate,
+        startTime,
+        endTime,
+        bufferBeforeMinutes: service.buffer_before_minutes || 0,
+        bufferAfterMinutes: service.buffer_after_minutes || 0,
+      });
+
+      const availability = await checkVendorAvailability(
+        service.provider_id,
+        effective.effective_start,
+        effective.effective_end,
+      );
+
+      if (!availability.available) {
+        const reason = availability.has_calendar_block
+          ? 'El proveedor tiene un bloqueo en ese horario.'
+          : `El proveedor ya tiene ${availability.overlapping_bookings} reserva(s) en ese horario (maximo: ${availability.max_concurrent}).`;
+        toast({ title: 'Horario no disponible', description: reason, variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
+
       await createBooking({
         service_id: service.id,
         client_id: user.id,
         provider_id: service.provider_id,
-        event_date: format(date, 'yyyy-MM-dd'),
+        event_date: eventDate,
+        start_time: startTime,
+        end_time: endTime,
+        event_hours: eventHours,
         guest_count: guests,
         base_total: baseTotal,
         extras_total: extrasTotal,
@@ -93,6 +144,11 @@ export default function ServiceDetailPage() {
           return { extra_id: sel.extra_id, name: extra.name, quantity: sel.quantity, price: extra.price * sel.quantity };
         }),
         notes: notes || null,
+        start_datetime: effective.start_datetime,
+        end_datetime: effective.end_datetime,
+        effective_start: effective.effective_start,
+        effective_end: effective.effective_end,
+        billing_type_snapshot: service.price_unit,
       });
 
       toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
@@ -104,15 +160,21 @@ export default function ServiceDetailPage() {
     }
   };
 
+  const pricingLabel = isPerPerson ? 'por persona' : isPerHour ? 'por hora' : 'precio fijo';
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Button variant="ghost" asChild className="mb-6"><Link href="/servicios"><ArrowLeft className="h-4 w-4 mr-2" />Volver</Link></Button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className={`${cat?.color.split(' ')[0] || 'bg-gray-200'} h-64 md:h-96 rounded-xl flex items-center justify-center`}>
-            {cat && <cat.icon className="h-20 w-20 text-muted-foreground/30" />}
-          </div>
+          {(service.images?.length > 0 || service.videos?.length > 0) ? (
+            <MediaGallery images={service.images || []} videos={service.videos || []} title={service.title} />
+          ) : (
+            <div className={`${cat?.color.split(' ')[0] || 'bg-gray-200'} h-64 md:h-96 rounded-xl flex items-center justify-center`}>
+              {cat && <cat.icon className="h-20 w-20 text-muted-foreground/30" />}
+            </div>
+          )}
 
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -139,7 +201,7 @@ export default function ServiceDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-baseline gap-2">
                 <span className="text-2xl">${service.base_price.toLocaleString()}</span>
-                <span className="text-sm font-normal text-muted-foreground">{service.price_unit}</span>
+                <span className="text-sm font-normal text-muted-foreground">{pricingLabel}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -151,7 +213,7 @@ export default function ServiceDetailPage() {
               ) : (
                 <>
                   <div>
-                    <Label>Fecha del evento</Label>
+                    <Label>Fecha del evento *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-start mt-1">
@@ -163,12 +225,34 @@ export default function ServiceDetailPage() {
                     </Popover>
                   </div>
 
-                  <div>
-                    <Label>Cantidad ({service.price_unit.includes('persona') ? 'invitados' : 'unidades'})</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <Input type="number" min={service.min_guests} max={service.max_guests} value={guests} onChange={(e) => setGuests(Number(e.target.value))} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Inicio *</Label>
+                      <Select value={startTime} onValueChange={setStartTime}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIME_SLOTS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
+                    <div>
+                      <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Fin *</Label>
+                      <Select value={endTime} onValueChange={setEndTime}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {TIME_SLOTS.filter(t => t.value > startTime).map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    Duracion: {eventHours} hora{eventHours !== 1 ? 's' : ''}
+                    {isPerHour && ` · Min: ${service.min_hours || 1}h | Max: ${service.max_hours || 12}h`}
+                  </p>
+
+                  <div>
+                    <Label className="flex items-center gap-1"><Users className="h-3 w-3" /> Invitados *</Label>
+                    <Input type="number" min={service.min_guests} max={service.max_guests} value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="mt-1" />
                     <p className="text-xs text-muted-foreground mt-1">Min: {service.min_guests} | Max: {service.max_guests}</p>
                   </div>
 
@@ -180,9 +264,15 @@ export default function ServiceDetailPage() {
                   <Separator />
 
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span>Base</span><span>${baseTotal.toLocaleString()}</span></div>
+                    <div className="flex justify-between">
+                      <span>
+                        {isPerPerson && `$${service.base_price.toLocaleString()} x ${guests} personas`}
+                        {isPerHour && `$${service.base_price.toLocaleString()} x ${eventHours}h`}
+                        {!isPerPerson && !isPerHour && 'Servicio'}
+                      </span>
+                      <span>${baseTotal.toLocaleString()}</span>
+                    </div>
                     {extrasTotal > 0 && <div className="flex justify-between"><span>Extras</span><span>${extrasTotal.toLocaleString()}</span></div>}
-                    <div className="flex justify-between text-muted-foreground"><span>Comision ({(COMMISSION_RATE * 100).toFixed(0)}%)</span><span>${commission.toLocaleString()}</span></div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${total.toLocaleString()}</span></div>
                   </div>

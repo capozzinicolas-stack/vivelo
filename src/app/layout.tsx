@@ -18,8 +18,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Vivelo - Servicios para Eventos en Puerto Rico",
-  description: "Encuentra y reserva los mejores servicios para tu evento en Puerto Rico. Catering, audio, decoracion, fotografia y mas.",
+  title: "Vivelo - Servicios para Eventos en México",
+  description: "Encuentra y reserva los mejores servicios para tu evento en México. Catering, audio, decoracion, fotografia y mas.",
 };
 
 export default function RootLayout({
