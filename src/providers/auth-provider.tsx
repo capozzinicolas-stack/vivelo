@@ -97,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bio: null,
         verified: false,
         max_concurrent_services: 1,
+        apply_buffers_to_all: false,
+        global_buffer_before_minutes: 0,
+        global_buffer_after_minutes: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

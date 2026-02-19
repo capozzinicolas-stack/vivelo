@@ -14,6 +14,9 @@ export interface Profile {
   bio: string | null;
   verified: boolean;
   max_concurrent_services: number;
+  apply_buffers_to_all: boolean;
+  global_buffer_before_minutes: number;
+  global_buffer_after_minutes: number;
   created_at: string;
   updated_at: string;
 }
@@ -25,8 +28,10 @@ export interface Service {
   description: string;
   category: ServiceCategory;
   status: ServiceStatus;
+  sku: string | null;
   base_price: number;
   price_unit: string;
+  base_event_hours: number | null;
   min_guests: number;
   max_guests: number;
   zones: string[];
@@ -58,6 +63,22 @@ export interface Extra {
   price: number;
   price_type: 'fixed' | 'per_person' | 'per_hour';
   max_quantity: number;
+  sku: string | null;
+  depends_on_guests: boolean;
+  depends_on_hours: boolean;
+  created_at: string;
+}
+
+export interface SubBooking {
+  id: string;
+  booking_id: string;
+  extra_id: string | null;
+  sku: string | null;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  price_type: string;
+  subtotal: number;
   created_at: string;
 }
 
@@ -90,6 +111,7 @@ export interface Booking {
   service?: Service;
   client?: Profile;
   provider?: Profile;
+  sub_bookings?: SubBooking[];
 }
 
 export interface SelectedExtra {
@@ -145,6 +167,7 @@ export interface Database {
       blocked_dates: { Row: BlockedDate; Insert: Partial<BlockedDate> & Pick<BlockedDate, 'service_id' | 'blocked_date'>; Update: Partial<BlockedDate> };
       vendor_calendar_blocks: { Row: VendorCalendarBlock; Insert: Partial<VendorCalendarBlock> & Pick<VendorCalendarBlock, 'vendor_id' | 'start_datetime' | 'end_datetime'>; Update: Partial<VendorCalendarBlock> };
       reviews: { Row: Review; Insert: Partial<Review> & Pick<Review, 'service_id' | 'client_id' | 'rating'>; Update: Partial<Review> };
+      sub_bookings: { Row: SubBooking; Insert: Partial<SubBooking> & Pick<SubBooking, 'booking_id' | 'name'>; Update: Partial<SubBooking> };
     };
   };
 }

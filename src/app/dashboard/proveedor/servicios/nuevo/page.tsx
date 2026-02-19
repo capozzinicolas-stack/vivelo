@@ -6,6 +6,7 @@ import { categories } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { createService } from '@/lib/supabase/queries';
+import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import type { ServiceCategory } from '@/types/database';
 
-interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; }
+interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; sku: string; depends_on_guests: boolean; depends_on_hours: boolean; }
 
 export default function NuevoServicioPage() {
   const router = useRouter();
@@ -39,17 +40,32 @@ export default function NuevoServicioPage() {
   const [videos, setVideos] = useState<string[]>([]);
   const [bufferBeforeMinutes, setBufferBeforeMinutes] = useState('0');
   const [bufferAfterMinutes, setBufferAfterMinutes] = useState('0');
+  const [sku, setSku] = useState('');
+  const [baseEventHours, setBaseEventHours] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const isPerHour = priceUnit === 'por hora';
+  const isPerPersona = priceUnit === 'por persona';
+  const isPerEvento = priceUnit === 'por evento';
+  const showHoursConfig = isPerHour || isPerPersona;
 
   const toggleZone = (zone: string) => {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
   };
 
-  const addExtra = () => setExtras([...extras, { name: '', price: '', price_type: 'fixed', max_quantity: '1' }]);
+  const handleCategoryChange = (val: string) => {
+    setCategory(val);
+    const newSku = generateServiceSku(val);
+    setSku(newSku);
+    setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) })));
+  };
+
+  const addExtra = () => {
+    const newSku = sku ? generateExtraSku(sku, extras.length) : '';
+    setExtras([...extras, { name: '', price: '', price_type: 'fixed', max_quantity: '1', sku: newSku, depends_on_guests: false, depends_on_hours: false }]);
+  };
   const removeExtra = (i: number) => setExtras(extras.filter((_, idx) => idx !== i));
-  const updateExtra = (i: number, field: keyof ExtraInput, value: string) => {
+  const updateExtra = (i: number, field: keyof ExtraInput, value: string | boolean) => {
     const updated = [...extras];
     updated[i] = { ...updated[i], [field]: value };
     setExtras(updated);
@@ -82,12 +98,17 @@ export default function NuevoServicioPage() {
           videos,
           buffer_before_minutes: parseInt(bufferBeforeMinutes) || 0,
           buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
+          sku: sku || undefined,
+          base_event_hours: isPerEvento && baseEventHours ? parseFloat(baseEventHours) : null,
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
           price: parseFloat(e.price),
           price_type: e.price_type,
           max_quantity: parseInt(e.max_quantity) || 1,
+          sku: e.sku || undefined,
+          depends_on_guests: e.depends_on_guests,
+          depends_on_hours: e.depends_on_hours,
         }))
       );
       toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
@@ -109,11 +130,20 @@ export default function NuevoServicioPage() {
             <div><Label>Titulo *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ej: Buffet Mexicano Premium" className="mt-1" /></div>
             <div><Label>Descripcion</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe tu servicio..." className="mt-1" rows={4} /></div>
             <div><Label>Categoria *</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar categoria" /></SelectTrigger>
                 <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {sku && (
+              <div>
+                <Label>SKU</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input value={sku} readOnly className="bg-muted font-mono" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => { const newSku = generateServiceSku(category); setSku(newSku); setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) }))); }}>Regenerar</Button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Precio Base *</Label><Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="0.00" className="mt-1" /></div>
               <div><Label>Unidad de Precio *</Label>
@@ -129,10 +159,17 @@ export default function NuevoServicioPage() {
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
               <div><Label>Max. Invitados</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className="mt-1" /></div>
             </div>
-            {isPerHour && (
+            {showHoursConfig && (
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Min. Horas</Label><Input type="number" step="0.5" value={minHours} onChange={(e) => setMinHours(e.target.value)} className="mt-1" /></div>
                 <div><Label>Max. Horas</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} className="mt-1" /></div>
+              </div>
+            )}
+            {isPerEvento && (
+              <div>
+                <Label>Duracion base del evento (horas)</Label>
+                <Input type="number" step="0.5" min="0.5" value={baseEventHours} onChange={(e) => setBaseEventHours(e.target.value)} placeholder="Ej: 5" className="mt-1 max-w-[200px]" />
+                <p className="text-xs text-muted-foreground mt-1">Si se define, el horario de fin se calcula automaticamente al reservar.</p>
               </div>
             )}
           </CardContent>
@@ -193,7 +230,7 @@ export default function NuevoServicioPage() {
             {extras.map((ex, i) => (
               <div key={i} className="space-y-3 p-3 border rounded-lg">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Extra #{i + 1}</span>
+                  <span className="text-sm font-medium">Extra #{i + 1}{ex.sku && <span className="text-xs text-muted-foreground ml-2 font-mono">{ex.sku}</span>}</span>
                   <Button type="button" variant="ghost" size="sm" onClick={() => removeExtra(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
                 <Input placeholder="Nombre" value={ex.name} onChange={(e) => updateExtra(i, 'name', e.target.value)} />
@@ -208,6 +245,16 @@ export default function NuevoServicioPage() {
                     </SelectContent>
                   </Select>
                   <Input type="number" placeholder="Max cant." value={ex.max_quantity} onChange={(e) => updateExtra(i, 'max_quantity', e.target.value)} />
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox checked={ex.depends_on_guests} onCheckedChange={(v) => updateExtra(i, 'depends_on_guests', !!v)} />
+                    <span className="text-sm">Min. cantidad = invitados</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox checked={ex.depends_on_hours} onCheckedChange={(v) => updateExtra(i, 'depends_on_hours', !!v)} />
+                    <span className="text-sm">Min. cantidad = horas</span>
+                  </label>
                 </div>
               </div>
             ))}

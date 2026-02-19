@@ -50,3 +50,18 @@ export const BOOKING_STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800',
   rejected: 'bg-red-100 text-red-800',
 };
+
+export const EXTRA_PRICE_TYPES = [
+  { value: 'fixed', label: 'Precio fijo' },
+  { value: 'per_person', label: 'Por persona' },
+  { value: 'per_hour', label: 'Por hora' },
+] as const;
+
+export const SKU_PREFIXES: Record<string, string> = {
+  FOOD_DRINKS: 'FD',
+  AUDIO: 'AU',
+  DECORATION: 'DE',
+  PHOTO_VIDEO: 'PV',
+  STAFF: 'ST',
+  FURNITURE: 'FU',
+};

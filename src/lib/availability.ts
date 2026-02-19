@@ -33,3 +33,35 @@ export function calculateEffectiveTimes({
     effective_end: effectiveEnd.toISOString(),
   };
 }
+
+import type { Service, Profile } from '@/types/database';
+
+export function resolveBuffers(
+  service: Service,
+  provider?: Profile
+): { bufferBeforeMinutes: number; bufferAfterMinutes: number } {
+  if (provider?.apply_buffers_to_all) {
+    return {
+      bufferBeforeMinutes: provider.global_buffer_before_minutes || 0,
+      bufferAfterMinutes: provider.global_buffer_after_minutes || 0,
+    };
+  }
+  return {
+    bufferBeforeMinutes: service.buffer_before_minutes || 0,
+    bufferAfterMinutes: service.buffer_after_minutes || 0,
+  };
+}
+
+export function resolveEventHours(
+  service: Service,
+  startTime: string,
+  endTime: string
+): number {
+  if (service.price_unit === 'por evento' && service.base_event_hours) {
+    return service.base_event_hours;
+  }
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const diff = (eh * 60 + em) - (sh * 60 + sm);
+  return Math.max(diff / 60, 0.5);
+}

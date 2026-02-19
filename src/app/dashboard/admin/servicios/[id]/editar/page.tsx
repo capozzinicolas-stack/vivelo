@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { categories } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
-import { getServiceById, updateService, updateServiceStatus } from '@/lib/supabase/queries';
+import { getServiceById, updateService, updateServiceStatus, createExtra, updateExtra as updateExtraQuery, deleteExtra } from '@/lib/supabase/queries';
+import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
 import { Button } from '@/components/ui/button';
@@ -16,8 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import type { ServiceCategory, ServiceStatus } from '@/types/database';
+import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
+import type { ServiceCategory, ServiceStatus, Extra } from '@/types/database';
 
 const statusOptions: { value: ServiceStatus; label: string }[] = [
   { value: 'active', label: 'Activo' },
@@ -50,8 +51,20 @@ export default function AdminEditarServicioPage() {
   const [bufferBeforeMinutes, setBufferBeforeMinutes] = useState('0');
   const [bufferAfterMinutes, setBufferAfterMinutes] = useState('0');
   const [status, setStatus] = useState<ServiceStatus>('active');
+  const [sku, setSku] = useState('');
+  const [baseEventHours, setBaseEventHours] = useState('');
+  const [serviceExtras, setServiceExtras] = useState<Extra[]>([]);
+  const [newExtraName, setNewExtraName] = useState('');
+  const [newExtraPrice, setNewExtraPrice] = useState('');
+  const [newExtraPriceType, setNewExtraPriceType] = useState<'fixed' | 'per_person' | 'per_hour'>('fixed');
+  const [newExtraMaxQty, setNewExtraMaxQty] = useState('1');
+  const [newExtraDependsGuests, setNewExtraDependsGuests] = useState(false);
+  const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
 
   const isPerHour = priceUnit === 'por hora';
+  const isPerPersona = priceUnit === 'por persona';
+  const isPerEvento = priceUnit === 'por evento';
+  const showHoursConfig = isPerHour || isPerPersona;
 
   useEffect(() => {
     getServiceById(id).then(s => {
@@ -73,6 +86,9 @@ export default function AdminEditarServicioPage() {
       setBufferBeforeMinutes((s.buffer_before_minutes || 0).toString());
       setBufferAfterMinutes((s.buffer_after_minutes || 0).toString());
       setStatus(s.status);
+      setSku(s.sku || '');
+      setBaseEventHours(s.base_event_hours?.toString() || '');
+      setServiceExtras(s.extras || []);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -104,6 +120,8 @@ export default function AdminEditarServicioPage() {
         videos,
         buffer_before_minutes: parseInt(bufferBeforeMinutes) || 0,
         buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
+        sku: sku || undefined,
+        base_event_hours: isPerEvento && baseEventHours ? parseFloat(baseEventHours) : null,
       });
       await updateServiceStatus(id, status);
       toast({ title: 'Servicio actualizado!' });
@@ -112,6 +130,55 @@ export default function AdminEditarServicioPage() {
       toast({ title: 'Error', description: 'No se pudo actualizar el servicio.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleAddExtra = async () => {
+    if (!newExtraName || !newExtraPrice) {
+      toast({ title: 'Completa nombre y precio del extra', variant: 'destructive' });
+      return;
+    }
+    try {
+      const extraSku = sku ? generateExtraSku(sku, serviceExtras.length) : undefined;
+      const created = await createExtra({
+        service_id: id,
+        name: newExtraName,
+        price: parseFloat(newExtraPrice),
+        price_type: newExtraPriceType,
+        max_quantity: parseInt(newExtraMaxQty) || 1,
+        sku: extraSku,
+        depends_on_guests: newExtraDependsGuests,
+        depends_on_hours: newExtraDependsHours,
+      });
+      setServiceExtras([...serviceExtras, created]);
+      setNewExtraName('');
+      setNewExtraPrice('');
+      setNewExtraPriceType('fixed');
+      setNewExtraMaxQty('1');
+      setNewExtraDependsGuests(false);
+      setNewExtraDependsHours(false);
+      toast({ title: 'Extra agregado!' });
+    } catch {
+      toast({ title: 'Error al agregar extra', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteExtra = async (extraId: string) => {
+    try {
+      await deleteExtra(extraId);
+      setServiceExtras(serviceExtras.filter(e => e.id !== extraId));
+      toast({ title: 'Extra eliminado' });
+    } catch {
+      toast({ title: 'Error al eliminar extra', variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateExtra = async (extra: Extra, field: string, value: string | boolean) => {
+    try {
+      await updateExtraQuery(extra.id, { [field]: value });
+      setServiceExtras(serviceExtras.map(e => e.id === extra.id ? { ...e, [field]: value } : e));
+    } catch {
+      toast({ title: 'Error al actualizar extra', variant: 'destructive' });
     }
   };
 
@@ -165,10 +232,26 @@ export default function AdminEditarServicioPage() {
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
               <div><Label>Max. Invitados</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className="mt-1" /></div>
             </div>
-            {isPerHour && (
+            {showHoursConfig && (
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Min. Horas</Label><Input type="number" step="0.5" value={minHours} onChange={(e) => setMinHours(e.target.value)} className="mt-1" /></div>
                 <div><Label>Max. Horas</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} className="mt-1" /></div>
+              </div>
+            )}
+            {isPerEvento && (
+              <div>
+                <Label>Duracion base del evento (horas)</Label>
+                <Input type="number" step="0.5" min="0.5" value={baseEventHours} onChange={(e) => setBaseEventHours(e.target.value)} placeholder="Ej: 5" className="mt-1 max-w-[200px]" />
+                <p className="text-xs text-muted-foreground mt-1">Si se define, el horario de fin se calcula automaticamente al reservar.</p>
+              </div>
+            )}
+            {sku && (
+              <div>
+                <Label>SKU</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input value={sku} readOnly className="bg-muted font-mono" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSku(generateServiceSku(category))}>Regenerar</Button>
+                </div>
               </div>
             )}
           </CardContent>
@@ -223,6 +306,71 @@ export default function AdminEditarServicioPage() {
           {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Cambios'}
         </Button>
       </form>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Extras del Servicio</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {serviceExtras.length === 0 && <p className="text-sm text-muted-foreground text-center py-2">Sin extras</p>}
+          {serviceExtras.map((extra) => (
+            <div key={extra.id} className="space-y-2 p-3 border rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-medium">{extra.name}</span>
+                  {extra.sku && <span className="text-xs text-muted-foreground ml-2 font-mono">{extra.sku}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">${extra.price}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {extra.price_type === 'fixed' ? 'Fijo' : extra.price_type === 'per_person' ? 'Por persona' : 'Por hora'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">max: {extra.max_quantity}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteExtra(extra.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={extra.depends_on_guests} onCheckedChange={(v) => handleUpdateExtra(extra, 'depends_on_guests', !!v)} />
+                  <span className="text-sm">Min. cantidad = invitados</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={extra.depends_on_hours} onCheckedChange={(v) => handleUpdateExtra(extra, 'depends_on_hours', !!v)} />
+                  <span className="text-sm">Min. cantidad = horas</span>
+                </label>
+              </div>
+            </div>
+          ))}
+
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-sm font-medium">Agregar nuevo extra</p>
+            <Input placeholder="Nombre" value={newExtraName} onChange={(e) => setNewExtraName(e.target.value)} />
+            <div className="grid grid-cols-3 gap-2">
+              <Input type="number" placeholder="Precio" value={newExtraPrice} onChange={(e) => setNewExtraPrice(e.target.value)} />
+              <Select value={newExtraPriceType} onValueChange={(v: 'fixed' | 'per_person' | 'per_hour') => setNewExtraPriceType(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">Fijo</SelectItem>
+                  <SelectItem value="per_person">Por persona</SelectItem>
+                  <SelectItem value="per_hour">Por hora</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input type="number" placeholder="Max cant." value={newExtraMaxQty} onChange={(e) => setNewExtraMaxQty(e.target.value)} />
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={newExtraDependsGuests} onCheckedChange={(v) => setNewExtraDependsGuests(!!v)} />
+                <span className="text-sm">Min. cantidad = invitados</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={newExtraDependsHours} onCheckedChange={(v) => setNewExtraDependsHours(!!v)} />
+                <span className="text-sm">Min. cantidad = horas</span>
+              </label>
+            </div>
+            <Button type="button" variant="outline" onClick={handleAddExtra}><Plus className="h-4 w-4 mr-1" />Agregar Extra</Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

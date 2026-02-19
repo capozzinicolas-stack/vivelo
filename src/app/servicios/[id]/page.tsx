@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, createBooking, checkVendorAvailability } from '@/lib/supabase/queries';
-import { calculateEffectiveTimes } from '@/lib/availability';
+import { getServiceById, createBooking, checkVendorAvailability, createSubBookings } from '@/lib/supabase/queries';
+import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { categoryMap } from '@/data/categories';
 import { COMMISSION_RATE, TIME_SLOTS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
@@ -56,6 +56,23 @@ export default function ServiceDetailPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
+  // Enforce minimum quantities when guests or time changes
+  useEffect(() => {
+    if (!service) return;
+    const allExtras = service.extras || [];
+    const updated = selectedExtras.map(sel => {
+      const extra = allExtras.find(e => e.id === sel.extra_id);
+      if (!extra) return sel;
+      let minQty = 1;
+      if (extra.depends_on_guests) minQty = Math.max(1, guests);
+      if (extra.depends_on_hours) minQty = Math.max(1, Math.ceil(calcHours(startTime, endTime)));
+      if (sel.quantity < minQty) return { ...sel, quantity: minQty };
+      return sel;
+    });
+    const changed = updated.some((u, i) => u.quantity !== selectedExtras[i].quantity);
+    if (changed) setSelectedExtras(updated);
+  }, [guests, startTime, endTime, service]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) {
     return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
   }
@@ -71,9 +88,23 @@ export default function ServiceDetailPage() {
 
   const cat = categoryMap[service.category];
   const extras = service.extras || [];
-  const eventHours = calcHours(startTime, endTime);
   const isPerPerson = service.price_unit === 'por persona';
   const isPerHour = service.price_unit === 'por hora';
+  const isPerEvento = service.price_unit === 'por evento';
+  const hasBaseEventHours = isPerEvento && service.base_event_hours;
+
+  // For "por evento" with base_event_hours, auto-compute endTime from startTime
+  const computedEndTime = hasBaseEventHours
+    ? (() => {
+        const [h, m] = startTime.split(':').map(Number);
+        const totalMin = h * 60 + m + (service.base_event_hours! * 60);
+        const eh = Math.floor(totalMin / 60);
+        const em = Math.round(totalMin % 60);
+        return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+      })()
+    : endTime;
+
+  const eventHours = hasBaseEventHours ? service.base_event_hours! : calcHours(startTime, computedEndTime);
 
   // Base calculation
   let baseTotal = service.base_price;
@@ -96,19 +127,21 @@ export default function ServiceDetailPage() {
   const handleSubmit = async () => {
     if (!user) return;
     if (!date) { toast({ title: 'Selecciona una fecha', variant: 'destructive' }); return; }
-    if (endTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
+    const actualEndTime = hasBaseEventHours ? computedEndTime : endTime;
+    if (actualEndTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
     if (isPerHour && eventHours < (service.min_hours || 1)) { toast({ title: `Minimo ${service.min_hours} horas para este servicio`, variant: 'destructive' }); return; }
     if (isPerHour && eventHours > (service.max_hours || 12)) { toast({ title: `Maximo ${service.max_hours} horas para este servicio`, variant: 'destructive' }); return; }
 
     setSubmitting(true);
     try {
       const eventDate = format(date, 'yyyy-MM-dd');
+      const buffers = resolveBuffers(service, service.provider);
       const effective = calculateEffectiveTimes({
         eventDate,
         startTime,
-        endTime,
-        bufferBeforeMinutes: service.buffer_before_minutes || 0,
-        bufferAfterMinutes: service.buffer_after_minutes || 0,
+        endTime: actualEndTime,
+        bufferBeforeMinutes: buffers.bufferBeforeMinutes,
+        bufferAfterMinutes: buffers.bufferAfterMinutes,
       });
 
       const availability = await checkVendorAvailability(
@@ -126,13 +159,13 @@ export default function ServiceDetailPage() {
         return;
       }
 
-      await createBooking({
+      const booking = await createBooking({
         service_id: service.id,
         client_id: user.id,
         provider_id: service.provider_id,
         event_date: eventDate,
         start_time: startTime,
-        end_time: endTime,
+        end_time: actualEndTime,
         event_hours: eventHours,
         guest_count: guests,
         base_total: baseTotal,
@@ -150,6 +183,26 @@ export default function ServiceDetailPage() {
         effective_end: effective.effective_end,
         billing_type_snapshot: service.price_unit,
       });
+
+      // Create sub-bookings for each selected extra
+      if (selectedExtras.length > 0) {
+        const subItems = selectedExtras.map(sel => {
+          const extra = extras.find(e => e.id === sel.extra_id)!;
+          let subtotal = extra.price * sel.quantity;
+          if (extra.price_type === 'per_person') subtotal = extra.price * guests * sel.quantity;
+          if (extra.price_type === 'per_hour') subtotal = extra.price * eventHours * sel.quantity;
+          return {
+            extra_id: sel.extra_id,
+            sku: extra.sku || undefined,
+            name: extra.name,
+            quantity: sel.quantity,
+            unit_price: extra.price,
+            price_type: extra.price_type,
+            subtotal,
+          };
+        });
+        await createSubBookings(booking.id, subItems);
+      }
 
       toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
       router.push('/dashboard/cliente/reservas');
@@ -191,7 +244,7 @@ export default function ServiceDetailPage() {
           {extras.length > 0 && (
             <>
               <Separator />
-              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} />
+              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} guestCount={guests} eventHours={eventHours} />
             </>
           )}
         </div>
@@ -225,30 +278,47 @@ export default function ServiceDetailPage() {
                     </Popover>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  {hasBaseEventHours ? (
                     <div>
-                      <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Inicio *</Label>
+                      <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Hora de inicio *</Label>
                       <Select value={startTime} onValueChange={setStartTime}>
                         <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {TIME_SLOTS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Este servicio dura {service.base_event_hours} horas (termina a las {computedEndTime})
+                      </p>
                     </div>
-                    <div>
-                      <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Fin *</Label>
-                      <Select value={endTime} onValueChange={setEndTime}>
-                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {TIME_SLOTS.filter(t => t.value > startTime).map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground -mt-2">
-                    Duracion: {eventHours} hora{eventHours !== 1 ? 's' : ''}
-                    {isPerHour && ` · Min: ${service.min_hours || 1}h | Max: ${service.max_hours || 12}h`}
-                  </p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Inicio *</Label>
+                          <Select value={startTime} onValueChange={setStartTime}>
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {TIME_SLOTS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="flex items-center gap-1"><Clock className="h-3 w-3" /> Fin *</Label>
+                          <Select value={endTime} onValueChange={setEndTime}>
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {TIME_SLOTS.filter(t => t.value > startTime).map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground -mt-2">
+                        Duracion: {eventHours} hora{eventHours !== 1 ? 's' : ''}
+                        {(isPerHour || isPerPerson) && ` · Min: ${service.min_hours || 1}h | Max: ${service.max_hours || 12}h`}
+                      </p>
+                    </>
+                  )}
 
                   <div>
                     <Label className="flex items-center gap-1"><Users className="h-3 w-3" /> Invitados *</Label>

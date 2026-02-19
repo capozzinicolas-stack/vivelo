@@ -12,23 +12,33 @@ interface Props {
   extras: Extra[];
   selectedExtras: SelectedExtraItem[];
   onSelectionChange: (sel: SelectedExtraItem[]) => void;
+  guestCount?: number;
+  eventHours?: number;
 }
 
-export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Props) {
+function getMinQuantity(extra: Extra, guestCount: number, eventHours: number): number {
+  if (extra.depends_on_guests) return Math.max(1, guestCount);
+  if (extra.depends_on_hours) return Math.max(1, Math.ceil(eventHours));
+  return 1;
+}
+
+export function ExtrasSelector({ extras, selectedExtras, onSelectionChange, guestCount = 1, eventHours = 1 }: Props) {
   const getSelected = (id: string) => selectedExtras.find((s) => s.extra_id === id);
 
   const toggle = (extra: Extra) => {
     if (getSelected(extra.id)) {
       onSelectionChange(selectedExtras.filter((s) => s.extra_id !== extra.id));
     } else {
-      onSelectionChange([...selectedExtras, { extra_id: extra.id, quantity: 1 }]);
+      const minQty = getMinQuantity(extra, guestCount, eventHours);
+      onSelectionChange([...selectedExtras, { extra_id: extra.id, quantity: minQty }]);
     }
   };
 
   const updateQty = (id: string, delta: number) => {
     const extra = extras.find((e) => e.id === id);
     if (!extra) return;
-    onSelectionChange(selectedExtras.map((s) => s.extra_id !== id ? s : { ...s, quantity: Math.max(1, Math.min(extra.max_quantity, s.quantity + delta)) }));
+    const minQty = getMinQuantity(extra, guestCount, eventHours);
+    onSelectionChange(selectedExtras.map((s) => s.extra_id !== id ? s : { ...s, quantity: Math.max(minQty, Math.min(extra.max_quantity, s.quantity + delta)) }));
   };
 
   if (!extras.length) return null;
@@ -40,15 +50,23 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Pr
         const sel = getSelected(extra.id);
         const checked = !!sel;
         const qty = sel?.quantity ?? 1;
+        const minQty = getMinQuantity(extra, guestCount, eventHours);
+        const hasDependency = extra.depends_on_guests || extra.depends_on_hours;
+
         return (
           <div key={extra.id} className={`rounded-lg border p-4 transition-colors ${checked ? 'border-primary bg-primary/5' : ''}`}>
             <div className="flex items-start gap-3">
               <Checkbox checked={checked} onCheckedChange={() => toggle(extra)} className="mt-0.5" />
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{extra.name}</span>
                     <Badge variant="outline" className="text-xs">{extra.price_type === 'fixed' ? 'Precio fijo' : extra.price_type === 'per_hour' ? 'Por hora' : 'Por persona'}</Badge>
+                    {hasDependency && checked && (
+                      <Badge variant="secondary" className="text-xs">
+                        Min: {minQty} ({extra.depends_on_guests ? 'segun invitados' : 'segun horas'})
+                      </Badge>
+                    )}
                   </div>
                   <span className="font-semibold">${extra.price.toLocaleString()}</span>
                 </div>
@@ -57,7 +75,7 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Pr
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Cantidad:</span>
-                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= 1}><Minus className="h-3 w-3" /></Button>
+                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= minQty}><Minus className="h-3 w-3" /></Button>
                       <span className="w-8 text-center text-sm font-medium">{qty}</span>
                       <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, 1)} disabled={qty >= extra.max_quantity}><Plus className="h-3 w-3" /></Button>
                       <span className="text-xs text-muted-foreground">(max {extra.max_quantity})</span>

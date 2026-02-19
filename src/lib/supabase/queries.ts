@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import type { Service, Booking, Profile, ServiceCategory, ServiceStatus, BookingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceStatus, BookingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -79,13 +79,17 @@ export async function createService(
     buffer_after_minutes?: number;
     buffer_before_days?: number;
     buffer_after_days?: number;
+    sku?: string;
+    base_event_hours?: number | null;
   },
-  extras: { name: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number }[]
+  extras: { name: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number; sku?: string; depends_on_guests?: boolean; depends_on_hours?: boolean }[]
 ): Promise<Service> {
   if (isMockMode()) {
     const newService: Service = {
       id: crypto.randomUUID(),
       ...service,
+      sku: service.sku ?? null,
+      base_event_hours: service.base_event_hours ?? null,
       buffer_before_minutes: service.buffer_before_minutes ?? 0,
       buffer_after_minutes: service.buffer_after_minutes ?? 0,
       buffer_before_days: service.buffer_before_days ?? 0,
@@ -102,6 +106,9 @@ export async function createService(
         id: crypto.randomUUID(),
         service_id: '',
         ...e,
+        sku: e.sku ?? null,
+        depends_on_guests: e.depends_on_guests ?? false,
+        depends_on_hours: e.depends_on_hours ?? false,
         description: null,
         created_at: new Date().toISOString(),
       })),
@@ -147,6 +154,8 @@ export async function updateService(
     buffer_after_minutes?: number;
     buffer_before_days?: number;
     buffer_after_days?: number;
+    sku?: string;
+    base_event_hours?: number | null;
   }
 ): Promise<void> {
   if (isMockMode()) return;
@@ -278,7 +287,7 @@ export async function getBookingsByClient(clientId: string): Promise<Booking[]> 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, service:services(*), provider:profiles!provider_id(*)')
+    .select('*, service:services(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -302,7 +311,7 @@ export async function getBookingsByProvider(providerId: string): Promise<Booking
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, service:services(*), client:profiles!client_id(*)')
+    .select('*, service:services(*), client:profiles!client_id(*), sub_bookings(*)')
     .eq('provider_id', providerId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -321,7 +330,7 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*)')
+    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .eq('id', id)
     .single();
   if (error) throw error;
@@ -353,7 +362,7 @@ export async function getAllBookings(): Promise<Booking[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*)')
+    .select('*, service:services(*), client:profiles!client_id(*), provider:profiles!provider_id(*), sub_bookings(*)')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
@@ -552,5 +561,128 @@ export async function updateMaxConcurrentServices(profileId: string, maxConcurre
 
   const supabase = createClient();
   const { error } = await supabase.from('profiles').update({ max_concurrent_services: maxConcurrent }).eq('id', profileId);
+  if (error) throw error;
+}
+
+// ─── EXTRAS CRUD ────────────────────────────────────────────
+
+export async function createExtra(extra: {
+  service_id: string;
+  name: string;
+  price: number;
+  price_type: 'fixed' | 'per_person' | 'per_hour';
+  max_quantity: number;
+  sku?: string;
+  depends_on_guests?: boolean;
+  depends_on_hours?: boolean;
+}): Promise<Extra> {
+  if (isMockMode()) {
+    return {
+      id: crypto.randomUUID(),
+      ...extra,
+      description: null,
+      sku: extra.sku ?? null,
+      depends_on_guests: extra.depends_on_guests ?? false,
+      depends_on_hours: extra.depends_on_hours ?? false,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('extras')
+    .insert(extra)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateExtra(id: string, updates: {
+  name?: string;
+  price?: number;
+  price_type?: 'fixed' | 'per_person' | 'per_hour';
+  max_quantity?: number;
+  sku?: string;
+  depends_on_guests?: boolean;
+  depends_on_hours?: boolean;
+}): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('extras').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteExtra(id: string): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('extras').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── SUB-BOOKINGS ───────────────────────────────────────────
+
+export async function createSubBookings(bookingId: string, items: {
+  extra_id?: string;
+  sku?: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  price_type: string;
+  subtotal: number;
+}[]): Promise<SubBooking[]> {
+  if (isMockMode()) {
+    return items.map(item => ({
+      id: crypto.randomUUID(),
+      booking_id: bookingId,
+      extra_id: item.extra_id ?? null,
+      sku: item.sku ?? null,
+      name: item.name,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      price_type: item.price_type,
+      subtotal: item.subtotal,
+      created_at: new Date().toISOString(),
+    }));
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('sub_bookings')
+    .insert(items.map(item => ({ ...item, booking_id: bookingId })))
+    .select();
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getSubBookingsByBooking(bookingId: string): Promise<SubBooking[]> {
+  if (isMockMode()) {
+    const { mockSubBookings } = await import('@/data/mock-sub-bookings');
+    return mockSubBookings.filter(sb => sb.booking_id === bookingId);
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('sub_bookings')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// ─── PROVIDER BUFFER CONFIG ────────────────────────────────
+
+export async function updateProviderBufferConfig(profileId: string, config: {
+  apply_buffers_to_all: boolean;
+  global_buffer_before_minutes: number;
+  global_buffer_after_minutes: number;
+}): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('profiles').update(config).eq('id', profileId);
   if (error) throw error;
 }

@@ -2,19 +2,27 @@
 
 import { useState } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
-import { updateMaxConcurrentServices } from '@/lib/supabase/queries';
+import { updateMaxConcurrentServices, updateProviderBufferConfig } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Loader2, Settings } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Settings, Clock } from 'lucide-react';
 
 export default function ProveedorConfiguracionPage() {
   const { user } = useAuthContext();
   const { toast } = useToast();
   const [maxConcurrent, setMaxConcurrent] = useState(
     user?.max_concurrent_services?.toString() || '1'
+  );
+  const [applyBuffersToAll, setApplyBuffersToAll] = useState(user?.apply_buffers_to_all || false);
+  const [globalBufferBefore, setGlobalBufferBefore] = useState(
+    (user?.global_buffer_before_minutes || 0).toString()
+  );
+  const [globalBufferAfter, setGlobalBufferAfter] = useState(
+    (user?.global_buffer_after_minutes || 0).toString()
   );
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +37,11 @@ export default function ProveedorConfiguracionPage() {
     setSaving(true);
     try {
       await updateMaxConcurrentServices(user.id, value);
+      await updateProviderBufferConfig(user.id, {
+        apply_buffers_to_all: applyBuffersToAll,
+        global_buffer_before_minutes: parseInt(globalBufferBefore) || 0,
+        global_buffer_after_minutes: parseInt(globalBufferAfter) || 0,
+      });
       toast({ title: 'Configuracion guardada!' });
     } catch {
       toast({ title: 'Error', description: 'No se pudo guardar la configuracion.', variant: 'destructive' });
@@ -66,11 +79,60 @@ export default function ProveedorConfiguracionPage() {
               Si ofreces multiples servicios (ej: catering + meseros), puedes aumentar este numero.
             </p>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar'}
-          </Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Tiempos de Preparacion Globales
+          </CardTitle>
+          <CardDescription>
+            Si esta activado, estos valores reemplazan los tiempos individuales de cada servicio.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="apply-all">Aplicar a todos mis servicios</Label>
+            <Switch
+              id="apply-all"
+              checked={applyBuffersToAll}
+              onCheckedChange={setApplyBuffersToAll}
+            />
+          </div>
+          {applyBuffersToAll && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Minutos antes</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={15}
+                  value={globalBufferBefore}
+                  onChange={(e) => setGlobalBufferBefore(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Minutos despues</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={15}
+                  value={globalBufferAfter}
+                  onChange={(e) => setGlobalBufferAfter(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Button onClick={handleSave} disabled={saving} className="w-full" size="lg">
+        {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Configuracion'}
+      </Button>
     </div>
   );
 }
