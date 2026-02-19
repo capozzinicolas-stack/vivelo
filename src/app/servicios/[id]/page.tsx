@@ -184,24 +184,30 @@ export default function ServiceDetailPage() {
         billing_type_snapshot: service.price_unit,
       });
 
-      // Create sub-bookings for each selected extra
+      // Create sub-bookings for each selected extra (non-blocking)
       if (selectedExtras.length > 0) {
-        const subItems = selectedExtras.map(sel => {
-          const extra = extras.find(e => e.id === sel.extra_id)!;
-          let subtotal = extra.price * sel.quantity;
-          if (extra.price_type === 'per_person') subtotal = extra.price * guests * sel.quantity;
-          if (extra.price_type === 'per_hour') subtotal = extra.price * eventHours * sel.quantity;
-          return {
-            extra_id: sel.extra_id,
-            sku: extra.sku || undefined,
-            name: extra.name,
-            quantity: sel.quantity,
-            unit_price: extra.price,
-            price_type: extra.price_type,
-            subtotal,
-          };
-        });
-        await createSubBookings(booking.id, subItems);
+        try {
+          const subItems = selectedExtras.map(sel => {
+            const extra = extras.find(e => e.id === sel.extra_id);
+            if (!extra) return null;
+            let subtotal = extra.price * sel.quantity;
+            if (extra.price_type === 'per_person') subtotal = extra.price * guests * sel.quantity;
+            if (extra.price_type === 'per_hour') subtotal = extra.price * eventHours * sel.quantity;
+            return {
+              extra_id: sel.extra_id,
+              sku: extra.sku || undefined,
+              name: extra.name,
+              quantity: sel.quantity,
+              unit_price: extra.price,
+              price_type: extra.price_type,
+              subtotal,
+            };
+          }).filter(Boolean) as { extra_id: string; sku?: string; name: string; quantity: number; unit_price: number; price_type: string; subtotal: number }[];
+          if (subItems.length > 0) await createSubBookings(booking.id, subItems);
+        } catch {
+          // Sub-bookings are supplementary — don't fail the booking
+          console.error('Failed to create sub-bookings');
+        }
       }
 
       toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });

@@ -89,7 +89,7 @@ export default function ProveedorConfiguracionPage() {
             Tiempos de Preparacion Globales
           </CardTitle>
           <CardDescription>
-            Si esta activado, estos valores reemplazan los tiempos individuales de cada servicio.
+            Si esta activado, estos valores reemplazan los tiempos individuales de cada servicio en tu calendario.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

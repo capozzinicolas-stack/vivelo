@@ -45,9 +45,7 @@ export default function NuevoServicioPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const isPerHour = priceUnit === 'por hora';
-  const isPerPersona = priceUnit === 'por persona';
-  const isPerEvento = priceUnit === 'por evento';
-  const showHoursConfig = isPerHour || isPerPersona;
+  const showMinMaxHours = isPerHour;
 
   const toggleZone = (zone: string) => {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
@@ -99,7 +97,7 @@ export default function NuevoServicioPage() {
           buffer_before_minutes: parseInt(bufferBeforeMinutes) || 0,
           buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
           sku: sku || undefined,
-          base_event_hours: isPerEvento && baseEventHours ? parseFloat(baseEventHours) : null,
+          base_event_hours: !isPerHour && baseEventHours ? parseFloat(baseEventHours) : null,
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
@@ -113,7 +111,8 @@ export default function NuevoServicioPage() {
       );
       toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
       router.push('/dashboard/proveedor/servicios');
-    } catch {
+    } catch (err) {
+      console.error('Error creating service:', err);
       toast({ title: 'Error', description: 'No se pudo crear el servicio.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -159,15 +158,15 @@ export default function NuevoServicioPage() {
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
               <div><Label>Max. Invitados</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className="mt-1" /></div>
             </div>
-            {showHoursConfig && (
+            {showMinMaxHours && (
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Min. Horas</Label><Input type="number" step="0.5" value={minHours} onChange={(e) => setMinHours(e.target.value)} className="mt-1" /></div>
                 <div><Label>Max. Horas</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} className="mt-1" /></div>
               </div>
             )}
-            {isPerEvento && (
+            {!isPerHour && (
               <div>
-                <Label>Duracion base del evento (horas)</Label>
+                <Label>Duracion base del servicio (horas)</Label>
                 <Input type="number" step="0.5" min="0.5" value={baseEventHours} onChange={(e) => setBaseEventHours(e.target.value)} placeholder="Ej: 5" className="mt-1 max-w-[200px]" />
                 <p className="text-xs text-muted-foreground mt-1">Si se define, el horario de fin se calcula automaticamente al reservar.</p>
               </div>
@@ -246,15 +245,18 @@ export default function NuevoServicioPage() {
                   </Select>
                   <Input type="number" placeholder="Max cant." value={ex.max_quantity} onChange={(e) => updateExtra(i, 'max_quantity', e.target.value)} />
                 </div>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox checked={ex.depends_on_guests} onCheckedChange={(v) => updateExtra(i, 'depends_on_guests', !!v)} />
-                    <span className="text-sm">Min. cantidad = invitados</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox checked={ex.depends_on_hours} onCheckedChange={(v) => updateExtra(i, 'depends_on_hours', !!v)} />
-                    <span className="text-sm">Min. cantidad = horas</span>
-                  </label>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Elige la siguiente opcion solo en caso de que tu extra este atado a la cantidad contratada del servicio principal.</p>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={ex.depends_on_guests} onCheckedChange={(v) => updateExtra(i, 'depends_on_guests', !!v)} />
+                      <span className="text-sm">Min. cantidad = invitados</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox checked={ex.depends_on_hours} onCheckedChange={(v) => updateExtra(i, 'depends_on_hours', !!v)} />
+                      <span className="text-sm">Min. cantidad = horas</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             ))}

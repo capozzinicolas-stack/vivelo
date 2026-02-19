@@ -117,17 +117,53 @@ export async function createService(
   }
 
   const supabase = createClient();
+
+  // Build clean insert object with only DB columns
+  const insertData: Record<string, unknown> = {
+    provider_id: service.provider_id,
+    title: service.title,
+    description: service.description,
+    category: service.category,
+    base_price: service.base_price,
+    price_unit: service.price_unit,
+    min_guests: service.min_guests,
+    max_guests: service.max_guests,
+    min_hours: service.min_hours,
+    max_hours: service.max_hours,
+    zones: service.zones,
+    images: service.images,
+    videos: service.videos ?? [],
+    status: 'active' as ServiceStatus,
+    buffer_before_minutes: service.buffer_before_minutes ?? 0,
+    buffer_after_minutes: service.buffer_after_minutes ?? 0,
+  };
+  if (service.sku) insertData.sku = service.sku;
+  if (service.base_event_hours != null) insertData.base_event_hours = service.base_event_hours;
+
   const { data: svc, error: svcError } = await supabase
     .from('services')
-    .insert({ ...service, status: 'active' as ServiceStatus })
+    .insert(insertData)
     .select()
     .single();
   if (svcError) throw svcError;
 
   if (extras.length > 0) {
+    const extrasData = extras.map(e => {
+      const row: Record<string, unknown> = {
+        service_id: svc.id,
+        name: e.name,
+        price: e.price,
+        price_type: e.price_type,
+        max_quantity: e.max_quantity,
+      };
+      if (e.sku) row.sku = e.sku;
+      if (e.depends_on_guests) row.depends_on_guests = true;
+      if (e.depends_on_hours) row.depends_on_hours = true;
+      return row;
+    });
     const { error: extError } = await supabase
       .from('extras')
-      .insert(extras.map(e => ({ ...e, service_id: svc.id })));
+      .insert(extrasData);
     if (extError) throw extError;
   }
 
@@ -160,8 +196,28 @@ export async function updateService(
 ): Promise<void> {
   if (isMockMode()) return;
 
+  // Build clean update object — only include defined values
+  const cleanUpdates: Record<string, unknown> = {};
+  if (updates.title !== undefined) cleanUpdates.title = updates.title;
+  if (updates.description !== undefined) cleanUpdates.description = updates.description;
+  if (updates.category !== undefined) cleanUpdates.category = updates.category;
+  if (updates.base_price !== undefined) cleanUpdates.base_price = updates.base_price;
+  if (updates.price_unit !== undefined) cleanUpdates.price_unit = updates.price_unit;
+  if (updates.min_guests !== undefined) cleanUpdates.min_guests = updates.min_guests;
+  if (updates.max_guests !== undefined) cleanUpdates.max_guests = updates.max_guests;
+  if (updates.min_hours !== undefined) cleanUpdates.min_hours = updates.min_hours;
+  if (updates.max_hours !== undefined) cleanUpdates.max_hours = updates.max_hours;
+  if (updates.zones !== undefined) cleanUpdates.zones = updates.zones;
+  if (updates.images !== undefined) cleanUpdates.images = updates.images;
+  if (updates.videos !== undefined) cleanUpdates.videos = updates.videos;
+  if (updates.status !== undefined) cleanUpdates.status = updates.status;
+  if (updates.buffer_before_minutes !== undefined) cleanUpdates.buffer_before_minutes = updates.buffer_before_minutes;
+  if (updates.buffer_after_minutes !== undefined) cleanUpdates.buffer_after_minutes = updates.buffer_after_minutes;
+  if (updates.sku !== undefined) cleanUpdates.sku = updates.sku;
+  if (updates.base_event_hours !== undefined) cleanUpdates.base_event_hours = updates.base_event_hours;
+
   const supabase = createClient();
-  const { error } = await supabase.from('services').update(updates).eq('id', id);
+  const { error } = await supabase.from('services').update(cleanUpdates).eq('id', id);
   if (error) throw error;
 }
 
