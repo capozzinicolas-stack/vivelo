@@ -92,7 +92,7 @@ export default function EditarServicioPage() {
 
     setSubmitting(true);
     try {
-      await updateService(id, {
+      const updateData: Parameters<typeof updateService>[1] = {
         title,
         description,
         category: category as ServiceCategory,
@@ -100,16 +100,22 @@ export default function EditarServicioPage() {
         price_unit: priceUnit,
         min_guests: parseInt(minGuests) || 1,
         max_guests: parseInt(maxGuests) || 100,
-        min_hours: parseFloat(minHours) || 1,
-        max_hours: parseFloat(maxHours) || 12,
         zones: selectedZones,
         images,
-        videos,
-        buffer_before_minutes: parseInt(bufferBeforeMinutes) || 0,
-        buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
-        sku: sku || undefined,
-        base_event_hours: !isPerHour && baseEventHours ? parseFloat(baseEventHours) : null,
-      });
+      };
+      // Optional columns — only include if non-default to avoid errors if migration not applied
+      const mh = parseFloat(minHours);
+      const xh = parseFloat(maxHours);
+      if (mh && mh !== 1) updateData.min_hours = mh;
+      if (xh && xh !== 12) updateData.max_hours = xh;
+      if (videos.length > 0) updateData.videos = videos;
+      const bb = parseInt(bufferBeforeMinutes);
+      const ba = parseInt(bufferAfterMinutes);
+      if (bb) updateData.buffer_before_minutes = bb;
+      if (ba) updateData.buffer_after_minutes = ba;
+      if (sku) updateData.sku = sku;
+      if (!isPerHour && baseEventHours) updateData.base_event_hours = parseFloat(baseEventHours);
+      await updateService(id, updateData);
       toast({ title: 'Servicio actualizado!' });
       router.push('/dashboard/proveedor/servicios');
     } catch (err) {

@@ -118,7 +118,7 @@ export async function createService(
 
   const supabase = createClient();
 
-  // Build clean insert object with only DB columns
+  // Build clean insert object — only include columns with non-default values
   const insertData: Record<string, unknown> = {
     provider_id: service.provider_id,
     title: service.title,
@@ -128,15 +128,16 @@ export async function createService(
     price_unit: service.price_unit,
     min_guests: service.min_guests,
     max_guests: service.max_guests,
-    min_hours: service.min_hours,
-    max_hours: service.max_hours,
     zones: service.zones,
     images: service.images,
-    videos: service.videos ?? [],
     status: 'active' as ServiceStatus,
-    buffer_before_minutes: service.buffer_before_minutes ?? 0,
-    buffer_after_minutes: service.buffer_after_minutes ?? 0,
   };
+  // Only include optional columns if they have non-default values
+  if (service.min_hours && service.min_hours !== 1) insertData.min_hours = service.min_hours;
+  if (service.max_hours && service.max_hours !== 12) insertData.max_hours = service.max_hours;
+  if (service.videos && service.videos.length > 0) insertData.videos = service.videos;
+  if (service.buffer_before_minutes) insertData.buffer_before_minutes = service.buffer_before_minutes;
+  if (service.buffer_after_minutes) insertData.buffer_after_minutes = service.buffer_after_minutes;
   if (service.sku) insertData.sku = service.sku;
   if (service.base_event_hours != null) insertData.base_event_hours = service.base_event_hours;
 
