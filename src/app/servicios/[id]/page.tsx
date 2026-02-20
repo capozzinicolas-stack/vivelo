@@ -56,17 +56,27 @@ export default function ServiceDetailPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
-  // Enforce minimum quantities when guests or time changes
+  // Adjust selected extras when guests or time changes:
+  // - depends_on_guests (MIN rule): bump quantity up if below new guest count
+  // - depends_on_hours (MAX rule): cap quantity down if above new hours
+  // Extras not yet selected (quantity=0) are never auto-added
   useEffect(() => {
-    if (!service) return;
+    if (!service || selectedExtras.length === 0) return;
     const allExtras = service.extras || [];
     const updated = selectedExtras.map(sel => {
       const extra = allExtras.find(e => e.id === sel.extra_id);
       if (!extra) return sel;
-      let minQty = 1;
-      if (extra.depends_on_guests) minQty = Math.max(1, guests);
-      if (extra.depends_on_hours) minQty = Math.max(1, Math.ceil(calcHours(startTime, endTime)));
-      if (sel.quantity < minQty) return { ...sel, quantity: minQty };
+
+      if (extra.depends_on_guests) {
+        // MIN rule: quantity cannot be below guest count
+        const minQty = Math.max(1, guests);
+        if (sel.quantity < minQty) return { ...sel, quantity: minQty };
+      }
+      if (extra.depends_on_hours) {
+        // MAX rule: quantity cannot exceed hours
+        const maxQty = Math.max(1, Math.ceil(calcHours(startTime, endTime)));
+        if (sel.quantity > maxQty) return { ...sel, quantity: maxQty };
+      }
       return sel;
     });
     const changed = updated.some((u, i) => u.quantity !== selectedExtras[i].quantity);
@@ -111,13 +121,11 @@ export default function ServiceDetailPage() {
   if (isPerPerson) baseTotal = service.base_price * guests;
   if (isPerHour) baseTotal = service.base_price * eventHours;
 
+  // Extra pricing: extra_price × extra_quantity (service quantity never multiplies extras)
   const extrasTotal = selectedExtras.reduce((sum, sel) => {
     const extra = extras.find((e) => e.id === sel.extra_id);
     if (!extra) return sum;
-    let price = extra.price * sel.quantity;
-    if (extra.price_type === 'per_person') price = extra.price * guests * sel.quantity;
-    if (extra.price_type === 'per_hour') price = extra.price * eventHours * sel.quantity;
-    return sum + price;
+    return sum + extra.price * sel.quantity;
   }, 0);
 
   const subtotal = baseTotal + extrasTotal;
@@ -187,12 +195,10 @@ export default function ServiceDetailPage() {
       // Create sub-bookings for each selected extra (non-blocking)
       if (selectedExtras.length > 0) {
         try {
+          // Extra pricing: extra_price × extra_quantity (service quantity never multiplies extras)
           const subItems = selectedExtras.map(sel => {
             const extra = extras.find(e => e.id === sel.extra_id);
             if (!extra) return null;
-            let subtotal = extra.price * sel.quantity;
-            if (extra.price_type === 'per_person') subtotal = extra.price * guests * sel.quantity;
-            if (extra.price_type === 'per_hour') subtotal = extra.price * eventHours * sel.quantity;
             return {
               extra_id: sel.extra_id,
               sku: extra.sku || undefined,
@@ -200,7 +206,7 @@ export default function ServiceDetailPage() {
               quantity: sel.quantity,
               unit_price: extra.price,
               price_type: extra.price_type,
-              subtotal,
+              subtotal: extra.price * sel.quantity,
             };
           }).filter(Boolean) as { extra_id: string; sku?: string; name: string; quantity: number; unit_price: number; price_type: string; subtotal: number }[];
           if (subItems.length > 0) await createSubBookings(booking.id, subItems);
