@@ -10,10 +10,11 @@ export const stripe = stripeSecretKey && stripeSecretKey !== 'sk_test_placeholde
 export const isMockStripe = !stripe;
 
 export function calculateOrderAmount(baseTotal: number, extrasTotal: number) {
-  const subtotal = baseTotal + extrasTotal;
-  const commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100;
-  const total = Math.round((subtotal + commission) * 100) / 100;
-  return { subtotal, commission, total };
+  // Client pays: base + extras (commission is NOT added to client total)
+  // Commission is deducted from provider's share
+  const total = Math.round((baseTotal + extrasTotal) * 100) / 100;
+  const commission = Math.round(total * COMMISSION_RATE * 100) / 100;
+  return { subtotal: total, commission, total };
 }
 
 export function formatCurrency(amount: number): string {

@@ -56,32 +56,6 @@ export default function ServiceDetailPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
-  // Adjust selected extras when guests or time changes:
-  // - depends_on_guests (MIN rule): bump quantity up if below new guest count
-  // - depends_on_hours (MAX rule): cap quantity down if above new hours
-  // Extras not yet selected (quantity=0) are never auto-added
-  useEffect(() => {
-    if (!service || selectedExtras.length === 0) return;
-    const allExtras = service.extras || [];
-    const updated = selectedExtras.map(sel => {
-      const extra = allExtras.find(e => e.id === sel.extra_id);
-      if (!extra) return sel;
-
-      if (extra.depends_on_guests) {
-        // MIN rule: quantity cannot be below guest count
-        const minQty = Math.max(1, guests);
-        if (sel.quantity < minQty) return { ...sel, quantity: minQty };
-      }
-      if (extra.depends_on_hours) {
-        // MAX rule: quantity cannot exceed hours
-        const maxQty = Math.max(1, Math.ceil(calcHours(startTime, endTime)));
-        if (sel.quantity > maxQty) return { ...sel, quantity: maxQty };
-      }
-      return sel;
-    });
-    const changed = updated.some((u, i) => u.quantity !== selectedExtras[i].quantity);
-    if (changed) setSelectedExtras(updated);
-  }, [guests, startTime, endTime, service]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
@@ -128,9 +102,11 @@ export default function ServiceDetailPage() {
     return sum + extra.price * sel.quantity;
   }, 0);
 
-  const subtotal = baseTotal + extrasTotal;
-  const commission = Math.round(subtotal * COMMISSION_RATE * 100) / 100;
-  const total = subtotal + commission;
+  // Client pays: base + extras (no commission added)
+  // Commission is deducted from the provider's share, NOT charged to the client
+  // Example: service=$100, commission=12% → client pays $100, Vivelo retains $12, provider receives $88
+  const total = baseTotal + extrasTotal;
+  const commission = Math.round(total * COMMISSION_RATE * 100) / 100;
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -258,7 +234,7 @@ export default function ServiceDetailPage() {
           {extras.length > 0 && (
             <>
               <Separator />
-              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} guestCount={guests} eventHours={eventHours} />
+              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} />
             </>
           )}
         </div>

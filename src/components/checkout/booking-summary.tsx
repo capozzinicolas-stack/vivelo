@@ -1,6 +1,5 @@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { COMMISSION_RATE } from '@/lib/constants';
 import type { Booking } from '@/types/database';
 
 export function BookingSummary({ booking }: { booking: Booking }) {
@@ -18,8 +17,8 @@ export function BookingSummary({ booking }: { booking: Booking }) {
         {booking.selected_extras.map((ex) => (
           <div key={ex.extra_id} className="flex justify-between text-muted-foreground pl-4"><span>{ex.name} x{ex.quantity}</span><span>${ex.price.toLocaleString()}</span></div>
         ))}
-        <div className="flex justify-between text-muted-foreground"><span>Comision ({(COMMISSION_RATE * 100).toFixed(0)}%)</span><span>${booking.commission.toLocaleString()}</span></div>
         <Separator />
+        {/* Commission is NOT shown to client — it's deducted from provider's share */}
         <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${booking.total.toLocaleString()}</span></div>
       </div>
       <Badge className="bg-yellow-100 text-yellow-800">{booking.status === 'pending' ? 'Pendiente de pago' : booking.status}</Badge>

@@ -675,7 +675,8 @@ export async function getFinancialStats() {
 
   const totalRevenue = confirmed.reduce((s, b) => s + b.total, 0);
   const totalCommissions = confirmed.reduce((s, b) => s + b.commission, 0);
-  const totalProviderPayouts = confirmed.reduce((s, b) => s + b.base_total + b.extras_total, 0);
+  // Provider payout = total charged to client minus Vivelo's commission
+  const totalProviderPayouts = confirmed.reduce((s, b) => s + b.total - b.commission, 0);
   const pendingRevenue = pending.reduce((s, b) => s + b.total, 0);
 
   // Group by month
@@ -715,9 +716,10 @@ export async function getProviderStats(providerId: string) {
 
   const activeServices = services.filter(s => s.status === 'active');
   const pendingBookings = bookings.filter(b => b.status === 'pending');
+  // Provider revenue = total charged to client minus Vivelo's commission
   const revenue = bookings
     .filter(b => b.status === 'confirmed' || b.status === 'completed')
-    .reduce((s, b) => s + b.base_total + b.extras_total, 0);
+    .reduce((s, b) => s + b.total - b.commission, 0);
   const avgRating = activeServices.length
     ? Number((activeServices.reduce((s, sv) => s + sv.avg_rating, 0) / activeServices.length).toFixed(1))
     : 0;
