@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
 import { updateMaxConcurrentServices, updateProviderBufferConfig } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Settings, Clock } from 'lucide-react';
+import GoogleCalendarSettings from '@/components/google-calendar/google-calendar-settings';
 
 export default function ProveedorConfiguracionPage() {
   const { user } = useAuthContext();
@@ -129,6 +130,15 @@ export default function ProveedorConfiguracionPage() {
           )}
         </CardContent>
       </Card>
+
+      {user && (
+        <Suspense fallback={<Card><CardContent className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>
+          <GoogleCalendarSettings
+            providerId={user.id}
+            isMockMode={process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true}
+          />
+        </Suspense>
+      )}
 
       <Button onClick={handleSave} disabled={saving} className="w-full" size="lg">
         {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Configuracion'}

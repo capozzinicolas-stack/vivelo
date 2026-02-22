@@ -15,6 +15,7 @@ export function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('client');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,8 +27,15 @@ export function RegisterForm() {
     setError('');
     setLoading(true);
 
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length !== 10) {
+      setError('El teléfono debe tener exactamente 10 dígitos');
+      setLoading(false);
+      return;
+    }
+
     try {
-      await signUp(email, password, fullName, role);
+      await signUp(email, password, fullName, role, digitsOnly);
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
@@ -89,6 +97,18 @@ export function RegisterForm() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Teléfono (10 dígitos)</Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="5512345678"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+              maxLength={15}
             />
           </div>
           <div className="space-y-2">

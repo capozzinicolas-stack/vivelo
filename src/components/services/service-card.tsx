@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { Star, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { categoryMap } from '@/data/categories';
@@ -39,6 +39,12 @@ export function ServiceCard({ service }: { service: Service }) {
             <span className="text-xl font-bold">${service.base_price.toLocaleString()}</span>
             <span className="text-sm text-muted-foreground">{service.price_unit}</span>
           </div>
+          {service.provider && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <User className="h-3 w-3" />
+              por <Link href={`/proveedores/${service.provider_id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-foreground hover:text-primary hover:underline">{service.provider.company_name || service.provider.full_name}</Link>
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {visibleZones.map((z) => <Badge key={z} variant="outline" className="text-xs font-normal">{z}</Badge>)}
             {remaining > 0 && <Badge variant="outline" className="text-xs font-normal">+{remaining}</Badge>}

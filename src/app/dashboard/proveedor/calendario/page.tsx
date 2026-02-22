@@ -220,6 +220,13 @@ export default function ProveedorCalendarioPage() {
                   {isBlocked && inMonth && (
                     <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full m-0.5" />
                   )}
+                  {inMonth && blocks.some(bl => {
+                    const start = new Date(bl.start_datetime);
+                    const end = new Date(bl.end_datetime);
+                    return bl.source === 'google_sync' && day >= new Date(format(start, 'yyyy-MM-dd')) && day <= new Date(format(end, 'yyyy-MM-dd'));
+                  }) && (
+                    <div className="absolute top-0 left-0 w-2 h-2 bg-blue-500 rounded-full m-0.5" />
+                  )}
                 </button>
               );
             })}
@@ -231,6 +238,7 @@ export default function ProveedorCalendarioPage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" />Pendiente</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400" />Completada</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />Bloqueado</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />Google Calendar</span>
           </div>
         </CardContent>
       </Card>
@@ -281,21 +289,31 @@ export default function ProveedorCalendarioPage() {
             {dayBlocks.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">Bloqueos</p>
-                {dayBlocks.map(bl => (
-                  <div key={bl.id} className="flex items-center justify-between p-3 rounded-lg border border-red-200 bg-red-50">
-                    <div>
-                      <p className="font-medium text-sm">{bl.reason || 'Sin motivo'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(bl.start_datetime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                        {' - '}
-                        {new Date(bl.end_datetime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                {dayBlocks.map(bl => {
+                  const isGoogleSync = bl.source === 'google_sync';
+                  return (
+                    <div key={bl.id} className={`flex items-center justify-between p-3 rounded-lg border ${isGoogleSync ? 'border-blue-200 bg-blue-50' : 'border-red-200 bg-red-50'}`}>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">{bl.reason || 'Sin motivo'}</p>
+                          {isGoogleSync && (
+                            <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">Google</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(bl.start_datetime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                          {' - '}
+                          {new Date(bl.end_datetime).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {!isGoogleSync && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteBlock(bl.id)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteBlock(bl.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

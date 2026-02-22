@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceStatus, BookingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -15,7 +15,8 @@ export async function getServices(filters?: {
 }): Promise<Service[]> {
   if (isMockMode()) {
     const { mockServices } = await import('@/data/mock-services');
-    let results = [...mockServices];
+    const { mockUsers } = await import('@/data/mock-users');
+    let results = mockServices.map(s => ({ ...s, provider: mockUsers.find(u => u.id === s.provider_id) || undefined }));
     if (filters?.category) results = results.filter(s => s.category === filters.category);
     if (filters?.zone) results = results.filter(s => s.zones.includes(filters.zone!));
     if (filters?.minPrice) results = results.filter(s => s.base_price >= filters.minPrice!);
@@ -59,13 +60,25 @@ export async function getServices(filters?: {
     console.error('[getServices] Simple query also failed:', JSON.stringify(err2));
     throw new Error(`Error cargando servicios: ${err2.message || JSON.stringify(err2)}`);
   }
-  return (fallback || []).map((s) => ({ ...s, extras: [], provider: null })) as unknown as Service[];
+  // Try to fetch providers separately for each service
+  const providerIds = Array.from(new Set((fallback || []).map(s => s.provider_id).filter(Boolean)));
+  let providersMap: Record<string, Profile> = {};
+  if (providerIds.length > 0) {
+    try {
+      const { data: profiles } = await supabase.from('profiles').select('*').in('id', providerIds);
+      if (profiles) providersMap = Object.fromEntries(profiles.map(p => [p.id, p]));
+    } catch { /* ignore */ }
+  }
+  return (fallback || []).map((s) => ({ ...s, extras: [], provider: providersMap[s.provider_id] || null })) as unknown as Service[];
 }
 
 export async function getServiceById(id: string): Promise<Service | null> {
   if (isMockMode()) {
     const { mockServices } = await import('@/data/mock-services');
-    return mockServices.find(s => s.id === id) || null;
+    const { mockUsers } = await import('@/data/mock-users');
+    const s = mockServices.find(s => s.id === id);
+    if (!s) return null;
+    return { ...s, provider: mockUsers.find(u => u.id === s.provider_id) || undefined };
   }
 
   const supabase = createClient();
@@ -86,7 +99,14 @@ export async function getServiceById(id: string): Promise<Service | null> {
     console.error('[getServiceById] Simple query also failed:', JSON.stringify(err2));
     throw new Error(`Error cargando servicio: ${err2.message || JSON.stringify(err2)}`);
   }
-  return fallback ? { ...fallback, extras: [], provider: null } : null;
+  if (!fallback) return null;
+  // Try to fetch provider separately
+  let provider = null;
+  try {
+    const { data: p } = await supabase.from('profiles').select('*').eq('id', fallback.provider_id).single();
+    if (p) provider = p;
+  } catch { /* ignore */ }
+  return { ...fallback, extras: [], provider } as unknown as Service;
 }
 
 export async function createService(
@@ -428,6 +448,7 @@ export async function createBooking(booking: {
       billing_type_snapshot: booking.billing_type_snapshot ?? null,
       status: 'pending',
       stripe_payment_intent_id: null,
+      google_calendar_event_id: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -625,6 +646,21 @@ export async function getAllProfiles(): Promise<Profile[]> {
   return data || [];
 }
 
+export async function getProfileById(id: string): Promise<Profile | null> {
+  if (isMockMode()) {
+    const { mockUsers } = await import('@/data/mock-users');
+    return mockUsers.find(u => u.id === id) || null;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
+  if (error) {
+    console.warn('[getProfileById] Failed:', error.message);
+    return null;
+  }
+  return data;
+}
+
 // ─── ADMIN: Profile Actions ─────────────────────────────────
 
 export async function updateProfileRole(id: string, role: UserRole): Promise<void> {
@@ -794,6 +830,8 @@ export async function createVendorCalendarBlock(block: {
       start_datetime: block.start_datetime,
       end_datetime: block.end_datetime,
       reason: block.reason ?? null,
+      google_event_id: null,
+      source: 'manual' as const,
       created_at: new Date().toISOString(),
     };
   }
@@ -957,5 +995,98 @@ export async function updateProviderBufferConfig(profileId: string, config: {
   if (error) {
     console.warn('[updateProviderBufferConfig] Columns may not exist:', error.message);
     // Don't throw — columns may not exist yet
+  }
+}
+
+// ─── PROFILE UPDATES ────────────────────────────────────────
+
+export async function updateProfile(profileId: string, updates: {
+  full_name?: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  company_name?: string | null;
+  bio?: string | null;
+}): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('profiles').update({
+    ...updates,
+    updated_at: new Date().toISOString(),
+  }).eq('id', profileId);
+  if (error) {
+    console.error('[updateProfile] Failed:', JSON.stringify(error));
+    throw new Error(`Error actualizando perfil: ${error.message}`);
+  }
+}
+
+export async function updateClientBilling(profileId: string, rfc: string | null): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('profiles').update({
+    rfc,
+    updated_at: new Date().toISOString(),
+  }).eq('id', profileId);
+  if (error) {
+    console.warn('[updateClientBilling] Column may not exist:', error.message);
+  }
+}
+
+export async function updateProviderBanking(profileId: string, updates: {
+  clabe?: string;
+  bank_document_url?: string;
+}): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase.from('profiles').update({
+    ...updates,
+    banking_status: 'pending_review' as BankingStatus,
+    banking_rejection_reason: null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', profileId);
+  if (error) {
+    console.warn('[updateProviderBanking] Columns may not exist:', error.message);
+  }
+}
+
+// ─── GOOGLE CALENDAR ────────────────────────────────────────
+
+export async function getGoogleCalendarConnection(providerId: string): Promise<GoogleCalendarConnection | null> {
+  if (isMockMode()) {
+    const { mockGoogleCalendarConnection } = await import('@/data/mock-google-calendar');
+    return mockGoogleCalendarConnection.provider_id === providerId ? mockGoogleCalendarConnection : null;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('google_calendar_connections')
+    .select('*')
+    .eq('provider_id', providerId)
+    .single();
+  if (error) {
+    console.warn('[getGoogleCalendarConnection] Query failed:', error.message);
+    return null;
+  }
+  return data;
+}
+
+export async function updateBankingStatus(profileId: string, status: BankingStatus, rejectionReason?: string): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const updates: Record<string, unknown> = {
+    banking_status: status,
+    updated_at: new Date().toISOString(),
+  };
+  if (status === 'rejected' && rejectionReason) {
+    updates.banking_rejection_reason = rejectionReason;
+  } else if (status === 'verified') {
+    updates.banking_rejection_reason = null;
+  }
+  const { error } = await supabase.from('profiles').update(updates).eq('id', profileId);
+  if (error) {
+    console.warn('[updateBankingStatus] Columns may not exist:', error.message);
   }
 }

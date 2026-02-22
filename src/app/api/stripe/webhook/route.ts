@@ -37,6 +37,23 @@ export async function POST(request: NextRequest) {
             .from('bookings')
             .update({ status: 'confirmed', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
             .eq('id', bookingId);
+
+          // Push confirmed booking to Google Calendar (non-blocking)
+          try {
+            const { pushBookingToGoogle } = await import('@/lib/google-calendar/sync');
+            const { data: fullBooking } = await supabase
+              .from('bookings')
+              .select('*, service:services(title)')
+              .eq('id', bookingId)
+              .single();
+            if (fullBooking) {
+              pushBookingToGoogle(fullBooking).catch(err =>
+                console.error('[Stripe Webhook] Google Calendar push failed:', err)
+              );
+            }
+          } catch (err) {
+            console.error('[Stripe Webhook] Google Calendar integration error:', err);
+          }
         }
         break;
       }

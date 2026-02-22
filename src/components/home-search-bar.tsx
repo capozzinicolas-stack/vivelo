@@ -31,12 +31,12 @@ export function HomeSearchBar() {
 
   return (
     <div className="w-full max-w-4xl mx-auto mt-8">
-      <div className="bg-white rounded-full shadow-xl border border-gray-200 p-2 flex flex-col md:flex-row items-stretch md:items-center gap-0">
+      <div className="bg-white text-gray-900 rounded-full shadow-xl border border-gray-200 p-2 flex flex-col md:flex-row items-stretch md:items-center gap-0">
         {/* Tipo de servicio */}
         <div className="flex-1 min-w-0 px-4 py-2 md:border-r border-gray-200">
           <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-0.5">Tipo de Servicio</label>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="border-0 shadow-none p-0 h-auto text-sm font-medium focus:ring-0 bg-transparent">
+            <SelectTrigger className="border-0 shadow-none p-0 h-auto text-sm font-medium focus:ring-0 bg-transparent text-gray-900 data-[placeholder]:text-gray-400">
               <SelectValue placeholder="Todas las categorias" />
             </SelectTrigger>
             <SelectContent>
@@ -83,7 +83,7 @@ export function HomeSearchBar() {
               placeholder="Cantidad"
               value={guests}
               onChange={(e) => setGuests(e.target.value)}
-              className="border-0 shadow-none p-0 h-auto text-sm font-medium focus-visible:ring-0 bg-transparent"
+              className="border-0 shadow-none p-0 h-auto text-sm font-medium focus-visible:ring-0 bg-transparent text-gray-900 placeholder:text-gray-400"
             />
           </div>
         </div>
@@ -94,7 +94,7 @@ export function HomeSearchBar() {
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
             <Select value={zone} onValueChange={setZone}>
-              <SelectTrigger className="border-0 shadow-none p-0 h-auto text-sm font-medium focus:ring-0 bg-transparent">
+              <SelectTrigger className="border-0 shadow-none p-0 h-auto text-sm font-medium focus:ring-0 bg-transparent text-gray-900 data-[placeholder]:text-gray-400">
                 <SelectValue placeholder="Toda la zona" />
               </SelectTrigger>
               <SelectContent>

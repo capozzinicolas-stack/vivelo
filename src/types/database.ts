@@ -2,6 +2,9 @@ export type UserRole = 'client' | 'provider' | 'admin';
 export type ServiceCategory = 'FOOD_DRINKS' | 'AUDIO' | 'DECORATION' | 'PHOTO_VIDEO' | 'STAFF' | 'FURNITURE';
 export type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
+export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
+export type GoogleSyncStatus = 'active' | 'error' | 'disconnected';
+export type CalendarBlockSource = 'manual' | 'google_sync';
 
 export interface Profile {
   id: string;
@@ -17,6 +20,11 @@ export interface Profile {
   apply_buffers_to_all: boolean;
   global_buffer_before_minutes: number;
   global_buffer_after_minutes: number;
+  rfc: string | null;
+  clabe: string | null;
+  bank_document_url: string | null;
+  banking_status: BankingStatus;
+  banking_rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +113,7 @@ export interface Booking {
   notes: string | null;
   status: BookingStatus;
   stripe_payment_intent_id: string | null;
+  google_calendar_event_id: string | null;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -135,7 +144,24 @@ export interface VendorCalendarBlock {
   start_datetime: string;
   end_datetime: string;
   reason: string | null;
+  google_event_id: string | null;
+  source: CalendarBlockSource;
   created_at: string;
+}
+
+export interface GoogleCalendarConnection {
+  id: string;
+  provider_id: string;
+  access_token_encrypted: string;
+  refresh_token_encrypted: string;
+  token_expiry: string;
+  vivelo_calendar_id: string | null;
+  google_email: string;
+  last_sync_at: string | null;
+  sync_status: GoogleSyncStatus;
+  sync_error: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AvailabilityCheckResult {
@@ -168,6 +194,7 @@ export interface Database {
       vendor_calendar_blocks: { Row: VendorCalendarBlock; Insert: Partial<VendorCalendarBlock> & Pick<VendorCalendarBlock, 'vendor_id' | 'start_datetime' | 'end_datetime'>; Update: Partial<VendorCalendarBlock> };
       reviews: { Row: Review; Insert: Partial<Review> & Pick<Review, 'service_id' | 'client_id' | 'rating'>; Update: Partial<Review> };
       sub_bookings: { Row: SubBooking; Insert: Partial<SubBooking> & Pick<SubBooking, 'booking_id' | 'name'>; Update: Partial<SubBooking> };
+      google_calendar_connections: { Row: GoogleCalendarConnection; Insert: Partial<GoogleCalendarConnection> & Pick<GoogleCalendarConnection, 'provider_id' | 'access_token_encrypted' | 'refresh_token_encrypted' | 'token_expiry' | 'google_email'>; Update: Partial<GoogleCalendarConnection> };
     };
   };
 }

@@ -8,9 +8,10 @@ interface AuthContextType {
   user: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, role: UserRole) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole, phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
   switchMockUser: (role: UserRole) => void;
+  updateUser: (updates: Partial<Profile>) => void;
   isMockMode: boolean;
 }
 
@@ -84,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, fullName: string, role: UserRole) => {
+  const signUp = useCallback(async (email: string, password: string, fullName: string, role: UserRole, phone?: string) => {
     if (isMockMode) {
       const newUser: Profile = {
         id: crypto.randomUUID(),
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         full_name: fullName,
         avatar_url: null,
         role,
-        phone: null,
+        phone: phone || null,
         company_name: null,
         bio: null,
         verified: false,
@@ -100,6 +101,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         apply_buffers_to_all: false,
         global_buffer_before_minutes: 0,
         global_buffer_after_minutes: 0,
+        rfc: null,
+        clabe: null,
+        bank_document_url: null,
+        banking_status: 'not_submitted',
+        banking_rejection_reason: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -113,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, role } },
+      options: { data: { full_name: fullName, role, phone: phone || null } },
     });
     if (error) throw error;
   }, []);
@@ -139,8 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateUser = useCallback((updates: Partial<Profile>) => {
+    setUser(prev => prev ? { ...prev, ...updates } : prev);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, switchMockUser, isMockMode }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, switchMockUser, updateUser, isMockMode }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, createBooking, checkVendorAvailability, createSubBookings } from '@/lib/supabase/queries';
+import { getServiceById, getProfileById, createBooking, checkVendorAvailability, createSubBookings } from '@/lib/supabase/queries';
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { categoryMap } from '@/data/categories';
 import { COMMISSION_RATE, TIME_SLOTS } from '@/lib/constants';
@@ -21,7 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search, CalendarX } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Service } from '@/types/database';
@@ -48,9 +49,14 @@ export default function ServiceDetailPage() {
   const [guests, setGuests] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
+  const [unavailableModal, setUnavailableModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' });
 
   useEffect(() => {
-    getServiceById(id).then(s => {
+    getServiceById(id).then(async (s) => {
+      if (s && !s.provider && s.provider_id) {
+        const provider = await getProfileById(s.provider_id);
+        if (provider) s = { ...s, provider };
+      }
       setService(s);
       if (s) setGuests(s.min_guests);
     }).finally(() => setLoading(false));
@@ -138,7 +144,7 @@ export default function ServiceDetailPage() {
         const reason = availability.has_calendar_block
           ? 'El proveedor tiene un bloqueo en ese horario.'
           : `El proveedor ya tiene ${availability.overlapping_bookings} reserva(s) en ese horario (maximo: ${availability.max_concurrent}).`;
-        toast({ title: 'Horario no disponible', description: reason, variant: 'destructive' });
+        setUnavailableModal({ open: true, reason });
         setSubmitting(false);
         return;
       }
@@ -203,6 +209,14 @@ export default function ServiceDetailPage() {
     }
   };
 
+  const handleExploreSimilar = () => {
+    const params = new URLSearchParams();
+    if (service.category) params.set('categoria', service.category);
+    if (service.zones.length > 0) params.set('zona', service.zones[0]);
+    if (date) params.set('fecha', format(date, 'yyyy-MM-dd'));
+    router.push(`/servicios?${params.toString()}`);
+  };
+
   const pricingLabel = isPerPerson ? 'por persona' : isPerHour ? 'por hora' : 'precio fijo';
 
   return (
@@ -225,6 +239,14 @@ export default function ServiceDetailPage() {
               <div className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /><span className="font-medium">{service.avg_rating}</span><span className="text-muted-foreground">({service.review_count} resenas)</span></div>
             </div>
             <h1 className="text-3xl font-bold">{service.title}</h1>
+            {service.provider && (
+              <p className="text-sm text-muted-foreground">
+                Ofrecido por{' '}
+                <Link href={`/proveedores/${service.provider_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
+                  {service.provider.company_name || service.provider.full_name}
+                </Link>
+              </p>
+            )}
             <p className="text-muted-foreground leading-relaxed">{service.description}</p>
             <div className="flex flex-wrap gap-2">
               {service.zones.map((z) => <Badge key={z} variant="outline"><MapPin className="h-3 w-3 mr-1" />{z}</Badge>)}
@@ -346,6 +368,29 @@ export default function ServiceDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={unavailableModal.open} onOpenChange={(open) => setUnavailableModal(prev => ({ ...prev, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarX className="h-5 w-5 text-destructive" />
+              Servicio no disponible
+            </DialogTitle>
+            <DialogDescription>
+              Este servicio no esta disponible para la fecha y horario seleccionados. {unavailableModal.reason}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setUnavailableModal({ open: false, reason: '' })}>
+              Cambiar fecha
+            </Button>
+            <Button onClick={handleExploreSimilar} className="gap-2">
+              <Search className="h-4 w-4" />
+              Explorar similares
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
