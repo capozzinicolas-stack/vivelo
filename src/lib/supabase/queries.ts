@@ -457,6 +457,17 @@ export async function createBooking(booking: {
 
   const supabase = createClient();
 
+  // Server-side availability check (prevents race conditions)
+  if (booking.effective_start && booking.effective_end) {
+    const availability = await checkVendorAvailability(booking.provider_id, booking.effective_start, booking.effective_end);
+    if (!availability.available) {
+      const reason = availability.has_calendar_block
+        ? 'El proveedor tiene un bloqueo en ese horario.'
+        : `El proveedor ya tiene ${availability.overlapping_bookings} reserva(s) en ese horario.`;
+      throw new Error(reason);
+    }
+  }
+
   // Split booking into original columns (00004) and Phase 2 columns
   const coreBooking: Record<string, unknown> = {
     service_id: booking.service_id,
@@ -781,19 +792,48 @@ export async function checkVendorAvailability(vendorId: string, startDatetime: s
   }
 
   const supabase = createClient();
+
+  // Try RPC first (fastest, single round-trip)
   const { data, error } = await supabase.rpc('check_vendor_availability', {
     p_vendor_id: vendorId,
     p_start: startDatetime,
     p_end: endDatetime,
   });
 
-  if (error) {
-    // RPC function may not exist if migrations haven't been run yet
-    // Default to "available" so bookings aren't blocked
-    console.warn('[checkVendorAvailability] RPC failed (function may not exist yet):', error.message);
-    return { available: true, overlapping_bookings: 0, max_concurrent: 1, has_calendar_block: false };
+  if (!error && data) {
+    return data as AvailabilityCheckResult;
   }
-  return data as AvailabilityCheckResult;
+
+  // Fallback: direct queries if RPC doesn't exist
+  console.warn('[checkVendorAvailability] RPC failed, using direct queries:', error?.message);
+
+  // Check overlapping bookings
+  const { count: overlappingCount } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('provider_id', vendorId)
+    .in('status', ['pending', 'confirmed'])
+    .lt('effective_start', endDatetime)
+    .gt('effective_end', startDatetime);
+
+  // Check calendar blocks
+  const { count: blockCount } = await supabase
+    .from('vendor_calendar_blocks')
+    .select('id', { count: 'exact', head: true })
+    .eq('vendor_id', vendorId)
+    .lt('start_datetime', endDatetime)
+    .gt('end_datetime', startDatetime);
+
+  const overlapping = overlappingCount ?? 0;
+  const hasBlock = (blockCount ?? 0) > 0;
+  const maxConcurrent = 1;
+
+  return {
+    available: overlapping < maxConcurrent && !hasBlock,
+    overlapping_bookings: overlapping,
+    max_concurrent: maxConcurrent,
+    has_calendar_block: hasBlock,
+  };
 }
 
 // ─── VENDOR CALENDAR BLOCKS ────────────────────────────────
