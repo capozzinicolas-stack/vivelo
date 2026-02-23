@@ -62,6 +62,27 @@ export default function ServiceDetailPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
+  // When guests or hours change, adjust selected extras that depend on them
+  useEffect(() => {
+    if (!service) return;
+    const svcExtras = service.extras || [];
+    setSelectedExtras(prev => prev.map(sel => {
+      const extra = svcExtras.find(e => e.id === sel.extra_id);
+      if (!extra) return sel;
+      if (extra.depends_on_guests) {
+        const minQty = Math.max(1, guests);
+        return { ...sel, quantity: Math.max(minQty, Math.min(extra.max_quantity, sel.quantity)) };
+      }
+      if (extra.depends_on_hours) {
+        const hrs = service.base_event_hours && service.price_unit === 'por evento'
+          ? service.base_event_hours
+          : calcHours(startTime, endTime);
+        const minQty = Math.max(1, Math.ceil(hrs));
+        return { ...sel, quantity: Math.max(minQty, Math.min(extra.max_quantity, sel.quantity)) };
+      }
+      return sel;
+    }));
+  }, [guests, startTime, endTime, service]);
 
   if (loading) {
     return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
@@ -256,7 +277,7 @@ export default function ServiceDetailPage() {
           {extras.length > 0 && (
             <>
               <Separator />
-              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} />
+              <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} guests={guests} eventHours={eventHours} />
             </>
           )}
         </div>
@@ -354,7 +375,17 @@ export default function ServiceDetailPage() {
                       </span>
                       <span>${baseTotal.toLocaleString()}</span>
                     </div>
-                    {extrasTotal > 0 && <div className="flex justify-between"><span>Extras</span><span>${extrasTotal.toLocaleString()}</span></div>}
+                    {selectedExtras.map(sel => {
+                      const extra = extras.find(e => e.id === sel.extra_id);
+                      if (!extra) return null;
+                      const subtotal = extra.price * sel.quantity;
+                      return (
+                        <div key={sel.extra_id} className="flex justify-between text-muted-foreground">
+                          <span>{extra.name} x {sel.quantity}</span>
+                          <span>${subtotal.toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
                     <Separator />
                     <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${total.toLocaleString()}</span></div>
                   </div>

@@ -12,32 +12,43 @@ interface Props {
   extras: Extra[];
   selectedExtras: SelectedExtraItem[];
   onSelectionChange: (sel: SelectedExtraItem[]) => void;
+  guests: number;
+  eventHours: number;
 }
 
 // Extras quantity rules:
-// - Min quantity is always 1 (provider can set a custom min_quantity field in the future)
-// - Max quantity is extra.max_quantity (defined by the provider)
-// - The event's guest count or hours do NOT determine the extra's min/max
-// - The provider is the one who decides the allowed range for each extra
+// - Extra starts at 0 (not selected). Only when the client toggles it on:
+//   - If depends_on_guests: min quantity = event guest count, initial quantity = guest count
+//   - If depends_on_hours: min quantity = event hours, initial quantity = event hours
+//   - Otherwise: min quantity = 1, initial quantity = 1
+// - Max quantity is always extra.max_quantity (defined by the provider)
+// - Subtotal = extra.price × extra quantity (service quantity NEVER multiplies extras)
 
-export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Props) {
+function getMinQty(extra: Extra, guests: number, eventHours: number): number {
+  if (extra.depends_on_guests) return Math.max(1, guests);
+  if (extra.depends_on_hours) return Math.max(1, Math.ceil(eventHours));
+  return 1;
+}
+
+export function ExtrasSelector({ extras, selectedExtras, onSelectionChange, guests, eventHours }: Props) {
   const getSelected = (id: string) => selectedExtras.find((s) => s.extra_id === id);
 
   const toggle = (extra: Extra) => {
     if (getSelected(extra.id)) {
-      // Deactivate: remove from selection (quantity returns to 0, disappears from total)
       onSelectionChange(selectedExtras.filter((s) => s.extra_id !== extra.id));
     } else {
-      // Activate: always start at quantity 1
-      onSelectionChange([...selectedExtras, { extra_id: extra.id, quantity: 1 }]);
+      const minQty = getMinQty(extra, guests, eventHours);
+      const initialQty = Math.min(minQty, extra.max_quantity);
+      onSelectionChange([...selectedExtras, { extra_id: extra.id, quantity: initialQty }]);
     }
   };
 
   const updateQty = (id: string, delta: number) => {
     const extra = extras.find((e) => e.id === id);
     if (!extra) return;
+    const minQty = getMinQty(extra, guests, eventHours);
     onSelectionChange(selectedExtras.map((s) =>
-      s.extra_id !== id ? s : { ...s, quantity: Math.max(1, Math.min(extra.max_quantity, s.quantity + delta)) }
+      s.extra_id !== id ? s : { ...s, quantity: Math.max(minQty, Math.min(extra.max_quantity, s.quantity + delta)) }
     ));
   };
 
@@ -50,6 +61,7 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Pr
         const sel = getSelected(extra.id);
         const checked = !!sel;
         const qty = sel?.quantity ?? 0;
+        const minQty = getMinQty(extra, guests, eventHours);
 
         return (
           <div key={extra.id} className={`rounded-lg border p-4 transition-colors ${checked ? 'border-primary bg-primary/5' : ''}`}>
@@ -68,12 +80,13 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange }: Pr
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Cantidad:</span>
-                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= 1}><Minus className="h-3 w-3" /></Button>
+                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= minQty}><Minus className="h-3 w-3" /></Button>
                       <span className="w-8 text-center text-sm font-medium">{qty}</span>
                       <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, 1)} disabled={qty >= extra.max_quantity}><Plus className="h-3 w-3" /></Button>
-                      <span className="text-xs text-muted-foreground">(max {extra.max_quantity})</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({minQty > 1 ? `min ${minQty} · ` : ''}max {extra.max_quantity})
+                      </span>
                     </div>
-                    {/* Extra pricing: extra_price × extra_quantity (service quantity never multiplies extras) */}
                     <span className="text-sm font-medium">Subtotal: ${(extra.price * qty).toLocaleString()}</span>
                   </div>
                 )}
