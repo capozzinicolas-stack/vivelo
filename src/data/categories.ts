@@ -13,21 +13,21 @@ export interface CategoryInfo {
 export const categories: CategoryInfo[] = [
   {
     value: 'FOOD_DRINKS',
-    label: 'Comida y Bebidas',
+    label: 'Alimentos y Bebidas',
     description: 'Catering, barras de bebidas, food trucks y más',
     icon: UtensilsCrossed,
     color: 'bg-orange-100 text-orange-600',
   },
   {
     value: 'AUDIO',
-    label: 'Audio y Sonido',
+    label: 'Audio y Entretenimiento',
     description: 'DJs, sistemas de sonido, bandas y entretenimiento',
     icon: Music,
     color: 'bg-blue-100 text-blue-600',
   },
   {
     value: 'DECORATION',
-    label: 'Decoración',
+    label: 'Decoración y Ambientación',
     description: 'Decoración floral, iluminación y ambientación',
     icon: Flower2,
     color: 'bg-pink-100 text-pink-600',
@@ -41,14 +41,14 @@ export const categories: CategoryInfo[] = [
   },
   {
     value: 'STAFF',
-    label: 'Personal',
+    label: 'Staff y Operación',
     description: 'Meseros, coordinadores, bartenders y más',
     icon: Users,
     color: 'bg-green-100 text-green-600',
   },
   {
     value: 'FURNITURE',
-    label: 'Mobiliario',
+    label: 'Mobiliario y Equipo',
     description: 'Mesas, sillas, tarimas y carpas',
     icon: Armchair,
     color: 'bg-amber-100 text-amber-600',
