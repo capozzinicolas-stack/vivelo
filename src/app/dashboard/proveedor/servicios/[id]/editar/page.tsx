@@ -34,9 +34,9 @@ export default function EditarServicioPage() {
   const [basePrice, setBasePrice] = useState('');
   const [priceUnit, setPriceUnit] = useState('por evento');
   const [minGuests, setMinGuests] = useState('1');
-  const [maxGuests, setMaxGuests] = useState('100');
+  const [maxGuests, setMaxGuests] = useState('');
   const [minHours, setMinHours] = useState('1');
-  const [maxHours, setMaxHours] = useState('12');
+  const [maxHours, setMaxHours] = useState('');
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [videos, setVideos] = useState<string[]>([]);
@@ -48,7 +48,7 @@ export default function EditarServicioPage() {
   const [newExtraName, setNewExtraName] = useState('');
   const [newExtraPrice, setNewExtraPrice] = useState('');
   const [newExtraPriceType, setNewExtraPriceType] = useState<'fixed' | 'per_person' | 'per_hour'>('fixed');
-  const [newExtraMaxQty, setNewExtraMaxQty] = useState('1');
+  const [newExtraMaxQty, setNewExtraMaxQty] = useState('');
   const [newExtraDependsGuests, setNewExtraDependsGuests] = useState(false);
   const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
 
@@ -89,6 +89,14 @@ export default function EditarServicioPage() {
       toast({ title: 'Campos requeridos', description: 'Completa titulo, categoria y precio.', variant: 'destructive' });
       return;
     }
+    if (!maxGuests) {
+      toast({ title: 'Campos requeridos', description: 'Completa el maximo de invitados.', variant: 'destructive' });
+      return;
+    }
+    if (isPerHour && !maxHours) {
+      toast({ title: 'Campos requeridos', description: 'Completa el maximo de horas.', variant: 'destructive' });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -99,7 +107,7 @@ export default function EditarServicioPage() {
         base_price: parseFloat(basePrice),
         price_unit: priceUnit,
         min_guests: parseInt(minGuests) || 1,
-        max_guests: parseInt(maxGuests) || 100,
+        max_guests: parseInt(maxGuests),
         zones: selectedZones,
         images,
       };
@@ -132,6 +140,10 @@ export default function EditarServicioPage() {
       toast({ title: 'Completa nombre y precio del extra', variant: 'destructive' });
       return;
     }
+    if (!newExtraMaxQty) {
+      toast({ title: 'Campos requeridos', description: 'Completa la cantidad maxima del extra.', variant: 'destructive' });
+      return;
+    }
     try {
       const extraSku = sku ? generateExtraSku(sku, serviceExtras.length) : undefined;
       const created = await createExtra({
@@ -139,7 +151,7 @@ export default function EditarServicioPage() {
         name: newExtraName,
         price: parseFloat(newExtraPrice),
         price_type: newExtraPriceType,
-        max_quantity: parseInt(newExtraMaxQty) || 1,
+        max_quantity: parseInt(newExtraMaxQty),
         sku: extraSku,
         depends_on_guests: newExtraDependsGuests,
         depends_on_hours: newExtraDependsHours,
@@ -148,7 +160,7 @@ export default function EditarServicioPage() {
       setNewExtraName('');
       setNewExtraPrice('');
       setNewExtraPriceType('fixed');
-      setNewExtraMaxQty('1');
+      setNewExtraMaxQty('');
       setNewExtraDependsGuests(false);
       setNewExtraDependsHours(false);
       toast({ title: 'Extra agregado!' });
@@ -218,12 +230,12 @@ export default function EditarServicioPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
-              <div><Label>Max. Invitados</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} className="mt-1" /></div>
+              <div><Label>Max. Invitados *</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} placeholder="Ej: 100" className="mt-1" /></div>
             </div>
             {showMinMaxHours && (
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Min. Horas</Label><Input type="number" step="0.5" value={minHours} onChange={(e) => setMinHours(e.target.value)} className="mt-1" /></div>
-                <div><Label>Max. Horas</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} className="mt-1" /></div>
+                <div><Label>Max. Horas *</Label><Input type="number" step="0.5" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} placeholder="Ej: 12" className="mt-1" /></div>
               </div>
             )}
             {!isPerHour && (
@@ -337,7 +349,7 @@ export default function EditarServicioPage() {
                   <SelectItem value="per_hour">Por hora</SelectItem>
                 </SelectContent>
               </Select>
-              <Input type="number" placeholder="Max cant." value={newExtraMaxQty} onChange={(e) => setNewExtraMaxQty(e.target.value)} />
+              <Input type="number" placeholder="Max cant. *" value={newExtraMaxQty} onChange={(e) => setNewExtraMaxQty(e.target.value)} />
             </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Elige la siguiente opcion solo en caso de que tu extra este atado a la cantidad contratada del servicio principal.</p>
