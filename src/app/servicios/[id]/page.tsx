@@ -21,8 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search, CalendarX } from 'lucide-react';
+import { AlertTriangle, Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Service } from '@/types/database';
@@ -49,7 +48,7 @@ export default function ServiceDetailPage() {
   const [guests, setGuests] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
-  const [unavailableModal, setUnavailableModal] = useState<{ open: boolean; reason: string }>({ open: false, reason: '' });
+  const [availabilityStatus, setAvailabilityStatus] = useState<{ checking: boolean; available: boolean | null; reason: string }>({ checking: false, available: null, reason: '' });
 
   useEffect(() => {
     getServiceById(id).then(async (s) => {
@@ -83,6 +82,60 @@ export default function ServiceDetailPage() {
       return sel;
     }));
   }, [guests, startTime, endTime, service]);
+
+  // Real-time availability check when date/time changes
+  useEffect(() => {
+    if (!service || !date) {
+      setAvailabilityStatus({ checking: false, available: null, reason: '' });
+      return;
+    }
+
+    const actualEnd = (service.price_unit === 'por evento' && service.base_event_hours)
+      ? (() => {
+          const [h, m] = startTime.split(':').map(Number);
+          const totalMin = h * 60 + m + (service.base_event_hours! * 60);
+          const eh = Math.floor(totalMin / 60);
+          const em = Math.round(totalMin % 60);
+          return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+        })()
+      : endTime;
+
+    if (actualEnd <= startTime) return;
+
+    setAvailabilityStatus(prev => ({ ...prev, checking: true }));
+
+    const eventDate = format(date, 'yyyy-MM-dd');
+    const buffers = resolveBuffers(service, service.provider ?? undefined);
+    const effective = calculateEffectiveTimes({
+      eventDate,
+      startTime,
+      endTime: actualEnd,
+      bufferBeforeMinutes: buffers.bufferBeforeMinutes,
+      bufferAfterMinutes: buffers.bufferAfterMinutes,
+    });
+
+    const controller = new AbortController();
+
+    checkVendorAvailability(service.provider_id, effective.effective_start, effective.effective_end)
+      .then(result => {
+        if (controller.signal.aborted) return;
+        if (!result.available) {
+          const reason = result.has_calendar_block
+            ? 'El proveedor tiene un bloqueo en ese horario.'
+            : `El proveedor ya tiene ${result.overlapping_bookings} reserva(s) en ese horario (maximo: ${result.max_concurrent}).`;
+          setAvailabilityStatus({ checking: false, available: false, reason });
+        } else {
+          setAvailabilityStatus({ checking: false, available: true, reason: '' });
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setAvailabilityStatus({ checking: false, available: null, reason: '' });
+        }
+      });
+
+    return () => controller.abort();
+  }, [date, startTime, endTime, service]);
 
   if (loading) {
     return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
@@ -154,21 +207,6 @@ export default function ServiceDetailPage() {
         bufferBeforeMinutes: buffers.bufferBeforeMinutes,
         bufferAfterMinutes: buffers.bufferAfterMinutes,
       });
-
-      const availability = await checkVendorAvailability(
-        service.provider_id,
-        effective.effective_start,
-        effective.effective_end,
-      );
-
-      if (!availability.available) {
-        const reason = availability.has_calendar_block
-          ? 'El proveedor tiene un bloqueo en ese horario.'
-          : `El proveedor ya tiene ${availability.overlapping_bookings} reserva(s) en ese horario (maximo: ${availability.max_concurrent}).`;
-        setUnavailableModal({ open: true, reason });
-        setSubmitting(false);
-        return;
-      }
 
       const booking = await createBooking({
         service_id: service.id,
@@ -390,7 +428,35 @@ export default function ServiceDetailPage() {
                     <div className="flex justify-between font-bold text-lg"><span>Total</span><span>${total.toLocaleString()}</span></div>
                   </div>
 
-                  <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting}>
+                  {availabilityStatus.checking && date && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verificando disponibilidad...
+                    </div>
+                  )}
+
+                  {availabilityStatus.available === false && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-destructive font-medium text-sm">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        No disponible en este horario
+                      </div>
+                      <p className="text-xs text-muted-foreground">{availabilityStatus.reason}</p>
+                      <Button variant="outline" size="sm" onClick={handleExploreSimilar} className="w-full gap-2 mt-1">
+                        <Search className="h-3 w-3" />
+                        Explorar servicios similares
+                      </Button>
+                    </div>
+                  )}
+
+                  {availabilityStatus.available === true && date && (
+                    <p className="text-sm text-green-600 font-medium flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                      Disponible
+                    </p>
+                  )}
+
+                  <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting || availabilityStatus.available === false || availabilityStatus.checking}>
                     {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</> : 'Solicitar Reserva'}
                   </Button>
                 </>
@@ -399,29 +465,6 @@ export default function ServiceDetailPage() {
           </Card>
         </div>
       </div>
-
-      <Dialog open={unavailableModal.open} onOpenChange={(open) => setUnavailableModal(prev => ({ ...prev, open }))}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarX className="h-5 w-5 text-destructive" />
-              Servicio no disponible
-            </DialogTitle>
-            <DialogDescription>
-              Este servicio no esta disponible para la fecha y horario seleccionados. {unavailableModal.reason}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setUnavailableModal({ open: false, reason: '' })}>
-              Cambiar fecha
-            </Button>
-            <Button onClick={handleExploreSimilar} className="gap-2">
-              <Search className="h-4 w-4" />
-              Explorar similares
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
