@@ -2,13 +2,8 @@ import Link from 'next/link';
 import { Star, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { categoryMap } from '@/data/categories';
-import type { Service } from '@/types/database';
-
-const placeholderColors: Record<string, string> = {
-  FOOD_DRINKS: 'bg-orange-200', AUDIO: 'bg-blue-200', DECORATION: 'bg-pink-200',
-  PHOTO_VIDEO: 'bg-purple-200', STAFF: 'bg-green-200', FURNITURE: 'bg-amber-200',
-};
+import { categoryMap, subcategoryMap } from '@/data/categories';
+import type { Service, ServiceSubcategory } from '@/types/database';
 
 export function ServiceCard({ service }: { service: Service }) {
   const cat = categoryMap[service.category];
@@ -23,12 +18,21 @@ export function ServiceCard({ service }: { service: Service }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverImage} alt={service.title} className="h-48 w-full object-cover" />
         ) : (
-          <div className={`${placeholderColors[service.category] || 'bg-gray-200'} h-48 w-full flex items-center justify-center`}>
-            {cat && <cat.icon className="h-12 w-12 text-muted-foreground/50" />}
+          <div className={`h-48 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
+            {cat && (
+              <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
+                <cat.icon className="h-8 w-8" />
+              </div>
+            )}
           </div>
         )}
         <CardContent className="p-4 space-y-3">
-          {cat && <Badge className={cat.color} variant="secondary">{cat.label}</Badge>}
+          <div className="flex flex-wrap gap-1.5">
+            {cat && <Badge className={cat.color} variant="secondary">{cat.label}</Badge>}
+            {service.subcategory && subcategoryMap[service.subcategory as ServiceSubcategory] && (
+              <Badge variant="outline" className="text-xs">{subcategoryMap[service.subcategory as ServiceSubcategory].label}</Badge>
+            )}
+          </div>
           <h3 className="font-semibold text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">{service.title}</h3>
           <div className="flex items-center gap-1.5">
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />

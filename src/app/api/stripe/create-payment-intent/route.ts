@@ -1,31 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, isMockStripe } from '@/lib/stripe';
+import Stripe from 'stripe';
 
 export async function POST(request: NextRequest) {
   try {
-    const { bookingId, amount, metadata } = await request.json() as { bookingId: string; amount: number; metadata?: Record<string, string> };
+    const body = await request.json() as {
+      bookingId?: string;
+      orderId?: string;
+      amount: number;
+      metadata?: Record<string, string>;
+    };
 
-    if (!bookingId || !amount) {
-      return NextResponse.json({ error: 'Se requieren bookingId y amount.' }, { status: 400 });
+    const { bookingId, orderId, amount, metadata } = body;
+
+    if (!amount || (!bookingId && !orderId)) {
+      return NextResponse.json({ error: 'Se requieren amount y (bookingId o orderId).' }, { status: 400 });
     }
 
     const amountInCents = Math.round(amount * 100);
+    const refId = orderId || bookingId || 'unknown';
 
-    if (isMockStripe || !stripe) {
-      const fakeId = `pi_mock_${Date.now()}_${bookingId.slice(0, 8)}`;
+    const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+    const isMock = !secretKey || secretKey === 'sk_test_placeholder';
+
+    if (isMock) {
+      console.log('[Stripe] Mock mode — no secret key or placeholder');
+      const fakeId = `pi_mock_${Date.now()}_${refId.slice(0, 8)}`;
       return NextResponse.json({ clientSecret: `${fakeId}_secret_mock`, paymentIntentId: fakeId });
     }
+
+    console.log(`[Stripe] Creating PaymentIntent: amount=${amountInCents} currency=mxn ref=${refId} keyPrefix=${secretKey.substring(0, 12)}...`);
+
+    const stripe = new Stripe(secretKey);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'mxn',
-      metadata: { bookingId, ...metadata },
+      metadata: {
+        ...(orderId ? { orderId } : {}),
+        ...(bookingId ? { bookingId } : {}),
+        ...metadata,
+      },
       automatic_payment_methods: { enabled: true },
     });
 
+    console.log(`[Stripe] PaymentIntent created: ${paymentIntent.id}`);
+
     return NextResponse.json({ clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id });
   } catch (error) {
-    console.error('[Stripe] Error creando PaymentIntent:', error);
-    return NextResponse.json({ error: 'Error al procesar la solicitud de pago.' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    const stripeError = error as { type?: string; code?: string; statusCode?: number };
+    console.error('[Stripe] Error creando PaymentIntent:', {
+      message,
+      type: stripeError.type,
+      code: stripeError.code,
+      statusCode: stripeError.statusCode,
+    });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { categories } from '@/data/categories';
+import { categories, subcategoriesByCategory } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { createService } from '@/lib/supabase/queries';
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
-import type { ServiceCategory } from '@/types/database';
+import type { ServiceCategory, ServiceSubcategory } from '@/types/database';
 
 interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; sku: string; depends_on_guests: boolean; depends_on_hours: boolean; }
 
@@ -28,6 +28,7 @@ export default function NuevoServicioPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [priceUnit, setPriceUnit] = useState('por evento');
   const [minGuests, setMinGuests] = useState('1');
@@ -51,8 +52,13 @@ export default function NuevoServicioPage() {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
   };
 
+  const availableSubcategories = category
+    ? subcategoriesByCategory[category as ServiceCategory] || []
+    : [];
+
   const handleCategoryChange = (val: string) => {
     setCategory(val);
+    setSubcategory('');
     const newSku = generateServiceSku(val);
     setSku(newSku);
     setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) })));
@@ -74,6 +80,10 @@ export default function NuevoServicioPage() {
     if (!user) return;
     if (!title || !category || !basePrice) {
       toast({ title: 'Campos requeridos', description: 'Completa titulo, categoria y precio.', variant: 'destructive' });
+      return;
+    }
+    if (!subcategory) {
+      toast({ title: 'Campos requeridos', description: 'Selecciona una subcategoria.', variant: 'destructive' });
       return;
     }
     if (!maxGuests) {
@@ -98,6 +108,7 @@ export default function NuevoServicioPage() {
           title,
           description,
           category: category as ServiceCategory,
+          subcategory: subcategory as ServiceSubcategory,
           base_price: parseFloat(basePrice),
           price_unit: priceUnit,
           min_guests: parseInt(minGuests) || 1,
@@ -148,6 +159,16 @@ export default function NuevoServicioPage() {
                 <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {availableSubcategories.length > 0 && (
+              <div><Label>Subcategoria *</Label>
+                <Select value={subcategory} onValueChange={setSubcategory}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar subcategoria" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {sku && (
               <div>
                 <Label>SKU</Label>

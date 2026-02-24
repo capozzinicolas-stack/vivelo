@@ -5,12 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { categories } from '@/data/categories';
+import { categories, subcategoriesByCategory } from '@/data/categories';
 import { ZONES } from '@/lib/constants';
 import { Search, X } from 'lucide-react';
+import type { ServiceCategory } from '@/types/database';
 
 export interface Filters {
   category: string;
+  subcategory: string;
   zone: string;
   priceRange: [number, number];
   search: string;
@@ -21,10 +23,14 @@ interface ServiceFiltersProps {
   onFiltersChange: (filters: Filters) => void;
 }
 
-export const defaultFilters: Filters = { category: '', zone: '', priceRange: [0, 5000], search: '' };
+export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 5000], search: '' };
 
 export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
+
+  const availableSubcategories = filters.category
+    ? subcategoriesByCategory[filters.category as ServiceCategory] || []
+    : [];
 
   return (
     <div className="space-y-6">
@@ -38,7 +44,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
 
       <div>
         <Label className="text-sm font-medium mb-2 block">Categoria</Label>
-        <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v })}>
+        <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v, subcategory: '' })}>
           <SelectTrigger><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas las categorias</SelectItem>
@@ -46,6 +52,19 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
           </SelectContent>
         </Select>
       </div>
+
+      {availableSubcategories.length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Subcategoria</Label>
+          <Select value={filters.subcategory} onValueChange={(v) => update({ subcategory: v === 'ALL' ? '' : v })}>
+            <SelectTrigger><SelectValue placeholder="Todas las subcategorias" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las subcategorias</SelectItem>
+              {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div>
         <Label className="text-sm font-medium mb-2 block">Zona</Label>

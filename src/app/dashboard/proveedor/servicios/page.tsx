@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServicesByProvider, updateServiceStatus, requestServiceDeletion } from '@/lib/supabase/queries';
+import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements } from '@/lib/supabase/queries';
 import { categoryMap } from '@/data/categories';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin } from 'lucide-react';
+import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles } from 'lucide-react';
 import type { Service, ServiceStatus } from '@/types/database';
 
 const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', paused: 'Pausado', archived: 'Archivado' };
@@ -22,13 +22,20 @@ export default function ProveedorServiciosPage() {
   const { user } = useAuthContext();
   const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
+  const [featuredServiceIds, setFeaturedServiceIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<Service | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    getServicesByProvider(user.id)
-      .then(setServices)
+    Promise.all([
+      getServicesByProvider(user.id),
+      getFeaturedPlacements(),
+    ])
+      .then(([svcs, placements]) => {
+        setServices(svcs);
+        setFeaturedServiceIds(new Set(placements.map(p => p.service_id)));
+      })
       .catch((err) => {
         console.error('[ProveedorServicios] Error loading services:', err);
         toast({ title: 'Error cargando servicios', description: err?.message || 'Intenta recargar la pagina.', variant: 'destructive' });
@@ -84,7 +91,16 @@ export default function ProveedorServiciosPage() {
               const cat = categoryMap[s.category];
               return (
                 <TableRow key={s.id}>
-                  <TableCell className="font-medium">{s.title}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{s.title}</span>
+                      {featuredServiceIds.has(s.id) && (
+                        <Badge className="bg-violet-100 text-violet-700 text-[10px] gap-1">
+                          <Sparkles className="h-3 w-3" />Destacado
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell><Badge className={cat?.color} variant="secondary">{cat?.label}</Badge></TableCell>
                   <TableCell>${s.base_price.toLocaleString()} {s.price_unit}</TableCell>
                   <TableCell>

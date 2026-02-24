@@ -1,10 +1,10 @@
 import Stripe from 'stripe';
 import { COMMISSION_RATE } from '@/lib/constants';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY?.trim();
 
 export const stripe = stripeSecretKey && stripeSecretKey !== 'sk_test_placeholder'
-  ? new Stripe(stripeSecretKey, { typescript: true })
+  ? new Stripe(stripeSecretKey)
   : null;
 
 export const isMockStripe = !stripe;

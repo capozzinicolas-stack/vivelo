@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/types/database';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,8 @@ export function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +38,7 @@ export function RegisterForm() {
 
     try {
       await signUp(email, password, fullName, role, digitsOnly);
-      router.push('/dashboard');
+      router.push(redirectTo || '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
     } finally {
@@ -141,7 +143,7 @@ export function RegisterForm() {
           </Button>
           <p className="text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/login" className="text-primary hover:underline font-medium">
+            <Link href={`/login${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-primary hover:underline font-medium">
               Inicia sesión
             </Link>
           </p>

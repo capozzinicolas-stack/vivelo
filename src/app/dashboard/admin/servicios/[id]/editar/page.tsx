@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { categories } from '@/data/categories';
+import { categories, subcategoriesByCategory } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { getServiceById, updateService, updateServiceStatus, createExtra, updateExtra as updateExtraQuery, deleteExtra } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
-import type { ServiceCategory, ServiceStatus, Extra } from '@/types/database';
+import type { ServiceCategory, ServiceSubcategory, ServiceStatus, Extra } from '@/types/database';
 
 const statusOptions: { value: ServiceStatus; label: string }[] = [
   { value: 'active', label: 'Activo' },
@@ -39,6 +39,7 @@ export default function AdminEditarServicioPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [priceUnit, setPriceUnit] = useState('por evento');
   const [minGuests, setMinGuests] = useState('1');
@@ -64,6 +65,10 @@ export default function AdminEditarServicioPage() {
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
 
+  const availableSubcategories = category
+    ? subcategoriesByCategory[category as ServiceCategory] || []
+    : [];
+
   useEffect(() => {
     getServiceById(id).then(s => {
       if (!s) return;
@@ -72,6 +77,7 @@ export default function AdminEditarServicioPage() {
       setTitle(s.title);
       setDescription(s.description);
       setCategory(s.category);
+      setSubcategory(s.subcategory || '');
       setBasePrice(s.base_price.toString());
       setPriceUnit(s.price_unit);
       setMinGuests(s.min_guests.toString());
@@ -100,6 +106,10 @@ export default function AdminEditarServicioPage() {
       toast({ title: 'Campos requeridos', description: 'Completa titulo, categoria y precio.', variant: 'destructive' });
       return;
     }
+    if (!subcategory) {
+      toast({ title: 'Campos requeridos', description: 'Selecciona una subcategoria.', variant: 'destructive' });
+      return;
+    }
     if (!maxGuests) {
       toast({ title: 'Campos requeridos', description: 'Completa el maximo de invitados.', variant: 'destructive' });
       return;
@@ -115,6 +125,7 @@ export default function AdminEditarServicioPage() {
         title,
         description,
         category: category as ServiceCategory,
+        subcategory: subcategory as ServiceSubcategory,
         base_price: parseFloat(basePrice),
         price_unit: priceUnit,
         min_guests: parseInt(minGuests) || 1,
@@ -229,11 +240,21 @@ export default function AdminEditarServicioPage() {
             <div><Label>Titulo *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" /></div>
             <div><Label>Descripcion</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" rows={4} /></div>
             <div><Label>Categoria *</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(''); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {availableSubcategories.length > 0 && (
+              <div><Label>Subcategoria *</Label>
+                <Select value={subcategory} onValueChange={setSubcategory}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar subcategoria" /></SelectTrigger>
+                  <SelectContent>
+                    {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Precio Base *</Label><Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} className="mt-1" /></div>
               <div><Label>Unidad de Precio *</Label>

@@ -9,7 +9,7 @@ import type { UserRole } from '@/types/database';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell } from 'lucide-react';
 
 const navByRole: Record<UserRole, { label: string; href: string; icon: React.ElementType }[]> = {
   client: [
@@ -22,6 +22,8 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
     { label: 'Mis Servicios', href: '/dashboard/proveedor/servicios', icon: Package },
     { label: 'Reservas', href: '/dashboard/proveedor/reservas', icon: CalendarCheck },
     { label: 'Calendario', href: '/dashboard/proveedor/calendario', icon: CalendarDays },
+    { label: 'Campanas', href: '/dashboard/proveedor/campanas', icon: Megaphone },
+    { label: 'Notificaciones', href: '/dashboard/proveedor/notificaciones', icon: Bell },
     { label: 'Mi Perfil', href: '/dashboard/proveedor/perfil', icon: UserCircle },
     { label: 'Configuracion', href: '/dashboard/proveedor/configuracion', icon: Settings },
   ],
@@ -31,6 +33,9 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
     { label: 'Servicios', href: '/dashboard/admin/servicios', icon: ShieldCheck },
     { label: 'Reservas', href: '/dashboard/admin/reservas', icon: CalendarCheck },
     { label: 'Finanzas', href: '/dashboard/admin/finanzas', icon: DollarSign },
+    { label: 'Marketing', href: '/dashboard/admin/marketing', icon: Megaphone },
+    { label: 'Contenido', href: '/dashboard/admin/contenido', icon: FileText },
+    { label: 'Notificaciones', href: '/dashboard/admin/notificaciones', icon: Bell },
     { label: 'Configuracion', href: '/dashboard/admin/configuracion', icon: Settings },
   ],
 };

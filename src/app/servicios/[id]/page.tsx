@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, getProfileById, createBooking, checkVendorAvailability, createSubBookings } from '@/lib/supabase/queries';
-import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
+import { getServiceById, getProfileById, checkVendorAvailability, getClientEventNames } from '@/lib/supabase/queries';
+import { resolveBuffers, calculateEffectiveTimes } from '@/lib/availability';
 import { categoryMap } from '@/data/categories';
-import { COMMISSION_RATE, TIME_SLOTS } from '@/lib/constants';
+import { TIME_SLOTS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
+import { useCart } from '@/providers/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { ExtrasSelector, type SelectedExtraItem } from '@/components/services/extras-selector';
 import { MediaGallery } from '@/components/services/media-gallery';
@@ -21,7 +22,9 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Service } from '@/types/database';
@@ -37,18 +40,27 @@ export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuthContext();
+  const { addItem } = useCart();
   const { toast } = useToast();
 
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('14:00');
   const [guests, setGuests] = useState(1);
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
+  const [eventName, setEventName] = useState('');
+  const [existingEventNames, setExistingEventNames] = useState<string[]>([]);
+  const [eventNameOpen, setEventNameOpen] = useState(false);
   const [availabilityStatus, setAvailabilityStatus] = useState<{ checking: boolean; available: boolean | null; reason: string }>({ checking: false, available: null, reason: '' });
+
+  useEffect(() => {
+    if (user) {
+      getClientEventNames(user.id).then(setExistingEventNames);
+    }
+  }, [user]);
 
   useEffect(() => {
     getServiceById(id).then(async (s) => {
@@ -186,86 +198,47 @@ export default function ServiceDetailPage() {
   // Commission is deducted from the provider's share, NOT charged to the client
   // Example: service=$100, commission=12% → client pays $100, Vivelo retains $12, provider receives $88
   const total = baseTotal + extrasTotal;
-  const commission = Math.round(total * COMMISSION_RATE * 100) / 100;
 
-  const handleSubmit = async () => {
-    if (!user) return;
+  const handleAddToCart = () => {
     if (!date) { toast({ title: 'Selecciona una fecha', variant: 'destructive' }); return; }
     const actualEndTime = hasBaseEventHours ? computedEndTime : endTime;
     if (actualEndTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
     if (isPerHour && eventHours < (service.min_hours || 1)) { toast({ title: `Minimo ${service.min_hours} horas para este servicio`, variant: 'destructive' }); return; }
     if (isPerHour && eventHours > (service.max_hours || 12)) { toast({ title: `Maximo ${service.max_hours} horas para este servicio`, variant: 'destructive' }); return; }
 
-    setSubmitting(true);
-    try {
-      const eventDate = format(date, 'yyyy-MM-dd');
-      const buffers = resolveBuffers(service, service.provider ?? undefined);
-      const effective = calculateEffectiveTimes({
-        eventDate,
-        startTime,
-        endTime: actualEndTime,
-        bufferBeforeMinutes: buffers.bufferBeforeMinutes,
-        bufferAfterMinutes: buffers.bufferAfterMinutes,
-      });
-
-      const booking = await createBooking({
-        service_id: service.id,
-        client_id: user.id,
+    addItem({
+      id: crypto.randomUUID(),
+      service_id: service.id,
+      service_snapshot: {
+        title: service.title,
+        base_price: service.base_price,
+        price_unit: service.price_unit,
+        base_event_hours: service.base_event_hours ?? null,
         provider_id: service.provider_id,
-        event_date: eventDate,
-        start_time: startTime,
-        end_time: actualEndTime,
-        event_hours: eventHours,
-        guest_count: guests,
-        base_total: baseTotal,
-        extras_total: extrasTotal,
-        commission,
-        total,
-        selected_extras: selectedExtras.map(sel => {
-          const extra = extras.find(e => e.id === sel.extra_id)!;
-          return { extra_id: sel.extra_id, name: extra.name, quantity: sel.quantity, price: extra.price * sel.quantity };
-        }),
-        notes: notes || null,
-        start_datetime: effective.start_datetime,
-        end_datetime: effective.end_datetime,
-        effective_start: effective.effective_start,
-        effective_end: effective.effective_end,
-        billing_type_snapshot: service.price_unit,
-      });
+        provider_name: service.provider?.company_name || service.provider?.full_name || 'Proveedor',
+        category: service.category,
+        image: service.images?.[0] ?? null,
+        min_guests: service.min_guests,
+        max_guests: service.max_guests,
+      },
+      event_date: format(date, 'yyyy-MM-dd'),
+      start_time: startTime,
+      end_time: actualEndTime,
+      event_hours: eventHours,
+      guest_count: guests,
+      base_total: baseTotal,
+      extras_total: extrasTotal,
+      total,
+      selected_extras: selectedExtras.map(sel => {
+        const extra = extras.find(e => e.id === sel.extra_id)!;
+        return { extra_id: sel.extra_id, name: extra.name, quantity: sel.quantity, unit_price: extra.price, subtotal: extra.price * sel.quantity };
+      }),
+      notes: notes || null,
+      event_name: eventName || null,
+      added_at: new Date().toISOString(),
+    });
 
-      // Create sub-bookings for each selected extra (non-blocking)
-      if (selectedExtras.length > 0) {
-        try {
-          // Extra pricing: extra_price × extra_quantity (service quantity never multiplies extras)
-          const subItems = selectedExtras.map(sel => {
-            const extra = extras.find(e => e.id === sel.extra_id);
-            if (!extra) return null;
-            return {
-              extra_id: sel.extra_id,
-              sku: extra.sku || undefined,
-              name: extra.name,
-              quantity: sel.quantity,
-              unit_price: extra.price,
-              price_type: extra.price_type,
-              subtotal: extra.price * sel.quantity,
-            };
-          }).filter(Boolean) as { extra_id: string; sku?: string; name: string; quantity: number; unit_price: number; price_type: string; subtotal: number }[];
-          if (subItems.length > 0) await createSubBookings(booking.id, subItems);
-        } catch {
-          // Sub-bookings are supplementary — don't fail the booking
-          console.error('Failed to create sub-bookings');
-        }
-      }
-
-      toast({ title: 'Reserva solicitada!', description: `Tu solicitud para "${service.title}" ha sido enviada al proveedor.` });
-      router.push('/dashboard/cliente/reservas');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : JSON.stringify(err);
-      console.error('Error creating booking:', msg, err);
-      toast({ title: 'Error', description: msg || 'No se pudo crear la reserva. Intenta de nuevo.', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
+    toast({ title: 'Agregado al carrito', description: `"${service.title}" fue agregado a tu carrito.` });
   };
 
   const handleExploreSimilar = () => {
@@ -329,13 +302,6 @@ export default function ServiceDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!user ? (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground mb-3">Inicia sesion para reservar</p>
-                  <Button asChild className="w-full"><Link href="/login">Iniciar Sesion</Link></Button>
-                </div>
-              ) : (
-                <>
                   <div>
                     <Label>Fecha del evento *</Label>
                     <Popover>
@@ -402,6 +368,37 @@ export default function ServiceDetailPage() {
                     <Textarea placeholder="Detalles adicionales..." value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" rows={3} />
                   </div>
 
+                  <div>
+                    <Label className="flex items-center gap-1"><PartyPopper className="h-3 w-3" /> Nombre del evento (opcional)</Label>
+                    <Popover open={eventNameOpen} onOpenChange={setEventNameOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={eventNameOpen} className="w-full justify-between mt-1 font-normal">
+                          {eventName || 'Ej: Fiesta 50 años, Boda Ana y Pedro...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Escribe o selecciona..." value={eventName} onValueChange={setEventName} />
+                          <CommandList>
+                            <CommandEmpty>Escribe para crear un nuevo evento</CommandEmpty>
+                            {existingEventNames.length > 0 && (
+                              <CommandGroup heading="Eventos anteriores">
+                                {existingEventNames.map(name => (
+                                  <CommandItem key={name} value={name} onSelect={(val) => { setEventName(val); setEventNameOpen(false); }}>
+                                    <Check className={cn('mr-2 h-4 w-4', eventName === name ? 'opacity-100' : 'opacity-0')} />
+                                    {name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <p className="text-xs text-muted-foreground mt-1">Agrupa tus reservas bajo un mismo evento</p>
+                  </div>
+
                   <Separator />
 
                   <div className="space-y-2 text-sm">
@@ -456,11 +453,9 @@ export default function ServiceDetailPage() {
                     </p>
                   )}
 
-                  <Button className="w-full" size="lg" onClick={handleSubmit} disabled={submitting || availabilityStatus.available === false || availabilityStatus.checking}>
-                    {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</> : 'Solicitar Reserva'}
+                  <Button className="w-full" size="lg" onClick={handleAddToCart} disabled={availabilityStatus.available === false || availabilityStatus.checking}>
+                    <ShoppingCart className="h-4 w-4 mr-2" />Agregar al Carrito
                   </Button>
-                </>
-              )}
             </CardContent>
           </Card>
         </div>

@@ -1,10 +1,15 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { RegisterForm } from '@/components/auth/register-form';
 
-export default function RegisterPage() {
+function RegisterContent() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
+
   return (
     <div className="flex items-center justify-center min-h-[80vh] px-4">
       <Card className="w-full max-w-md">
@@ -16,10 +21,18 @@ export default function RegisterPage() {
           <RegisterForm />
           <p className="text-center text-sm text-muted-foreground mt-6">
             Ya tienes cuenta?{' '}
-            <Link href="/login" className="text-violet-600 font-medium hover:underline">Inicia Sesion</Link>
+            <Link href={`/login${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-violet-600 font-medium hover:underline">Inicia Sesion</Link>
           </p>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterContent />
+    </Suspense>
   );
 }

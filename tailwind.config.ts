@@ -6,6 +6,34 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/data/**/*.{js,ts}",
+  ],
+  safelist: [
+    // Category icon colors used dynamically via cat.color
+    'bg-orange-100', 'text-orange-600',
+    'bg-blue-100', 'text-blue-600',
+    'bg-pink-100', 'text-pink-600',
+    'bg-purple-100', 'text-purple-600',
+    'bg-green-100', 'text-green-600',
+    'bg-amber-100', 'text-amber-600',
+    // Category showcase gradient backgrounds
+    'from-orange-200', 'to-orange-100',
+    'from-blue-200', 'to-blue-100',
+    'from-pink-200', 'to-pink-100',
+    'from-purple-200', 'to-purple-100',
+    'from-green-200', 'to-green-100',
+    'from-amber-200', 'to-amber-100',
+    // Showcase item gradient colors (dynamic from DB)
+    'from-pink-300', 'via-pink-400', 'to-pink-500',
+    'from-purple-500', 'to-pink-500',
+    'from-amber-500', 'to-orange-500',
+    'from-green-500', 'to-teal-500',
+    'from-pink-400', 'to-rose-500',
+    'from-gray-600', 'to-gray-800',
+    'from-blue-500', 'to-indigo-600',
+    'from-red-500', 'to-orange-500',
+    'from-teal-400', 'to-cyan-500',
+    'from-indigo-500', 'to-purple-600',
   ],
   theme: {
     extend: {

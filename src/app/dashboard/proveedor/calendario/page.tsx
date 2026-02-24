@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Trash2, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, format, addMonths, subMonths, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Booking, VendorCalendarBlock } from '@/types/database';
+import { BookingDetailDialog } from '@/components/booking-detail-dialog';
+import type { Booking, BookingStatus, VendorCalendarBlock } from '@/types/database';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
 
@@ -26,6 +27,9 @@ export default function ProveedorCalendarioPage() {
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const [blockStartDate, setBlockStartDate] = useState('');
   const [blockStartTime, setBlockStartTime] = useState('08:00');
@@ -132,6 +136,10 @@ export default function ProveedorCalendarioPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleBookingStatusChange = (id: string, status: BookingStatus) => {
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
 
   const handleDeleteBlock = async (id: string) => {
@@ -269,7 +277,11 @@ export default function ProveedorCalendarioPage() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">Reservas</p>
                 {dayBookings.map(b => (
-                  <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => { setSelectedBooking(b); setDetailOpen(true); }}
+                  >
                     <div>
                       <p className="font-medium text-sm">{b.service?.title || 'Servicio'}</p>
                       <p className="text-xs text-muted-foreground">
@@ -319,6 +331,15 @@ export default function ProveedorCalendarioPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Booking Detail Dialog */}
+      <BookingDetailDialog
+        booking={selectedBooking}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        role="provider"
+        onStatusChange={handleBookingStatusChange}
+      />
 
       {/* Block Creation Form */}
       <Card>

@@ -15,6 +15,7 @@ export function ServiceGrid({ services, filters, onResetFilters }: ServiceGridPr
   const filtered = services.filter((s) => {
     if (s.status !== 'active') return false;
     if (filters.category && s.category !== filters.category) return false;
+    if (filters.subcategory && s.subcategory !== filters.subcategory) return false;
     if (filters.zone && !s.zones.includes(filters.zone)) return false;
     if (s.base_price > filters.priceRange[1]) return false;
     if (filters.search) {

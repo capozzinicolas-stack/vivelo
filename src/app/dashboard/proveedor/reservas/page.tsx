@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getBookingsByProvider, updateBookingStatus } from '@/lib/supabase/queries';
+import { getBookingsByProvider } from '@/lib/supabase/queries';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { Check, X, Loader2 } from 'lucide-react';
-import type { Booking } from '@/types/database';
+import { BookingDetailDialog } from '@/components/booking-detail-dialog';
+import { Loader2 } from 'lucide-react';
+import type { Booking, BookingStatus } from '@/types/database';
 
 const tabs = ['all', 'pending', 'confirmed', 'completed'] as const;
 const tabLabels: Record<string, string> = { all: 'Todas', pending: 'Pendientes', confirmed: 'Confirmadas', completed: 'Completadas' };
@@ -20,7 +19,8 @@ export default function ProveedorReservasPage() {
   const [tab, setTab] = useState('all');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -29,15 +29,8 @@ export default function ProveedorReservasPage() {
 
   const filtered = tab === 'all' ? bookings : bookings.filter((b) => b.status === tab);
 
-  const handleAction = async (action: 'confirmed' | 'rejected', id: string) => {
-    try {
-      await updateBookingStatus(id, action);
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: action } : b));
-      const label = action === 'confirmed' ? 'Confirmada' : 'Rechazada';
-      toast({ title: `Reserva ${label}`, description: `La reserva ha sido ${label.toLowerCase()}.` });
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar la reserva.', variant: 'destructive' });
-    }
+  const handleStatusChange = (id: string, status: BookingStatus) => {
+    setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -58,28 +51,23 @@ export default function ProveedorReservasPage() {
                   <TableHead>Invitados</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
                 ) : filtered.map((b) => (
-                  <TableRow key={b.id}>
+                  <TableRow
+                    key={b.id}
+                    className="cursor-pointer hover:bg-accent"
+                    onClick={() => { setSelectedBooking(b); setDetailOpen(true); }}
+                  >
                     <TableCell className="font-medium">{b.service?.title || 'Servicio'}</TableCell>
                     <TableCell>{b.client?.full_name || 'Cliente'}</TableCell>
                     <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell>{b.guest_count}</TableCell>
                     <TableCell className="font-medium">${b.total.toLocaleString()}</TableCell>
                     <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
-                    <TableCell>
-                      {b.status === 'pending' && (
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" className="h-7 text-green-600" onClick={() => handleAction('confirmed', b.id)}><Check className="h-3 w-3" /></Button>
-                          <Button size="sm" variant="outline" className="h-7 text-red-600" onClick={() => handleAction('rejected', b.id)}><X className="h-3 w-3" /></Button>
-                        </div>
-                      )}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -87,6 +75,14 @@ export default function ProveedorReservasPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <BookingDetailDialog
+        booking={selectedBooking}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        role="provider"
+        onStatusChange={handleStatusChange}
+      />
     </div>
   );
 }

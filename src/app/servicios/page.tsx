@@ -13,8 +13,9 @@ import type { Service } from '@/types/database';
 function ServiciosContent() {
   const searchParams = useSearchParams();
   const initialCat = searchParams.get('categoria') || '';
+  const initialSubcat = searchParams.get('subcategoria') || '';
   const initialZone = searchParams.get('zona') || '';
-  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: initialCat, zone: initialZone });
+  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: initialCat, subcategory: initialSubcat, zone: initialZone });
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 

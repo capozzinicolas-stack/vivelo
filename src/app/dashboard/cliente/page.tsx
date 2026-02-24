@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/dashboard/stats-card';
+import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { useAuthContext } from '@/providers/auth-provider';
 import { getClientStats } from '@/lib/supabase/queries';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
@@ -16,6 +17,8 @@ export default function ClienteDashboard() {
   const { user } = useAuthContext();
   const [stats, setStats] = useState<{ totalBookings: number; totalSpent: number; nextEvent: Booking | undefined; recentBookings: Booking[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -44,10 +47,17 @@ export default function ClienteDashboard() {
           ) : (
             <div className="space-y-3">
               {stats.recentBookings.map((b) => (
-                <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
+                <div
+                  key={b.id}
+                  className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => { setSelectedBooking(b); setDetailOpen(true); }}
+                >
                   <div>
                     <p className="font-medium">{b.service?.title || 'Servicio'}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(b.event_date).toLocaleDateString('es-MX')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(b.event_date).toLocaleDateString('es-MX')}
+                      {b.event_name && <span className="ml-2 text-primary">· {b.event_name}</span>}
+                    </p>
                   </div>
                   <div className="text-right">
                     <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>
@@ -61,6 +71,13 @@ export default function ClienteDashboard() {
       </Card>
 
       <Button asChild><Link href="/servicios"><Search className="h-4 w-4 mr-2" />Explorar Servicios</Link></Button>
+
+      <BookingDetailDialog
+        booking={selectedBooking}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        role="client"
+      />
     </div>
   );
 }
