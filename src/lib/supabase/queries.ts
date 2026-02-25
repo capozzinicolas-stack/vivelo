@@ -848,6 +848,27 @@ export async function getReviewsByProvider(providerId: string): Promise<Review[]
   return data || [];
 }
 
+// ─── SERVICE BOOKING COUNT ───────────────────────────────────
+
+export async function getServiceBookingCount(serviceId: string): Promise<number> {
+  if (isMockMode()) {
+    const { mockBookings } = await import('@/data/mock-bookings');
+    return mockBookings.filter(b => b.service_id === serviceId && (b.status === 'confirmed' || b.status === 'completed')).length;
+  }
+
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('service_id', serviceId)
+    .in('status', ['confirmed', 'completed']);
+  if (error) {
+    console.warn('[getServiceBookingCount] Query failed:', error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
 // ─── AVAILABILITY ───────────────────────────────────────────
 
 export async function checkVendorAvailability(vendorId: string, startDatetime: string, endDatetime: string): Promise<AvailabilityCheckResult> {

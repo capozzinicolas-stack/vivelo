@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getServiceById, getProfileById, checkVendorAvailability, getClientEventNames } from '@/lib/supabase/queries';
+import { getServiceById, getProfileById, checkVendorAvailability, getClientEventNames, getServiceBookingCount } from '@/lib/supabase/queries';
 import { resolveBuffers, calculateEffectiveTimes } from '@/lib/availability';
 import { categoryMap, subcategoryMap } from '@/data/categories';
 import { TIME_SLOTS } from '@/lib/constants';
@@ -55,6 +55,7 @@ export default function ServiceDetailPage() {
   const [eventName, setEventName] = useState('');
   const [existingEventNames, setExistingEventNames] = useState<string[]>([]);
   const [eventNameOpen, setEventNameOpen] = useState(false);
+  const [bookingCount, setBookingCount] = useState(0);
   const [availabilityStatus, setAvailabilityStatus] = useState<{ checking: boolean; available: boolean | null; reason: string }>({ checking: false, available: null, reason: '' });
 
   useEffect(() => {
@@ -70,7 +71,10 @@ export default function ServiceDetailPage() {
         if (provider) s = { ...s, provider };
       }
       setService(s);
-      if (s) setGuests(s.min_guests);
+      if (s) {
+        setGuests(s.min_guests);
+        getServiceBookingCount(s.id).then(setBookingCount);
+      }
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -273,6 +277,7 @@ export default function ServiceDetailPage() {
                 <Badge variant="secondary">{subcategoryMap[service.subcategory].label}</Badge>
               )}
               <div className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /><span className="font-medium">{service.avg_rating}</span><span className="text-muted-foreground">({service.review_count} resenas)</span></div>
+              <div className="flex items-center gap-1 text-muted-foreground"><ShoppingCart className="h-3.5 w-3.5" /><span className="text-sm">{bookingCount} contratacion{bookingCount !== 1 ? 'es' : ''}</span></div>
             </div>
             <h1 className="text-3xl font-bold">{service.title}</h1>
             {service.provider && (
