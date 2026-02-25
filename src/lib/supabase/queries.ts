@@ -851,9 +851,15 @@ export async function getReviewsByProvider(providerId: string): Promise<Review[]
 // ─── SERVICE BOOKING COUNT ───────────────────────────────────
 
 export async function getServiceBookingCount(serviceId: string): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+
   if (isMockMode()) {
     const { mockBookings } = await import('@/data/mock-bookings');
-    return mockBookings.filter(b => b.service_id === serviceId && (b.status === 'confirmed' || b.status === 'completed')).length;
+    return mockBookings.filter(b =>
+      b.service_id === serviceId
+      && (b.status === 'confirmed' || b.status === 'completed')
+      && b.event_date < today
+    ).length;
   }
 
   const supabase = createClient();
@@ -861,7 +867,8 @@ export async function getServiceBookingCount(serviceId: string): Promise<number>
     .from('bookings')
     .select('id', { count: 'exact', head: true })
     .eq('service_id', serviceId)
-    .in('status', ['confirmed', 'completed']);
+    .in('status', ['confirmed', 'completed'])
+    .lt('event_date', today);
   if (error) {
     console.warn('[getServiceBookingCount] Query failed:', error.message);
     return 0;
