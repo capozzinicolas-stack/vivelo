@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import type { ServiceCategory, ServiceSubcategory } from '@/types/database';
 
@@ -43,6 +44,7 @@ export default function NuevoServicioPage() {
   const [bufferAfterMinutes, setBufferAfterMinutes] = useState('0');
   const [sku, setSku] = useState('');
   const [baseEventHours, setBaseEventHours] = useState('');
+  const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const isPerHour = priceUnit === 'por hora';
@@ -59,6 +61,7 @@ export default function NuevoServicioPage() {
   const handleCategoryChange = (val: string) => {
     setCategory(val);
     setSubcategory('');
+    setCategoryDetails({});
     const newSku = generateServiceSku(val);
     setSku(newSku);
     setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) })));
@@ -122,6 +125,7 @@ export default function NuevoServicioPage() {
           buffer_after_minutes: parseInt(bufferAfterMinutes) || 0,
           sku: sku || undefined,
           base_event_hours: !isPerHour && baseEventHours ? parseFloat(baseEventHours) : null,
+          category_details: Object.keys(categoryDetails).length > 0 ? categoryDetails : undefined,
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
@@ -208,6 +212,14 @@ export default function NuevoServicioPage() {
             )}
           </CardContent>
         </Card>
+
+        {category && (
+          <CategoryFieldsForm
+            category={category}
+            values={categoryDetails}
+            onChange={setCategoryDetails}
+          />
+        )}
 
         <Card>
           <CardHeader>

@@ -12,6 +12,7 @@ import { useCart } from '@/providers/cart-provider';
 import { useToast } from '@/hooks/use-toast';
 import { ExtrasSelector, type SelectedExtraItem } from '@/components/services/extras-selector';
 import { MediaGallery } from '@/components/services/media-gallery';
+import { CategoryDetailsDisplay } from '@/components/services/category-details-display';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -284,6 +285,16 @@ export default function ServiceDetailPage() {
               {service.zones.map((z) => <Badge key={z} variant="outline"><MapPin className="h-3 w-3 mr-1" />{z}</Badge>)}
             </div>
           </div>
+
+          {service.category_details && Object.keys(service.category_details).some(k => {
+            const v = service.category_details![k];
+            return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+          }) && (
+            <>
+              <Separator />
+              <CategoryDetailsDisplay category={service.category} details={service.category_details} />
+            </>
+          )}
 
           {extras.length > 0 && (
             <>

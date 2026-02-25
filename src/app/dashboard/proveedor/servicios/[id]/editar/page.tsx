@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ServiceCategory, ServiceSubcategory, Extra } from '@/types/database';
 import Link from 'next/link';
@@ -45,6 +46,7 @@ export default function EditarServicioPage() {
   const [bufferAfterMinutes, setBufferAfterMinutes] = useState('0');
   const [sku, setSku] = useState('');
   const [baseEventHours, setBaseEventHours] = useState('');
+  const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
   const [serviceExtras, setServiceExtras] = useState<Extra[]>([]);
   const [newExtraName, setNewExtraName] = useState('');
   const [newExtraPrice, setNewExtraPrice] = useState('');
@@ -80,6 +82,7 @@ export default function EditarServicioPage() {
       setBufferAfterMinutes((s.buffer_after_minutes || 0).toString());
       setSku(s.sku || '');
       setBaseEventHours(s.base_event_hours?.toString() || '');
+      setCategoryDetails(s.category_details || {});
       setServiceExtras(s.extras || []);
     }).finally(() => setLoading(false));
   }, [id]);
@@ -134,6 +137,7 @@ export default function EditarServicioPage() {
       if (ba) updateData.buffer_after_minutes = ba;
       if (sku) updateData.sku = sku;
       if (!isPerHour && baseEventHours) updateData.base_event_hours = parseFloat(baseEventHours);
+      if (Object.keys(categoryDetails).length > 0) updateData.category_details = categoryDetails;
       await updateService(id, updateData);
       toast({ title: 'Servicio actualizado!' });
       router.push('/dashboard/proveedor/servicios');
@@ -268,6 +272,14 @@ export default function EditarServicioPage() {
             )}
           </CardContent>
         </Card>
+
+        {category && (
+          <CategoryFieldsForm
+            category={category}
+            values={categoryDetails}
+            onChange={setCategoryDetails}
+          />
+        )}
 
         <Card>
           <CardHeader><CardTitle>Tiempos de Preparacion</CardTitle></CardHeader>

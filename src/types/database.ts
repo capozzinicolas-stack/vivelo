@@ -79,6 +79,7 @@ export interface Service {
   view_count: number;
   created_at: string;
   updated_at: string;
+  category_details?: Record<string, unknown>;
   // Joined data
   provider?: Profile;
   extras?: Extra[];

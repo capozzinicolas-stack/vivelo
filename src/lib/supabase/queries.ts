@@ -131,6 +131,7 @@ export async function createService(
     buffer_after_days?: number;
     sku?: string;
     base_event_hours?: number | null;
+    category_details?: Record<string, unknown>;
   },
   extras: { name: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number; sku?: string; depends_on_guests?: boolean; depends_on_hours?: boolean }[]
 ): Promise<Service> {
@@ -144,6 +145,7 @@ export async function createService(
       max_hours: service.max_hours ?? 12,
       sku: service.sku ?? null,
       base_event_hours: service.base_event_hours ?? null,
+      category_details: service.category_details ?? {},
       buffer_before_minutes: service.buffer_before_minutes ?? 0,
       buffer_after_minutes: service.buffer_after_minutes ?? 0,
       buffer_before_days: service.buffer_before_days ?? 0,
@@ -206,6 +208,7 @@ export async function createService(
   if (service.max_hours && service.max_hours !== 12) phase2Updates.max_hours = service.max_hours;
   if (service.buffer_before_minutes) phase2Updates.buffer_before_minutes = service.buffer_before_minutes;
   if (service.buffer_after_minutes) phase2Updates.buffer_after_minutes = service.buffer_after_minutes;
+  if (service.category_details && Object.keys(service.category_details).length > 0) phase2Updates.category_details = service.category_details;
 
   if (Object.keys(phase2Updates).length > 0) {
     try {
@@ -275,6 +278,7 @@ export async function updateService(
     buffer_after_days?: number;
     sku?: string;
     base_event_hours?: number | null;
+    category_details?: Record<string, unknown>;
   }
 ): Promise<void> {
   if (isMockMode()) return;
@@ -306,6 +310,7 @@ export async function updateService(
   if (updates.buffer_after_minutes !== undefined) phase2Updates.buffer_after_minutes = updates.buffer_after_minutes;
   if (updates.sku !== undefined) phase2Updates.sku = updates.sku;
   if (updates.base_event_hours !== undefined) phase2Updates.base_event_hours = updates.base_event_hours;
+  if (updates.category_details !== undefined) phase2Updates.category_details = updates.category_details;
 
   // Update core columns
   if (Object.keys(coreUpdates).length > 0) {
