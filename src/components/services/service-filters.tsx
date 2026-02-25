@@ -23,7 +23,7 @@ interface ServiceFiltersProps {
   onFiltersChange: (filters: Filters) => void;
 }
 
-export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 50000], search: '' };
+export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '' };
 
 export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
@@ -79,7 +79,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
 
       <div>
         <Label className="text-sm font-medium mb-2 block">Precio maximo: ${filters.priceRange[1].toLocaleString()}</Label>
-        <Slider min={0} max={50000} step={500} value={[filters.priceRange[1]]} onValueChange={([v]) => update({ priceRange: [0, v] })} />
+        <Slider min={0} max={1000000} step={5000} value={[filters.priceRange[1]]} onValueChange={([v]) => update({ priceRange: [0, v] })} />
       </div>
 
       <Button variant="outline" className="w-full" onClick={() => onFiltersChange(defaultFilters)}>
