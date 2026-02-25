@@ -41,7 +41,7 @@ export default function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuthContext();
-  const { addItem } = useCart();
+  const { items, addItem } = useCart();
   const { toast } = useToast();
 
   const [service, setService] = useState<Service | null>(null);
@@ -59,10 +59,17 @@ export default function ServiceDetailPage() {
   const [availabilityStatus, setAvailabilityStatus] = useState<{ checking: boolean; available: boolean | null; reason: string }>({ checking: false, available: null, reason: '' });
 
   useEffect(() => {
+    // Merge event names from database (past bookings) + cart (current session)
+    const cartNames = Array.from(new Set(items.map(i => i.event_name).filter(Boolean) as string[]));
     if (user) {
-      getClientEventNames(user.id).then(setExistingEventNames);
+      getClientEventNames(user.id).then(dbNames => {
+        const merged = Array.from(new Set([...dbNames, ...cartNames]));
+        setExistingEventNames(merged);
+      });
+    } else {
+      setExistingEventNames(cartNames);
     }
-  }, [user]);
+  }, [user, items]);
 
   useEffect(() => {
     getServiceById(id).then(async (s) => {
