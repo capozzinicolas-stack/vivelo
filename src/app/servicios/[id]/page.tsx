@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getServiceById, getProfileById, checkVendorAvailability, getClientEventNames } from '@/lib/supabase/queries';
 import { resolveBuffers, calculateEffectiveTimes } from '@/lib/availability';
-import { categoryMap } from '@/data/categories';
+import { categoryMap, subcategoryMap } from '@/data/categories';
 import { TIME_SLOTS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Star, MapPin, ArrowLeft, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Tag, Timer, DollarSign } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -269,6 +269,9 @@ export default function ServiceDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
               {cat && <Badge className={cat.color}>{cat.label}</Badge>}
+              {service.subcategory && subcategoryMap[service.subcategory] && (
+                <Badge variant="secondary">{subcategoryMap[service.subcategory].label}</Badge>
+              )}
               <div className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /><span className="font-medium">{service.avg_rating}</span><span className="text-muted-foreground">({service.review_count} resenas)</span></div>
             </div>
             <h1 className="text-3xl font-bold">{service.title}</h1>
@@ -280,9 +283,62 @@ export default function ServiceDetailPage() {
                 </Link>
               </p>
             )}
-            <p className="text-muted-foreground leading-relaxed">{service.description}</p>
-            <div className="flex flex-wrap gap-2">
-              {service.zones.map((z) => <Badge key={z} variant="outline"><MapPin className="h-3 w-3 mr-1" />{z}</Badge>)}
+            <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{service.description}</p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Informacion del servicio</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Precio</p>
+                  <p className="text-sm text-muted-foreground">${service.base_price.toLocaleString()} {pricingLabel}</p>
+                </div>
+              </div>
+              {service.base_event_hours && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Timer className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Duracion</p>
+                    <p className="text-sm text-muted-foreground">{service.base_event_hours} hora{service.base_event_hours !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <Users className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Capacidad</p>
+                  <p className="text-sm text-muted-foreground">{service.min_guests} - {service.max_guests.toLocaleString()} invitados</p>
+                </div>
+              </div>
+              {isPerHour && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Clock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Horas</p>
+                    <p className="text-sm text-muted-foreground">Min: {service.min_hours || 1}h / Max: {service.max_hours || 12}h</p>
+                  </div>
+                </div>
+              )}
+              {service.subcategory && subcategoryMap[service.subcategory] && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <Tag className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Tipo</p>
+                    <p className="text-sm text-muted-foreground">{subcategoryMap[service.subcategory].label}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Cobertura</p>
+                  <p className="text-sm text-muted-foreground">{service.zones.join(', ')}</p>
+                </div>
+              </div>
             </div>
           </div>
 
