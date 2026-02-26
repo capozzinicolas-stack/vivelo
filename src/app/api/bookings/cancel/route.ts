@@ -59,69 +59,73 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La reserva ya esta cancelada' }, { status: 400 });
     }
     if (status === 'completed') {
-      return NextResponse.json({ error: 'No se puede cancelar una reserva completada' }, { status: 400 });
+      return NextResponse.json({ error: 'No se puede cancelar un servicio ya realizado' }, { status: 400 });
+    }
+    if (status === 'rejected') {
+      return NextResponse.json({ error: 'La reserva ya fue rechazada' }, { status: 400 });
     }
 
-    // 3. Resolve cancellation policy (snapshot > service policy > default fallback)
+    // Pending bookings: cancel directly, no refund policy applies
+    const isPending = status === 'pending';
+
+    // 3. Resolve cancellation policy (only for confirmed bookings)
     let policy: CancellationPolicy | { rules: CancellationRule[] } | null = null;
-
-    // First: try the snapshot stored at booking time
-    const snapshot = booking.cancellation_policy_snapshot as Record<string, unknown> | null;
-    if (snapshot && Array.isArray(snapshot.rules)) {
-      policy = snapshot as unknown as CancellationPolicy;
-    }
-
-    // Second: try the service's cancellation policy
-    if (!policy) {
-      const service = booking.service as Record<string, unknown> | undefined;
-      if (service?.cancellation_policy) {
-        policy = service.cancellation_policy as CancellationPolicy;
-      } else if (service?.cancellation_policy_id && !isMockDb) {
-        // Load the policy directly
-        const supabase = createAdminSupabase();
-        const { data: policyData } = await supabase
-          .from('cancellation_policies')
-          .select('*')
-          .eq('id', service.cancellation_policy_id as string)
-          .single();
-        if (policyData) policy = policyData;
-      }
-    }
-
-    // Third: if in mock mode and no policy found, load mock default
-    if (!policy && isMockDb) {
-      const { mockCancellationPolicies } = await import('@/data/mock-cancellation-policies');
-      policy = mockCancellationPolicies.find(p => p.is_default) || mockCancellationPolicies[0];
-    }
-
-    // 4. Calculate refund
-    const totalAmount = booking.total as number;
-    const eventDate = (booking.start_datetime as string) || `${booking.event_date}T${booking.start_time || '00:00'}:00`;
-
     let refund_percent = 0;
     let refund_amount = 0;
-
-    if (policy) {
-      const result = calculateRefund(policy, eventDate, totalAmount);
-      refund_percent = result.refund_percent;
-      refund_amount = result.refund_amount;
-    }
-
-    // 5. Process Stripe refund if applicable
-    const stripePI = booking.stripe_payment_intent_id as string | null;
     let stripeRefundId: string | null = null;
+    const snapshot = booking.cancellation_policy_snapshot as Record<string, unknown> | null;
 
-    if (refund_amount > 0 && stripePI && !isMock) {
-      const stripe = new Stripe(secretKey!);
-      const refund = await stripe.refunds.create({
-        payment_intent: stripePI,
-        amount: Math.round(refund_amount * 100), // centavos MXN
-      });
-      stripeRefundId = refund.id;
-      console.log(`[Cancel] Stripe refund created: ${refund.id}, amount: ${refund_amount} MXN`);
-    } else if (isMock && refund_amount > 0) {
-      console.log(`[Cancel Mock] Simulated refund: ${refund_amount} MXN (${refund_percent}%)`);
-    }
+    if (!isPending) {
+      // Only confirmed bookings go through refund policy
+      if (snapshot && Array.isArray(snapshot.rules)) {
+        policy = snapshot as unknown as CancellationPolicy;
+      }
+
+      if (!policy) {
+        const service = booking.service as Record<string, unknown> | undefined;
+        if (service?.cancellation_policy) {
+          policy = service.cancellation_policy as CancellationPolicy;
+        } else if (service?.cancellation_policy_id && !isMockDb) {
+          const supabase = createAdminSupabase();
+          const { data: policyData } = await supabase
+            .from('cancellation_policies')
+            .select('*')
+            .eq('id', service.cancellation_policy_id as string)
+            .single();
+          if (policyData) policy = policyData;
+        }
+      }
+
+      if (!policy && isMockDb) {
+        const { mockCancellationPolicies } = await import('@/data/mock-cancellation-policies');
+        policy = mockCancellationPolicies.find(p => p.is_default) || mockCancellationPolicies[0];
+      }
+
+      // 4. Calculate refund
+      const totalAmount = booking.total as number;
+      const eventDate = (booking.start_datetime as string) || `${booking.event_date}T${booking.start_time || '00:00'}:00`;
+
+      if (policy) {
+        const result = calculateRefund(policy, eventDate, totalAmount);
+        refund_percent = result.refund_percent;
+        refund_amount = result.refund_amount;
+      }
+
+      // 5. Process Stripe refund if applicable
+      const stripePI = booking.stripe_payment_intent_id as string | null;
+
+      if (refund_amount > 0 && stripePI && !isMock) {
+        const stripe = new Stripe(secretKey!);
+        const refund = await stripe.refunds.create({
+          payment_intent: stripePI,
+          amount: Math.round(refund_amount * 100), // centavos MXN
+        });
+        stripeRefundId = refund.id;
+        console.log(`[Cancel] Stripe refund created: ${refund.id}, amount: ${refund_amount} MXN`);
+      } else if (isMock && refund_amount > 0) {
+        console.log(`[Cancel Mock] Simulated refund: ${refund_amount} MXN (${refund_percent}%)`);
+      }
+    } // end if (!isPending)
 
     // 6. Build the policy snapshot to store (if not already present)
     const policySnapshot = snapshot || (policy ? {

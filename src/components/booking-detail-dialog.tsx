@@ -284,7 +284,20 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
                       </Button>
                     </>
                   )}
-                  {(booking.status === 'confirmed' || (booking.status === 'pending' && role === 'client')) && (
+                  {/* Pending: client can cancel directly (no refund policy) */}
+                  {booking.status === 'pending' && role === 'client' && (
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => handleAction('cancelled')}
+                      disabled={!!actionLoading}
+                    >
+                      {actionLoading === 'cancelled' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Cancelar Reservacion
+                    </Button>
+                  )}
+                  {/* Confirmed: cancel with refund policy */}
+                  {booking.status === 'confirmed' && (
                     <Button
                       variant="destructive"
                       className="w-full"
