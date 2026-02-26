@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { categories, subcategoriesByCategory } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { createService } from '@/lib/supabase/queries';
+import { createService, getCancellationPolicies } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
-import type { ServiceCategory, ServiceSubcategory } from '@/types/database';
+import type { ServiceCategory, ServiceSubcategory, CancellationPolicy } from '@/types/database';
 
 interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; sku: string; depends_on_guests: boolean; depends_on_hours: boolean; }
 
@@ -45,7 +45,20 @@ export default function NuevoServicioPage() {
   const [sku, setSku] = useState('');
   const [baseEventHours, setBaseEventHours] = useState('');
   const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
+  const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
+  const [cancellationPolicyId, setCancellationPolicyId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    getCancellationPolicies().then(policies => {
+      setCancellationPolicies(policies);
+      // Pre-select provider's default or first policy
+      const defaultPolicy = user?.default_cancellation_policy_id
+        ? policies.find(p => p.id === user.default_cancellation_policy_id)
+        : policies[0];
+      if (defaultPolicy) setCancellationPolicyId(defaultPolicy.id);
+    }).catch(() => {});
+  }, [user]);
 
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
@@ -126,6 +139,7 @@ export default function NuevoServicioPage() {
           sku: sku || undefined,
           base_event_hours: !isPerHour && baseEventHours ? parseFloat(baseEventHours) : null,
           category_details: Object.keys(categoryDetails).length > 0 ? categoryDetails : undefined,
+          cancellation_policy_id: cancellationPolicyId || undefined,
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
@@ -265,6 +279,50 @@ export default function NuevoServicioPage() {
             </div>
           </CardContent>
         </Card>
+
+        {cancellationPolicies.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Politica de Cancelacion</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Politica</Label>
+                <Select value={cancellationPolicyId} onValueChange={setCancellationPolicyId}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar politica" /></SelectTrigger>
+                  <SelectContent>
+                    {cancellationPolicies.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {cancellationPolicyId && (() => {
+                const selected = cancellationPolicies.find(p => p.id === cancellationPolicyId);
+                if (!selected) return null;
+                return (
+                  <div className="space-y-2">
+                    {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
+                    <div className="space-y-1">
+                      {selected.rules
+                        .sort((a, b) => b.min_hours - a.min_hours)
+                        .map((r, i) => {
+                          const minLabel = r.min_hours >= 24 ? `${Math.round(r.min_hours / 24)} dias` : `${r.min_hours}h`;
+                          const desc = r.max_hours === null
+                            ? `Mas de ${minLabel} antes`
+                            : `${minLabel} - ${r.max_hours >= 24 ? `${Math.round(r.max_hours / 24)} dias` : `${r.max_hours}h`} antes`;
+                          return (
+                            <div key={i} className={`flex justify-between p-2 rounded text-sm ${r.refund_percent === 0 ? 'bg-red-50' : 'bg-muted'}`}>
+                              <span>{desc}</span>
+                              <span className="font-medium">{r.refund_percent}% reembolso</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

@@ -26,13 +26,6 @@ export const TIME_SLOTS = Array.from({ length: 33 }, (_, i) => {
   return { value: h24, label };
 }) as readonly { value: string; label: string }[];
 
-export const CANCELLATION_POLICY = {
-  FULL_REFUND_DAYS: 15,
-  PARTIAL_30_DAYS: 14,
-  PARTIAL_50_DAYS: 7,
-  NO_REFUND_HOURS: 48,
-} as const;
-
 export const BOOKING_STATUS_LABELS: Record<string, string> = {
   pending: 'Pendiente',
   confirmed: 'Confirmada',

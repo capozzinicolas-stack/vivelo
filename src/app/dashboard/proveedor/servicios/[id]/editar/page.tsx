@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { categories, subcategoriesByCategory } from '@/data/categories';
 import { ZONES, PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra } from '@/lib/supabase/queries';
+import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
-import type { ServiceCategory, ServiceSubcategory, Extra } from '@/types/database';
+import type { ServiceCategory, ServiceSubcategory, Extra, CancellationPolicy } from '@/types/database';
 import Link from 'next/link';
 
 export default function EditarServicioPage() {
@@ -54,6 +54,8 @@ export default function EditarServicioPage() {
   const [newExtraMaxQty, setNewExtraMaxQty] = useState('');
   const [newExtraDependsGuests, setNewExtraDependsGuests] = useState(false);
   const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
+  const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
+  const [cancellationPolicyId, setCancellationPolicyId] = useState('');
 
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
@@ -63,7 +65,11 @@ export default function EditarServicioPage() {
     : [];
 
   useEffect(() => {
-    getServiceById(id).then(s => {
+    Promise.all([
+      getServiceById(id),
+      getCancellationPolicies(),
+    ]).then(([s, policies]) => {
+      setCancellationPolicies(policies);
       if (!s) return;
       setTitle(s.title);
       setDescription(s.description);
@@ -84,6 +90,7 @@ export default function EditarServicioPage() {
       setBaseEventHours(s.base_event_hours?.toString() || '');
       setCategoryDetails(s.category_details || {});
       setServiceExtras(s.extras || []);
+      setCancellationPolicyId(s.cancellation_policy_id || '');
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -138,6 +145,7 @@ export default function EditarServicioPage() {
       if (sku) updateData.sku = sku;
       if (!isPerHour && baseEventHours) updateData.base_event_hours = parseFloat(baseEventHours);
       if (Object.keys(categoryDetails).length > 0) updateData.category_details = categoryDetails;
+      if (cancellationPolicyId) updateData.cancellation_policy_id = cancellationPolicyId;
       await updateService(id, updateData);
       toast({ title: 'Servicio actualizado!' });
       router.push('/dashboard/proveedor/servicios');
@@ -325,6 +333,50 @@ export default function EditarServicioPage() {
             </div>
           </CardContent>
         </Card>
+
+        {cancellationPolicies.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Politica de Cancelacion</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Politica</Label>
+                <Select value={cancellationPolicyId} onValueChange={setCancellationPolicyId}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar politica" /></SelectTrigger>
+                  <SelectContent>
+                    {cancellationPolicies.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {cancellationPolicyId && (() => {
+                const selected = cancellationPolicies.find(p => p.id === cancellationPolicyId);
+                if (!selected) return null;
+                return (
+                  <div className="space-y-2">
+                    {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
+                    <div className="space-y-1">
+                      {selected.rules
+                        .sort((a, b) => b.min_hours - a.min_hours)
+                        .map((r, i) => {
+                          const minLabel = r.min_hours >= 24 ? `${Math.round(r.min_hours / 24)} dias` : `${r.min_hours}h`;
+                          const desc = r.max_hours === null
+                            ? `Mas de ${minLabel} antes`
+                            : `${minLabel} - ${r.max_hours >= 24 ? `${Math.round(r.max_hours / 24)} dias` : `${r.max_hours}h`} antes`;
+                          return (
+                            <div key={i} className={`flex justify-between p-2 rounded text-sm ${r.refund_percent === 0 ? 'bg-red-50' : 'bg-muted'}`}>
+                              <span>{desc}</span>
+                              <span className="font-medium">{r.refund_percent}% reembolso</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
         <Button type="submit" size="lg" className="w-full" disabled={submitting}>
           {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Cambios'}

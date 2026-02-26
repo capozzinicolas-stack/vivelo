@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
-import { updateMaxConcurrentServices, updateProviderBufferConfig } from '@/lib/supabase/queries';
+import { updateMaxConcurrentServices, updateProviderBufferConfig, getCancellationPolicies, updateProviderDefaultPolicy } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Settings, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Settings, Clock, FileText } from 'lucide-react';
 import GoogleCalendarSettings from '@/components/google-calendar/google-calendar-settings';
+import type { CancellationPolicy } from '@/types/database';
 
 export default function ProveedorConfiguracionPage() {
   const { user } = useAuthContext();
@@ -26,6 +28,13 @@ export default function ProveedorConfiguracionPage() {
     (user?.global_buffer_after_minutes || 0).toString()
   );
   const [saving, setSaving] = useState(false);
+  const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
+  const [defaultPolicyId, setDefaultPolicyId] = useState(user?.default_cancellation_policy_id || '');
+  const [savingPolicy, setSavingPolicy] = useState(false);
+
+  useEffect(() => {
+    getCancellationPolicies().then(setCancellationPolicies).catch(() => {});
+  }, []);
 
   const handleSave = async () => {
     if (!user) return;
@@ -50,6 +59,21 @@ export default function ProveedorConfiguracionPage() {
       setSaving(false);
     }
   };
+
+  const handleSaveDefaultPolicy = async () => {
+    if (!user) return;
+    setSavingPolicy(true);
+    try {
+      await updateProviderDefaultPolicy(user.id, defaultPolicyId || null);
+      toast({ title: 'Politica por defecto guardada!' });
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo guardar la politica.', variant: 'destructive' });
+    } finally {
+      setSavingPolicy(false);
+    }
+  };
+
+  const selectedPolicy = cancellationPolicies.find(p => p.id === defaultPolicyId);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -130,6 +154,55 @@ export default function ProveedorConfiguracionPage() {
           )}
         </CardContent>
       </Card>
+
+      {cancellationPolicies.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Politica de Cancelacion por Defecto
+            </CardTitle>
+            <CardDescription>
+              Esta politica se pre-seleccionara al crear nuevos servicios.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Politica</Label>
+              <Select value={defaultPolicyId} onValueChange={setDefaultPolicyId}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar politica" /></SelectTrigger>
+                <SelectContent>
+                  {cancellationPolicies.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPolicy && (
+              <div className="space-y-1">
+                {selectedPolicy.description && <p className="text-sm text-muted-foreground">{selectedPolicy.description}</p>}
+                {selectedPolicy.rules
+                  .sort((a, b) => b.min_hours - a.min_hours)
+                  .map((r, i) => {
+                    const minLabel = r.min_hours >= 24 ? `${Math.round(r.min_hours / 24)} dias` : `${r.min_hours}h`;
+                    const desc = r.max_hours === null
+                      ? `Mas de ${minLabel} antes`
+                      : `${minLabel} - ${r.max_hours >= 24 ? `${Math.round(r.max_hours / 24)} dias` : `${r.max_hours}h`} antes`;
+                    return (
+                      <div key={i} className={`flex justify-between p-2 rounded text-sm ${r.refund_percent === 0 ? 'bg-red-50' : 'bg-muted'}`}>
+                        <span>{desc}</span>
+                        <span className="font-medium">{r.refund_percent}% reembolso</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            <Button onClick={handleSaveDefaultPolicy} disabled={savingPolicy} size="sm">
+              {savingPolicy ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Politica'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {user && (
         <Suspense fallback={<Card><CardContent className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></CardContent></Card>}>

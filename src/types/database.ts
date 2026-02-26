@@ -26,6 +26,22 @@ export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfille
 export type GoogleSyncStatus = 'active' | 'error' | 'disconnected';
 export type CalendarBlockSource = 'manual' | 'google_sync';
 
+export interface CancellationRule {
+  min_hours: number;
+  max_hours: number | null;
+  refund_percent: number;
+}
+
+export interface CancellationPolicy {
+  id: string;
+  name: string;
+  description: string | null;
+  rules: CancellationRule[];
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
@@ -45,6 +61,7 @@ export interface Profile {
   bank_document_url: string | null;
   banking_status: BankingStatus;
   banking_rejection_reason: string | null;
+  default_cancellation_policy_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -79,10 +96,12 @@ export interface Service {
   view_count: number;
   created_at: string;
   updated_at: string;
+  cancellation_policy_id?: string | null;
   category_details?: Record<string, unknown>;
   // Joined data
   provider?: Profile;
   extras?: Extra[];
+  cancellation_policy?: CancellationPolicy;
 }
 
 export interface Extra {
@@ -138,6 +157,11 @@ export interface Booking {
   order_id: string | null;
   stripe_payment_intent_id: string | null;
   google_calendar_event_id: string | null;
+  cancellation_policy_snapshot?: Record<string, unknown> | null;
+  refund_amount?: number | null;
+  refund_percent?: number | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -350,6 +374,7 @@ export interface Database {
       featured_providers: { Row: FeaturedProvider; Insert: Partial<FeaturedProvider> & Pick<FeaturedProvider, 'provider_id'>; Update: Partial<FeaturedProvider> };
       showcase_items: { Row: ShowcaseItem; Insert: Partial<ShowcaseItem> & Pick<ShowcaseItem, 'label' | 'subcategory' | 'parent_category'>; Update: Partial<ShowcaseItem> };
       site_banners: { Row: SiteBanner; Insert: Partial<SiteBanner> & Pick<SiteBanner, 'banner_key' | 'title'>; Update: Partial<SiteBanner> };
+      cancellation_policies: { Row: CancellationPolicy; Insert: Partial<CancellationPolicy> & Pick<CancellationPolicy, 'name' | 'rules'>; Update: Partial<CancellationPolicy> };
     };
   };
 }

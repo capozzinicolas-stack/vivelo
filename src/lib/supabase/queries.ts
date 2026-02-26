@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -132,6 +132,7 @@ export async function createService(
     sku?: string;
     base_event_hours?: number | null;
     category_details?: Record<string, unknown>;
+    cancellation_policy_id?: string | null;
   },
   extras: { name: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number; sku?: string; depends_on_guests?: boolean; depends_on_hours?: boolean }[]
 ): Promise<Service> {
@@ -146,6 +147,7 @@ export async function createService(
       sku: service.sku ?? null,
       base_event_hours: service.base_event_hours ?? null,
       category_details: service.category_details ?? {},
+      cancellation_policy_id: service.cancellation_policy_id ?? null,
       buffer_before_minutes: service.buffer_before_minutes ?? 0,
       buffer_after_minutes: service.buffer_after_minutes ?? 0,
       buffer_before_days: service.buffer_before_days ?? 0,
@@ -209,6 +211,7 @@ export async function createService(
   if (service.buffer_before_minutes) phase2Updates.buffer_before_minutes = service.buffer_before_minutes;
   if (service.buffer_after_minutes) phase2Updates.buffer_after_minutes = service.buffer_after_minutes;
   if (service.category_details && Object.keys(service.category_details).length > 0) phase2Updates.category_details = service.category_details;
+  if (service.cancellation_policy_id) phase2Updates.cancellation_policy_id = service.cancellation_policy_id;
 
   if (Object.keys(phase2Updates).length > 0) {
     try {
@@ -279,6 +282,7 @@ export async function updateService(
     sku?: string;
     base_event_hours?: number | null;
     category_details?: Record<string, unknown>;
+    cancellation_policy_id?: string | null;
   }
 ): Promise<void> {
   if (isMockMode()) return;
@@ -311,6 +315,7 @@ export async function updateService(
   if (updates.sku !== undefined) phase2Updates.sku = updates.sku;
   if (updates.base_event_hours !== undefined) phase2Updates.base_event_hours = updates.base_event_hours;
   if (updates.category_details !== undefined) phase2Updates.category_details = updates.category_details;
+  if (updates.cancellation_policy_id !== undefined) phase2Updates.cancellation_policy_id = updates.cancellation_policy_id;
 
   // Update core columns
   if (Object.keys(coreUpdates).length > 0) {
@@ -1973,4 +1978,106 @@ export async function updateOrderStatus(id: string, status: OrderStatus, stripeP
     .update(updates)
     .eq('id', id);
   if (error) throw new Error(`Error actualizando order: ${error.message}`);
+}
+
+// ─── CANCELLATION POLICIES ─────────────────────────────────────
+
+export async function getCancellationPolicies(): Promise<CancellationPolicy[]> {
+  if (isMockMode()) {
+    const { mockCancellationPolicies } = await import('@/data/mock-cancellation-policies');
+    return mockCancellationPolicies;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('cancellation_policies')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(`Error cargando politicas: ${error.message}`);
+  return data ?? [];
+}
+
+export async function createCancellationPolicy(policy: {
+  name: string;
+  description?: string;
+  rules: CancellationRule[];
+  is_default?: boolean;
+}): Promise<CancellationPolicy> {
+  if (isMockMode()) {
+    const newPolicy: CancellationPolicy = {
+      id: crypto.randomUUID(),
+      name: policy.name,
+      description: policy.description || null,
+      rules: policy.rules,
+      is_default: policy.is_default ?? false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    return newPolicy;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('cancellation_policies')
+    .insert({
+      name: policy.name,
+      description: policy.description || null,
+      rules: policy.rules as unknown as Record<string, unknown>,
+      is_default: policy.is_default ?? false,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(`Error creando politica: ${error.message}`);
+  return data;
+}
+
+export async function updateCancellationPolicy(
+  id: string,
+  updates: {
+    name?: string;
+    description?: string;
+    rules?: CancellationRule[];
+    is_default?: boolean;
+  }
+): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.name !== undefined) updateData.name = updates.name;
+  if (updates.description !== undefined) updateData.description = updates.description;
+  if (updates.rules !== undefined) updateData.rules = updates.rules;
+  if (updates.is_default !== undefined) updateData.is_default = updates.is_default;
+
+  const { error } = await supabase
+    .from('cancellation_policies')
+    .update(updateData)
+    .eq('id', id);
+  if (error) throw new Error(`Error actualizando politica: ${error.message}`);
+}
+
+export async function deleteCancellationPolicy(id: string): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('cancellation_policies')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(`Error eliminando politica: ${error.message}`);
+}
+
+export async function updateProviderDefaultPolicy(providerId: string, policyId: string | null): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ default_cancellation_policy_id: policyId })
+      .eq('id', providerId);
+    if (error) console.warn('[updateProviderDefaultPolicy] Column may not exist:', error.message);
+  } catch {
+    console.warn('[updateProviderDefaultPolicy] Column not available');
+  }
 }
