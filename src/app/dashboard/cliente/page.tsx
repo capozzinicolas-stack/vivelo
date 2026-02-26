@@ -11,7 +11,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { getClientStats } from '@/lib/supabase/queries';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { CalendarCheck, DollarSign, Clock, Search, Loader2 } from 'lucide-react';
-import type { Booking, BookingStatus } from '@/types/database';
+import type { Booking } from '@/types/database';
 
 export default function ClienteDashboard() {
   const { user } = useAuthContext();

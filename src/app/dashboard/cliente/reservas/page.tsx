@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { Loader2, List, FolderOpen, ShoppingCart } from 'lucide-react';
-import type { Booking, BookingStatus } from '@/types/database';
+import type { Booking } from '@/types/database';
 
 const statusTabs = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const;
 const tabLabels: Record<string, string> = { all: 'Todas', pending: 'Pendientes', confirmed: 'Confirmadas', completed: 'Completadas', cancelled: 'Canceladas' };
