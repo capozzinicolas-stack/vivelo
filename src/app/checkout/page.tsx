@@ -7,7 +7,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
 import { StripeProvider } from '@/providers/stripe-provider';
 import { StripePaymentForm } from '@/components/checkout/stripe-payment-form';
-import { createOrder, createBooking, createSubBookings, checkVendorAvailability } from '@/lib/supabase/queries';
+import { createOrder, createBooking, createSubBookings, checkVendorAvailability, getCancellationPolicyById } from '@/lib/supabase/queries';
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
 import { COMMISSION_RATE } from '@/lib/constants';
@@ -176,6 +176,24 @@ export default function CheckoutPage() {
 
       const itemCommission = Math.round(item.total * COMMISSION_RATE * 100) / 100;
 
+      // Snapshot the cancellation policy at purchase time
+      let cancellation_policy_snapshot: Record<string, unknown> | null = null;
+      const policyId = service?.cancellation_policy_id;
+      if (policyId) {
+        try {
+          const policy = await getCancellationPolicyById(policyId);
+          if (policy) {
+            cancellation_policy_snapshot = {
+              id: policy.id,
+              name: policy.name,
+              rules: policy.rules,
+            };
+          }
+        } catch {
+          // Non-blocking: proceed without snapshot
+        }
+      }
+
       const booking = await createBooking({
         service_id: item.service_id,
         client_id: userId,
@@ -203,6 +221,7 @@ export default function CheckoutPage() {
         effective_end: effective.effective_end,
         billing_type_snapshot: item.service_snapshot.price_unit,
         order_id: orderIdParam,
+        cancellation_policy_snapshot,
       });
 
       // Create sub-bookings for extras

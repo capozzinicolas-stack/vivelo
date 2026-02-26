@@ -109,6 +109,29 @@ export async function POST(request: NextRequest) {
         console.error(`[Stripe] Pago fallido: ${pi.id}, Error: ${pi.last_payment_error?.message}`);
         break;
       }
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        const piId = typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+        console.log(`[Stripe] Reembolso confirmado: ${charge.id}, PI: ${piId}, Amount refunded: ${charge.amount_refunded}`);
+
+        // Booking should already be marked as cancelled by /api/bookings/cancel
+        // This is just a confirmation log. Optionally verify:
+        if (piId) {
+          const supabase = createAdminSupabase();
+          const { data: booking } = await supabase
+            .from('bookings')
+            .select('id, status')
+            .eq('stripe_payment_intent_id', piId)
+            .single();
+
+          if (booking && booking.status !== 'cancelled') {
+            console.warn(`[Stripe] Booking ${booking.id} has refund but status is '${booking.status}', expected 'cancelled'`);
+          }
+        }
+        break;
+      }
     }
 
     return NextResponse.json({ received: true });

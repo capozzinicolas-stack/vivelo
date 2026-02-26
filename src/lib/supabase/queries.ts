@@ -450,6 +450,7 @@ export async function createBooking(booking: {
   effective_end?: string | null;
   billing_type_snapshot?: string | null;
   order_id?: string | null;
+  cancellation_policy_snapshot?: Record<string, unknown> | null;
 }): Promise<Booking> {
   if (isMockMode()) {
     const newBooking: Booking = {
@@ -462,6 +463,7 @@ export async function createBooking(booking: {
       effective_end: booking.effective_end ?? null,
       billing_type_snapshot: booking.billing_type_snapshot ?? null,
       order_id: booking.order_id ?? null,
+      cancellation_policy_snapshot: booking.cancellation_policy_snapshot ?? null,
       status: 'pending',
       stripe_payment_intent_id: null,
       google_calendar_event_id: null,
@@ -512,6 +514,7 @@ export async function createBooking(booking: {
     effective_start: booking.effective_start,
     effective_end: booking.effective_end,
     billing_type_snapshot: booking.billing_type_snapshot,
+    cancellation_policy_snapshot: booking.cancellation_policy_snapshot ?? null,
   };
 
   const { data, error } = await supabase
@@ -1981,6 +1984,22 @@ export async function updateOrderStatus(id: string, status: OrderStatus, stripeP
 }
 
 // ─── CANCELLATION POLICIES ─────────────────────────────────────
+
+export async function getCancellationPolicyById(id: string): Promise<CancellationPolicy | null> {
+  if (isMockMode()) {
+    const { mockCancellationPolicies } = await import('@/data/mock-cancellation-policies');
+    return mockCancellationPolicies.find(p => p.id === id) || null;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('cancellation_policies')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) return null;
+  return data;
+}
 
 export async function getCancellationPolicies(): Promise<CancellationPolicy[]> {
   if (isMockMode()) {
