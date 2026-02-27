@@ -625,11 +625,30 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   return fb ? { ...fb, sub_bookings: [] } : null;
 }
 
-export async function updateBookingStatus(id: string, status: BookingStatus): Promise<void> {
+export async function updateBookingStatus(id: string, newStatus: BookingStatus): Promise<void> {
   if (isMockMode()) return;
 
+  const { isValidTransition } = await import('@/lib/booking-state-machine');
+
   const supabase = createClient();
-  const { error } = await supabase.from('bookings').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+
+  // Fetch current status
+  const { data: booking, error: fetchError } = await supabase
+    .from('bookings')
+    .select('status')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !booking) throw new Error('Reserva no encontrada');
+
+  if (!isValidTransition(booking.status as BookingStatus, newStatus)) {
+    throw new Error(`Transicion invalida: ${booking.status} -> ${newStatus}`);
+  }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: newStatus, updated_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
 
@@ -672,9 +691,12 @@ export async function getAllProfiles(): Promise<Profile[]> {
   }
 
   const supabase = createClient();
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, avatar_url, role, phone, company_name, bio, verified, max_concurrent_services, apply_buffers_to_all, global_buffer_before_minutes, global_buffer_after_minutes, banking_status, default_cancellation_policy_id, created_at, updated_at')
+    .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []) as unknown as Profile[];
 }
 
 export async function getProfileById(id: string): Promise<Profile | null> {

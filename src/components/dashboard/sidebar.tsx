@@ -60,10 +60,10 @@ export function Sidebar({ role }: { role: UserRole }) {
 
   return (
     <>
-      <div className="fixed left-4 top-20 z-40 lg:hidden">
+      <div className="fixed right-4 top-20 z-40 lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild><Button variant="outline" size="icon"><Menu className="h-5 w-5" /></Button></SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
+          <SheetContent side="right" className="w-64 p-0">
             <SheetHeader className="border-b p-4"><SheetTitle className="text-left">Dashboard</SheetTitle></SheetHeader>
             <div className="flex flex-col justify-between h-[calc(100%-65px)]">
               <div className="p-4">

@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Star, ArrowRight, Handshake } from 'lucide-react';
+import { Star, ArrowRight } from 'lucide-react';
 import { categories, categoryMap } from '@/data/categories';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
 import type { FeaturedPlacement } from '@/types/database';
@@ -40,10 +40,10 @@ export function FeaturedServicesSection({ placements, loading }: { placements: F
   if (placements.length === 0) return null;
 
   return (
-    <section className="py-16">
+    <section className="py-8 md:py-16">
       <div className="container mx-auto px-4">
-        <div className="flex items-center gap-4 mb-6">
-          <h2 className="text-3xl font-bold">Recomendados</h2>
+        <div className="flex items-center gap-4 mb-4 md:mb-6">
+          <h2 className="text-xl md:text-3xl font-bold">Recomendados</h2>
           <Link href="/servicios" className="flex items-center gap-1 text-deep-purple font-medium hover:underline">
             Ver todos <ArrowRight className="h-5 w-5" />
           </Link>
@@ -63,54 +63,50 @@ export function FeaturedServicesSection({ placements, loading }: { placements: F
             const cat = categoryMap[svc.category];
             const coverImage = svc.images?.[0];
             return (
-              <div key={p.id} className="min-w-[280px] max-w-[300px] snap-start flex-shrink-0">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
-                  <div className="relative">
-                    {coverImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={coverImage} alt={svc.title} className="h-56 w-full object-cover" />
-                    ) : (
-                      <div className={`h-56 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
-                        {cat && (
-                          <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
-                            <cat.icon className="h-8 w-8" />
-                          </div>
+              <div key={p.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
+                <Link href={`/servicios/${svc.id}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
+                    <div className="relative">
+                      {coverImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={coverImage} alt={svc.title} className="h-32 md:h-56 w-full object-cover" />
+                      ) : (
+                        <div className={`h-32 md:h-56 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
+                          {cat && (
+                            <div className={`w-10 h-10 md:w-16 md:h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
+                              <cat.icon className="h-5 w-5 md:h-8 md:w-8" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <Badge className="absolute top-2 left-2 md:top-3 md:left-3 bg-gold text-deep-purple border-0 font-semibold text-[10px] md:text-xs">
+                        Nuevo
+                      </Badge>
+                    </div>
+                    <CardContent className="p-2 md:p-4 space-y-1 md:space-y-2">
+                      <h3 className="font-semibold line-clamp-1 text-sm md:text-base">{svc.title}</h3>
+                      {/* Mobile: compact info */}
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground md:flex-wrap">
+                        <span className="hidden md:inline">{svc.zones.slice(0, 2).join(' | ')}</span>
+                        {svc.review_count > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <Star className="h-3 w-3 fill-gold text-gold" />
+                            <span>{svc.avg_rating.toFixed(1)}</span>
+                            <span className="hidden md:inline">({svc.review_count})</span>
+                          </span>
                         )}
                       </div>
-                    )}
-                    <Badge className="absolute top-3 left-3 bg-gold text-deep-purple border-0 font-semibold">
-                      Nuevo
-                    </Badge>
-                  </div>
-                  <CardContent className="p-4 space-y-2">
-                    <h3 className="font-semibold line-clamp-1">{svc.title}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
-                      {svc.zones.slice(0, 2).map(z => <span key={z}>{z}</span>).reduce((prev, curr, i) => i === 0 ? [curr] : [...prev, <span key={`sep-${i}`}> | </span>, curr], [] as React.ReactNode[])}
-                      {svc.review_count > 0 && (
-                        <>
-                          <span>|</span>
-                          <Handshake className="h-3 w-3 text-gold" />
-                          <span>{svc.review_count} reviews</span>
-                          <span className="flex items-center">
-                            {Array.from({ length: Math.round(svc.avg_rating) }).map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-gold text-gold" />
-                            ))}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    {svc.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
-                    )}
-                    <div className="pt-1">
-                      <span className="font-bold text-deep-purple">${svc.base_price.toLocaleString()} mxn</span>
-                      <span className="text-xs text-muted-foreground ml-1">/ {svc.price_unit}</span>
-                    </div>
-                    <Button size="sm" className="w-full bg-deep-purple hover:bg-deep-purple/90 text-white" asChild>
-                      <Link href={`/servicios/${svc.id}`}>Explorar</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <p className="hidden md:block text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
+                      <div className="pt-0.5 md:pt-1">
+                        <span className="font-bold text-deep-purple text-sm md:text-base">${svc.base_price.toLocaleString()}</span>
+                        <span className="text-[10px] md:text-xs text-muted-foreground ml-1">/ {svc.price_unit}</span>
+                      </div>
+                      <Button size="sm" className="hidden md:flex w-full bg-deep-purple hover:bg-deep-purple/90 text-white" asChild>
+                        <Link href={`/servicios/${svc.id}`}>Explorar</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Link>
               </div>
             );
           })}

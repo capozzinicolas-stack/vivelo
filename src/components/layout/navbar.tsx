@@ -18,16 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetClose,
-} from '@/components/ui/sheet';
 import Image from 'next/image';
-import { Menu, LogOut, LayoutDashboard, ChevronDown, ChevronRight, ShoppingCart } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShoppingCart } from 'lucide-react';
 import { useCart } from '@/providers/cart-provider';
 
 const mockRoles: { value: UserRole; label: string }[] = [
@@ -44,9 +36,7 @@ export function Navbar() {
   const { user, signOut, isMockMode, switchMockUser } = useAuthContext();
   const { itemCount } = useCart();
   const pathname = usePathname();
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [openMegaMenu, setOpenMegaMenu] = useState<string | null>(null);
-  const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
 
   const handleCategoryHover = (categoryValue: string) => {
     setOpenMegaMenu(categoryValue);
@@ -54,10 +44,6 @@ export function Navbar() {
 
   const closeMegaMenu = () => {
     setOpenMegaMenu(null);
-  };
-
-  const toggleMobileCategory = (categoryValue: string) => {
-    setExpandedMobileCategory((prev) => prev === categoryValue ? null : categoryValue);
   };
 
   const openCategory = openMegaMenu ? categories.find((c) => c.value === openMegaMenu) : null;
@@ -155,115 +141,6 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile menu trigger */}
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetTrigger asChild className="lg:hidden">
-            <Button variant="ghost" size="sm" className="px-2"><Menu className="h-5 w-5" /></Button>
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[300px] overflow-y-auto">
-            <SheetHeader><SheetTitle><Image src="/logo-vivelo.png" alt="Vivelo" width={100} height={30} className="h-7 w-auto" /></SheetTitle></SheetHeader>
-            <nav className="flex flex-col gap-1 mt-6">
-              {/* Categories with expandable subcategories */}
-              {categories.map((cat) => (
-                <div key={cat.value}>
-                  <button
-                    onClick={() => toggleMobileCategory(cat.value)}
-                    className="flex items-center justify-between w-full px-2 py-2.5 rounded-md text-sm font-medium hover:bg-muted transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-md flex items-center justify-center ${cat.color}`}>
-                        <cat.icon className="h-3.5 w-3.5" />
-                      </div>
-                      {cat.label}
-                    </span>
-                    {expandedMobileCategory === cat.value ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                  {expandedMobileCategory === cat.value && (
-                    <div className="ml-4 pl-5 border-l space-y-0.5 pb-2">
-                      <SheetClose asChild>
-                        <Link
-                          href={`/servicios?categoria=${cat.value}`}
-                          className="block px-3 py-1.5 text-sm font-medium text-violet-600 rounded-md hover:bg-violet-50"
-                        >
-                          Ver todos
-                        </Link>
-                      </SheetClose>
-                      {cat.subcategories.map((sub) => (
-                        <SheetClose asChild key={sub.value}>
-                          <Link
-                            href={`/servicios?categoria=${cat.value}&subcategoria=${sub.value}`}
-                            className="block px-3 py-1.5 text-sm text-foreground rounded-md hover:bg-muted"
-                          >
-                            {sub.label}
-                          </Link>
-                        </SheetClose>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              <SheetClose asChild>
-                <Link href="/servicios" className={`px-2 py-2.5 rounded-md text-sm font-medium ${pathname === '/servicios' ? 'text-violet-600' : 'text-foreground'}`}>
-                  Todos los Servicios
-                </Link>
-              </SheetClose>
-
-              <SheetClose asChild>
-                <Link href="/carrito" className="flex items-center justify-between px-2 py-2.5 rounded-md text-sm font-medium hover:bg-muted transition-colors">
-                  <span className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-md flex items-center justify-center bg-violet-100">
-                      <ShoppingCart className="h-3.5 w-3.5 text-violet-700" />
-                    </div>
-                    Carrito
-                  </span>
-                  {itemCount > 0 && (
-                    <Badge className="bg-violet-600 text-white text-[10px] px-1.5 py-0">{itemCount}</Badge>
-                  )}
-                </Link>
-              </SheetClose>
-
-              {isMockMode && user && (
-                <div className="pt-2 border-t mt-2">
-                  <p className="text-xs text-muted-foreground mb-2 px-2">Modo Demo:</p>
-                  <div className="flex gap-2 px-2">
-                    {mockRoles.map((role) => (
-                      <button key={role.value} onClick={() => switchMockUser(role.value)} className="focus:outline-none">
-                        <Badge variant={user.role === role.value ? 'default' : 'outline'} className="cursor-pointer text-xs">{role.label}</Badge>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="border-t pt-4 mt-2">
-                {user ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3 px-2">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-violet-100 text-violet-700">{getInitials(user.full_name)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{user.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{user.email}</p>
-                      </div>
-                    </div>
-                    <SheetClose asChild><Link href="/dashboard" className="flex items-center gap-2 text-sm font-medium hover:text-violet-600 px-2"><LayoutDashboard className="h-4 w-4" />Dashboard</Link></SheetClose>
-                    <button onClick={() => { signOut(); setSheetOpen(false); }} className="flex items-center gap-2 text-sm font-medium text-red-600 px-2"><LogOut className="h-4 w-4" />Cerrar Sesion</button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 px-2">
-                    <SheetClose asChild><Button variant="outline" className="w-full" asChild><Link href="/login">Iniciar Sesion</Link></Button></SheetClose>
-                    <SheetClose asChild><Button className="w-full" asChild><Link href="/register">Registrarse</Link></Button></SheetClose>
-                  </div>
-                )}
-              </div>
-            </nav>
-          </SheetContent>
-        </Sheet>
 
         {/* Mega menu overlay */}
         {openCategory && (

@@ -8,14 +8,27 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Ban, CheckCircle } from 'lucide-react';
+import { Loader2, Ban, CheckCircle, Eye, Star } from 'lucide-react';
+import { PaginationControls } from '@/components/ui/pagination-controls';
+import { getAvailableTransitions } from '@/lib/booking-state-machine';
 import type { Booking, BookingStatus } from '@/types/database';
+
+const PAGE_SIZE = 20;
+
+const STATUS_ACTION_CONFIG: Record<string, { icon: typeof CheckCircle; className: string; label: string }> = {
+  confirmed: { icon: CheckCircle, className: 'text-green-600', label: 'Confirmar' },
+  cancelled: { icon: Ban, className: 'text-red-600', label: 'Cancelar' },
+  completed: { icon: Star, className: 'text-blue-600', label: 'Completar' },
+  in_review: { icon: Eye, className: 'text-orange-600', label: 'En revision' },
+  rejected: { icon: Ban, className: 'text-red-600', label: 'Rechazar' },
+};
 
 const tabs = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const;
 const tabLabels: Record<string, string> = { all: 'Todas', pending: 'Pendientes', confirmed: 'Confirmadas', completed: 'Completadas', cancelled: 'Canceladas' };
 
 export default function AdminReservasPage() {
   const [tab, setTab] = useState('all');
+  const [page, setPage] = useState(1);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -24,7 +37,10 @@ export default function AdminReservasPage() {
     getAllBookings().then(setBookings).finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { setPage(1); }, [tab]);
+
   const filtered = tab === 'all' ? bookings : bookings.filter(b => b.status === tab);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalFiltered = filtered.reduce((s, b) => s + b.total, 0);
   const totalCommissions = filtered.reduce((s, b) => s + b.commission, 0);
@@ -39,7 +55,7 @@ export default function AdminReservasPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando reservas" /></div>;
 
   return (
     <div className="space-y-6">
@@ -54,17 +70,17 @@ export default function AdminReservasPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{tabs.map(s => <TabsTrigger key={s} value={s}>{tabLabels[s]}</TabsTrigger>)}</TabsList>
         <TabsContent value={tab} className="mt-4">
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Servicio</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Proveedor</TableHead>
+                  <TableHead className="hidden md:table-cell">Proveedor</TableHead>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>Invitados</TableHead>
+                  <TableHead className="hidden md:table-cell">Invitados</TableHead>
                   <TableHead>Total</TableHead>
-                  <TableHead>Comision</TableHead>
+                  <TableHead className="hidden md:table-cell">Comision</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
@@ -72,30 +88,35 @@ export default function AdminReservasPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
-                ) : filtered.map(b => (
+                ) : paged.map(b => (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.service?.title || 'Servicio'}</TableCell>
                     <TableCell>{b.client?.full_name || 'Cliente'}</TableCell>
-                    <TableCell>{b.provider?.full_name || 'Proveedor'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{b.provider?.full_name || 'Proveedor'}</TableCell>
                     <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
-                    <TableCell>{b.guest_count}</TableCell>
+                    <TableCell className="hidden md:table-cell">{b.guest_count}</TableCell>
                     <TableCell className="font-medium">${b.total.toLocaleString()}</TableCell>
-                    <TableCell>${b.commission.toLocaleString()}</TableCell>
+                    <TableCell className="hidden md:table-cell">${b.commission.toLocaleString()}</TableCell>
                     <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {b.status !== 'completed' && b.status !== 'cancelled' && (
-                          <>
-                            {b.status !== 'confirmed' && (
-                              <Button size="sm" variant="outline" className="h-7 text-green-600" onClick={() => handleStatusChange(b.id, 'confirmed')}>
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                            )}
-                            <Button size="sm" variant="outline" className="h-7 text-red-600" onClick={() => handleStatusChange(b.id, 'cancelled')}>
-                              <Ban className="h-3 w-3" />
+                        {getAvailableTransitions(b.status).map(targetStatus => {
+                          const config = STATUS_ACTION_CONFIG[targetStatus];
+                          if (!config) return null;
+                          const Icon = config.icon;
+                          return (
+                            <Button
+                              key={targetStatus}
+                              size="sm"
+                              variant="outline"
+                              className={`h-7 ${config.className}`}
+                              aria-label={`${config.label} reserva`}
+                              onClick={() => handleStatusChange(b.id, targetStatus)}
+                            >
+                              <Icon className="h-3 w-3" />
                             </Button>
-                          </>
-                        )}
+                          );
+                        })}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -103,6 +124,7 @@ export default function AdminReservasPage() {
               </TableBody>
             </Table>
           </div>
+          <PaginationControls currentPage={page} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </TabsContent>
       </Tabs>
     </div>

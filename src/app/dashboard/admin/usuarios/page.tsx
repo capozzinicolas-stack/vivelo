@@ -7,14 +7,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
 import type { Profile, UserRole } from '@/types/database';
+
+const PAGE_SIZE = 20;
 
 const roleTabs = ['all', 'client', 'provider', 'admin'] as const;
 const roleLabels: Record<string, string> = { all: 'Todos', client: 'Clientes', provider: 'Proveedores', admin: 'Admins' };
 
 export default function AdminUsuariosPage() {
   const [tab, setTab] = useState('all');
+  const [page, setPage] = useState(1);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -23,7 +27,10 @@ export default function AdminUsuariosPage() {
     getAllProfiles().then(setUsers).finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { setPage(1); }, [tab]);
+
   const filtered = tab === 'all' ? users : users.filter((u) => u.role === tab);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleVerify = async (id: string, verified: boolean) => {
     try {
@@ -45,7 +52,7 @@ export default function AdminUsuariosPage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando usuarios" /></div>;
 
   return (
     <div className="space-y-6">
@@ -56,22 +63,22 @@ export default function AdminUsuariosPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{roleTabs.map((r) => <TabsTrigger key={r} value={r}>{roleLabels[r]}</TabsTrigger>)}</TabsList>
         <TabsContent value={tab} className="mt-4">
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[700px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>Verificado</TableHead>
-                  <TableHead>Registro</TableHead>
+                  <TableHead className="hidden md:table-cell">Registro</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay usuarios</TableCell></TableRow>
-                ) : filtered.map((u) => (
+                ) : paged.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.full_name}</TableCell>
                     <TableCell>{u.email}</TableCell>
@@ -90,9 +97,9 @@ export default function AdminUsuariosPage() {
                         ? <CheckCircle className="h-4 w-4 text-green-500" />
                         : <XCircle className="h-4 w-4 text-red-400" />}
                     </TableCell>
-                    <TableCell>{new Date(u.created_at).toLocaleDateString('es-MX')}</TableCell>
+                    <TableCell className="hidden md:table-cell">{new Date(u.created_at).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" className="h-7" onClick={() => handleVerify(u.id, !u.verified)}>
+                      <Button size="sm" variant="outline" className="h-7" aria-label={u.verified ? 'Quitar verificacion de usuario' : 'Verificar usuario'} onClick={() => handleVerify(u.id, !u.verified)}>
                         <ShieldCheck className="h-3 w-3 mr-1" />
                         {u.verified ? 'Quitar' : 'Verificar'}
                       </Button>
@@ -102,6 +109,7 @@ export default function AdminUsuariosPage() {
               </TableBody>
             </Table>
           </div>
+          <PaginationControls currentPage={page} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </TabsContent>
       </Tabs>
     </div>

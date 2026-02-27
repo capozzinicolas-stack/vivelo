@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { calculateRefund } from '@/lib/cancellation';
+import { requireAuth, isAuthError } from '@/lib/auth/api-auth';
+import { validateBody } from '@/lib/validations/api-schemas';
+import { CancelBookingSchema } from '@/lib/validations/api-schemas';
 import type { CancellationPolicy, CancellationRule } from '@/types/database';
-
-function createAdminSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, serviceKey);
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { bookingId, cancelledBy } = await request.json();
+    // Auth check
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
 
-    if (!bookingId || !cancelledBy) {
-      return NextResponse.json(
-        { error: 'bookingId y cancelledBy son requeridos' },
-        { status: 400 },
-      );
+    const validation = await validateBody(request, CancelBookingSchema);
+    if (validation.error !== null) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+    const { bookingId, cancelledBy } = validation.data!
 
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
-    const isMock = !secretKey || secretKey === 'sk_test_placeholder';
+    const isMock = process.env.NODE_ENV === 'development' && (!secretKey || secretKey === 'sk_test_placeholder');
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isMockDb = !supabaseUrl || supabaseUrl.includes('placeholder');
+    const isMockDb = process.env.NODE_ENV === 'development' && (!supabaseUrl || supabaseUrl.includes('placeholder'));
 
     // 1. Load booking with service (including cancellation policy)
     let booking: Record<string, unknown>;
@@ -40,7 +38,7 @@ export async function POST(request: NextRequest) {
       const service = mockServices.find(s => s.id === found.service_id);
       booking = { ...found, service } as unknown as Record<string, unknown>;
     } else {
-      const supabase = createAdminSupabase();
+      const supabase = createAdminSupabaseClient();
       const { data, error } = await supabase
         .from('bookings')
         .select('*, service:services(*, cancellation_policy:cancellation_policies(*))')
@@ -51,6 +49,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 });
       }
       booking = data;
+    }
+
+    // Verify ownership: must be client, provider, or admin
+    const userId = auth.user.id;
+    const userRole = auth.profile.role;
+    if (userRole !== 'admin' && booking.client_id !== userId && booking.provider_id !== userId) {
+      return NextResponse.json({ error: 'No autorizado para cancelar esta reserva' }, { status: 403 });
     }
 
     // 2. Validate booking can be cancelled
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
         if (service?.cancellation_policy) {
           policy = service.cancellation_policy as CancellationPolicy;
         } else if (service?.cancellation_policy_id && !isMockDb) {
-          const supabase = createAdminSupabase();
+          const supabase = createAdminSupabaseClient();
           const { data: policyData } = await supabase
             .from('cancellation_policies')
             .select('*')
@@ -135,8 +140,8 @@ export async function POST(request: NextRequest) {
 
     // 7. Update booking in DB
     if (!isMockDb) {
-      const supabase = createAdminSupabase();
-      const { error: updateError } = await supabase
+      const supabase = createAdminSupabaseClient();
+      const { error: updateError, data: updatedRows } = await supabase
         .from('bookings')
         .update({
           status: 'cancelled',
@@ -147,14 +152,16 @@ export async function POST(request: NextRequest) {
           cancellation_policy_snapshot: policySnapshot,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', bookingId);
+        .eq('id', bookingId)
+        .neq('status', 'cancelled')
+        .select('id');
 
       if (updateError) {
         console.error('[Cancel] DB update failed:', updateError);
-        return NextResponse.json(
-          { error: 'Error actualizando la reserva' },
-          { status: 500 },
-        );
+        return NextResponse.json({ error: 'Error actualizando la reserva' }, { status: 500 });
+      }
+      if (!updatedRows || updatedRows.length === 0) {
+        return NextResponse.json({ error: 'La reserva ya fue cancelada por otro proceso' }, { status: 409 });
       }
     }
 

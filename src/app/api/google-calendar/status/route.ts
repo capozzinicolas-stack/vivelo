@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConnection } from '@/lib/google-calendar/client';
+import { requireAuth, isAuthError } from '@/lib/auth/api-auth';
 
 const isMockMode = () => !process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'placeholder';
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+
   const providerId = request.nextUrl.searchParams.get('providerId');
   if (!providerId) {
     return NextResponse.json({ error: 'providerId required' }, { status: 400 });
+  }
+
+  // Verify authorization
+  if (auth.profile.role !== 'admin' && auth.user.id !== providerId) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
   }
 
   if (isMockMode()) {

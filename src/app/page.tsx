@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { HomeSearchBar } from '@/components/home-search-bar';
+import { MobileCategoryBar } from '@/components/homepage/mobile-category-bar';
 import Image from 'next/image';
 import { CashbackBanner } from '@/components/homepage/cashback-banner';
 import { FeaturedServicesSection } from '@/components/homepage/featured-services-section';
@@ -64,15 +65,18 @@ export default function Home() {
           priority
         />
         <div className="absolute inset-0 bg-black/40" />
-        <div className="relative container mx-auto px-4 pt-24 pb-20">
+        <div className="relative container mx-auto px-4 pt-12 pb-10 md:pt-24 md:pb-20">
           <div className="max-w-xl">
-            <h1 className="text-4xl md:text-6xl font-bold mb-2 leading-tight">Hazlo unico, hazlo Facil.</h1>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">Solo <span className="italic">Vivelo</span></h1>
-            <p className="text-lg md:text-xl text-white/90 mb-8">Los mejores proveedores para tus eventos</p>
+            <h1 className="text-2xl md:text-6xl font-bold mb-1 md:mb-2 leading-tight">Hazlo unico, hazlo Facil.</h1>
+            <h1 className="text-2xl md:text-6xl font-bold mb-3 md:mb-6 leading-tight">Solo <span className="italic">Vivelo</span></h1>
+            <p className="text-sm md:text-xl text-white/90 mb-4 md:mb-8">Los mejores proveedores para tus eventos</p>
           </div>
           <HomeSearchBar />
         </div>
       </section>
+
+      {/* Mobile: horizontal category bar */}
+      <MobileCategoryBar />
 
       {/* 3. Recomendados (featured services carousel) */}
       <FeaturedServicesSection placements={featuredPlacements} loading={loading} />

@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando panel de administracion" /></div>;
 
   return (
     <div className="space-y-8">

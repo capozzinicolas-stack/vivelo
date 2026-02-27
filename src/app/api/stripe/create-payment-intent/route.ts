@@ -1,19 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { requireAuth, isAuthError } from '@/lib/auth/api-auth';
+import { validateBody, CreatePaymentIntentSchema } from '@/lib/validations/api-schemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as {
-      bookingId?: string;
-      orderId?: string;
-      amount: number;
-      metadata?: Record<string, string>;
-    };
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
 
-    const { bookingId, orderId, amount, metadata } = body;
+    const validation = await validateBody(request, CreatePaymentIntentSchema);
+    if (validation.error !== null) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+    const { bookingId, orderId, amount, metadata } = validation.data!
 
-    if (!amount || (!bookingId && !orderId)) {
-      return NextResponse.json({ error: 'Se requieren amount y (bookingId o orderId).' }, { status: 400 });
+    // Verify the order/booking belongs to this user
+    const { supabase } = auth;
+    if (orderId) {
+      const { data: order } = await supabase.from('orders').select('client_id').eq('id', orderId).single();
+      if (!order || order.client_id !== auth.user.id) {
+        return NextResponse.json({ error: 'Orden no encontrada o no autorizada' }, { status: 403 });
+      }
+    } else if (bookingId) {
+      const { data: booking } = await supabase.from('bookings').select('client_id').eq('id', bookingId).single();
+      if (!booking || booking.client_id !== auth.user.id) {
+        return NextResponse.json({ error: 'Reserva no encontrada o no autorizada' }, { status: 403 });
+      }
     }
 
     const amountInCents = Math.round(amount * 100);

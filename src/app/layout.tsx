@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ChatBubble } from "@/components/chat/chat-bubble";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -37,8 +38,9 @@ export default function RootLayout({
           <CartProvider>
             <ChatProvider>
               <Navbar />
-              <main className="min-h-screen">{children}</main>
+              <main className="min-h-screen pb-16 lg:pb-0">{children}</main>
               <Footer />
+              <MobileBottomNav />
               <Toaster />
               <ChatBubble />
             </ChatProvider>

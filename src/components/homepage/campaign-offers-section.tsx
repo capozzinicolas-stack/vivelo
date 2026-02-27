@@ -61,10 +61,10 @@ export function CampaignOffersSection({ campaigns, loading }: {
   if (allServices.length === 0) return null;
 
   return (
-    <section className="py-16">
+    <section className="py-8 md:py-16">
       <div className="container mx-auto px-4">
-        <div className="flex items-center gap-4 mb-6">
-          <h2 className="text-3xl font-bold">Ofertas de la semana</h2>
+        <div className="flex items-center gap-4 mb-4 md:mb-6">
+          <h2 className="text-xl md:text-3xl font-bold">Ofertas de la semana</h2>
           <Link href="/servicios" className="flex items-center gap-1 text-deep-purple font-medium hover:underline">
             Ver todos <ArrowRight className="h-5 w-5" />
           </Link>
@@ -85,60 +85,67 @@ export function CampaignOffersSection({ campaigns, loading }: {
             const coverImage = svc.images?.[0];
             const discountedPrice = Math.round(svc.base_price * (1 - item.discount_pct / 100));
             return (
-              <div key={item.id} className="min-w-[280px] max-w-[300px] snap-start flex-shrink-0">
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
-                  <div className="relative">
-                    {coverImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={coverImage} alt={svc.title} className="h-56 w-full object-cover" />
-                    ) : (
-                      <div className={`h-56 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
-                        {cat && (
-                          <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
-                            <cat.icon className="h-8 w-8" />
-                          </div>
+              <div key={item.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
+                <Link href={`/servicios/${svc.id}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
+                    <div className="relative">
+                      {coverImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={coverImage} alt={svc.title} className="h-32 md:h-56 w-full object-cover" />
+                      ) : (
+                        <div className={`h-32 md:h-56 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
+                          {cat && (
+                            <div className={`w-10 h-10 md:w-16 md:h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
+                              <cat.icon className="h-5 w-5 md:h-8 md:w-8" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <Badge className="absolute top-2 left-2 md:top-3 md:left-3 bg-gold text-deep-purple border-0 font-semibold text-[10px] md:text-xs">
+                        Nuevo
+                      </Badge>
+                    </div>
+                    <CardContent className="p-2 md:p-4 space-y-1 md:space-y-2">
+                      <h3 className="font-semibold line-clamp-1 text-sm md:text-base">{svc.title}</h3>
+                      <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+                        {svc.zones.slice(0, 2).map((z, i) => (
+                          <span key={z}>{i > 0 ? ' | ' : ''}{z}</span>
+                        ))}
+                        {svc.review_count > 0 && (
+                          <>
+                            <span>|</span>
+                            <Handshake className="h-3 w-3 text-gold" />
+                            <span>{svc.review_count} reviews</span>
+                            <span className="flex items-center">
+                              {Array.from({ length: Math.round(svc.avg_rating) }).map((_, i) => (
+                                <Star key={i} className="h-3 w-3 fill-gold text-gold" />
+                              ))}
+                            </span>
+                          </>
                         )}
                       </div>
-                    )}
-                    <Badge className="absolute top-3 left-3 bg-gold text-deep-purple border-0 font-semibold">
-                      Nuevo
-                    </Badge>
-                  </div>
-                  <CardContent className="p-4 space-y-2">
-                    <h3 className="font-semibold line-clamp-1">{svc.title}</h3>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
-                      {svc.zones.slice(0, 2).map((z, i) => (
-                        <span key={z}>{i > 0 ? ' | ' : ''}{z}</span>
-                      ))}
                       {svc.review_count > 0 && (
-                        <>
-                          <span>|</span>
-                          <Handshake className="h-3 w-3 text-gold" />
-                          <span>{svc.review_count} reviews</span>
-                          <span className="flex items-center">
-                            {Array.from({ length: Math.round(svc.avg_rating) }).map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-gold text-gold" />
-                            ))}
-                          </span>
-                        </>
+                        <div className="md:hidden flex items-center gap-0.5 text-xs text-muted-foreground">
+                          <Star className="h-3 w-3 fill-gold text-gold" />
+                          <span>{svc.avg_rating.toFixed(1)}</span>
+                        </div>
                       )}
-                    </div>
-                    {svc.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
-                    )}
-                    <div className="pt-1">
-                      <div className="text-xs text-muted-foreground line-through">
-                        De: ${svc.base_price.toLocaleString()} mxn / {svc.price_unit}
+                      <p className="hidden md:block text-xs text-muted-foreground line-clamp-2">{svc.description}</p>
+                      <div className="pt-0.5 md:pt-1">
+                        <div className="text-[10px] md:text-xs text-muted-foreground line-through">
+                          ${svc.base_price.toLocaleString()}
+                        </div>
+                        <div className="font-bold text-deep-purple text-sm md:text-base">
+                          ${discountedPrice.toLocaleString()}
+                          <span className="text-[10px] md:text-xs text-muted-foreground font-normal ml-1">/ {svc.price_unit}</span>
+                        </div>
                       </div>
-                      <div className="font-bold text-deep-purple">
-                        Por: ${discountedPrice.toLocaleString()} mxn / {svc.price_unit}
-                      </div>
-                    </div>
-                    <Button size="sm" className="w-full bg-deep-purple hover:bg-deep-purple/90 text-white" asChild>
-                      <Link href={`/servicios/${svc.id}`}>Explorar</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <Button size="sm" className="hidden md:flex w-full bg-deep-purple hover:bg-deep-purple/90 text-white" asChild>
+                        <Link href={`/servicios/${svc.id}`}>Explorar</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Link>
               </div>
             );
           })}

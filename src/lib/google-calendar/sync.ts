@@ -1,15 +1,8 @@
 import { getCalendarClient, ensureViveloCalendar, getConnection } from './client';
-import { createClient } from '@supabase/supabase-js';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import type { Booking } from '@/types/database';
 
 const isMockMode = () => !process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'placeholder';
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 /**
  * Push a confirmed booking to the provider's "Vivelo" calendar in Google
@@ -63,7 +56,7 @@ export async function pushBookingToGoogle(booking: Booking & { service?: { title
     const eventId = event?.id;
     if (eventId) {
       // Store event ID on the booking
-      const supabase = getSupabaseAdmin();
+      const supabase = createAdminSupabaseClient();
       await supabase
         .from('bookings')
         .update({ google_calendar_event_id: eventId })
@@ -109,7 +102,7 @@ export async function syncGoogleEventsToVivelo(providerId: string): Promise<{ sy
   const calendar = await getCalendarClient(providerId);
   if (!calendar) return { synced: 0, deleted: 0 };
 
-  const supabase = getSupabaseAdmin();
+  const supabase = createAdminSupabaseClient();
 
   const now = new Date();
   const timeMin = now.toISOString();
@@ -129,6 +122,28 @@ export async function syncGoogleEventsToVivelo(providerId: string): Promise<{ sy
     const googleEvents = eventList?.items || [];
     const googleEventIds = new Set<string>();
 
+    // Batch read: fetch ALL existing blocks for this provider in one query
+    const { data: existingBlocks } = await supabase
+      .from('vendor_calendar_blocks')
+      .select('id, google_event_id, start_datetime, end_datetime, reason')
+      .eq('vendor_id', providerId)
+      .eq('source', 'google_sync');
+
+    const existingMap = new Map(
+      (existingBlocks || []).map(b => [b.google_event_id, b])
+    );
+
+    // Separate events into insert and update batches
+    const toInsert: Array<{
+      vendor_id: string;
+      start_datetime: string;
+      end_datetime: string;
+      reason: string;
+      google_event_id: string;
+      source: 'google_sync';
+    }> = [];
+    const toUpdate: Array<{ id: string; data: { start_datetime: string; end_datetime: string; reason: string } }> = [];
+
     let synced = 0;
     for (const event of googleEvents) {
       if (!event.id || !event.start || !event.end) continue;
@@ -147,54 +162,48 @@ export async function syncGoogleEventsToVivelo(providerId: string): Promise<{ sy
         ? new Date(event.end.dateTime).toISOString()
         : new Date(`${event.end.date}T23:59:59`).toISOString();
 
-      // Check if block already exists for this google event
-      const { data: existing } = await supabase
-        .from('vendor_calendar_blocks')
-        .select('id')
-        .eq('vendor_id', providerId)
-        .eq('google_event_id', event.id)
-        .single();
-
+      const existing = existingMap.get(event.id);
       if (existing) {
-        // Update existing block
-        await supabase
-          .from('vendor_calendar_blocks')
-          .update({
-            start_datetime: startIso,
-            end_datetime: endIso,
-            reason: event.summary || 'Google Calendar',
-          })
-          .eq('id', existing.id);
+        toUpdate.push({
+          id: existing.id,
+          data: { start_datetime: startIso, end_datetime: endIso, reason: event.summary || 'Google Calendar' },
+        });
       } else {
-        // Create new block
-        await supabase
-          .from('vendor_calendar_blocks')
-          .insert({
-            vendor_id: providerId,
-            start_datetime: startIso,
-            end_datetime: endIso,
-            reason: event.summary || 'Google Calendar',
-            google_event_id: event.id,
-            source: 'google_sync',
-          });
+        toInsert.push({
+          vendor_id: providerId,
+          start_datetime: startIso,
+          end_datetime: endIso,
+          reason: event.summary || 'Google Calendar',
+          google_event_id: event.id,
+          source: 'google_sync' as const,
+        });
       }
       synced++;
     }
 
-    // Delete blocks for events that no longer exist in Google
-    const { data: existingBlocks } = await supabase
-      .from('vendor_calendar_blocks')
-      .select('id, google_event_id')
-      .eq('vendor_id', providerId)
-      .eq('source', 'google_sync');
-
-    let deleted = 0;
-    for (const block of (existingBlocks || [])) {
-      if (block.google_event_id && !googleEventIds.has(block.google_event_id)) {
-        await supabase.from('vendor_calendar_blocks').delete().eq('id', block.id);
-        deleted++;
-      }
+    // Batch insert all new blocks in one query
+    if (toInsert.length > 0) {
+      await supabase.from('vendor_calendar_blocks').insert(toInsert);
     }
+
+    // Batch update existing blocks
+    if (toUpdate.length > 0) {
+      await Promise.all(
+        toUpdate.map(({ id, data }) =>
+          supabase.from('vendor_calendar_blocks').update(data).eq('id', id)
+        )
+      );
+    }
+
+    // Batch delete blocks for events that no longer exist in Google
+    const toDeleteIds = (existingBlocks || [])
+      .filter(b => b.google_event_id && !googleEventIds.has(b.google_event_id))
+      .map(b => b.id);
+
+    if (toDeleteIds.length > 0) {
+      await supabase.from('vendor_calendar_blocks').delete().in('id', toDeleteIds);
+    }
+    const deleted = toDeleteIds.length;
 
     // Update sync status
     await supabase

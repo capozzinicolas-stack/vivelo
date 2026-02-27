@@ -56,7 +56,7 @@ export function SubcategoryShowcaseSection({ items, promoBanner }: SubcategorySh
     : showcaseData;
 
   return (
-    <section className="py-16 bg-off-white">
+    <section className="py-8 md:py-16 bg-off-white">
       <div className="container mx-auto px-4">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Left promo card */}
@@ -81,15 +81,15 @@ export function SubcategoryShowcaseSection({ items, promoBanner }: SubcategorySh
             />
             <HorizontalCarousel>
               {displayItems.map((sub) => (
-                <div key={sub.value} className="min-w-[280px] max-w-[300px] snap-start flex-shrink-0">
+                <div key={sub.value} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
                   <Link href={`/servicios?categoria=${sub.parentCategory}&subcategoria=${sub.value}`}>
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
-                      <div className={`h-52 bg-gradient-to-br ${sub.color} flex items-center justify-center`}>
-                        <span className="text-white/30 text-6xl font-bold">{sub.label[0]}</span>
+                      <div className={`h-28 md:h-52 bg-gradient-to-br ${sub.color} flex items-center justify-center`}>
+                        <span className="text-white/30 text-4xl md:text-6xl font-bold">{sub.label[0]}</span>
                       </div>
-                      <CardContent className="p-4 space-y-2">
-                        <h3 className="font-bold text-lg">{sub.label}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-4">{sub.description}</p>
+                      <CardContent className="p-2 md:p-4 space-y-1 md:space-y-2">
+                        <h3 className="font-bold text-sm md:text-lg">{sub.label}</h3>
+                        <p className="hidden md:block text-sm text-muted-foreground line-clamp-4">{sub.description}</p>
                       </CardContent>
                     </Card>
                   </Link>

@@ -15,10 +15,10 @@ const categoryGradients: Record<string, string> = {
 
 export function CategoriesShowcaseSection() {
   return (
-    <section className="py-16">
+    <section className="py-8 md:py-16">
       <div className="container mx-auto px-4">
-        <div className="flex items-center gap-4 mb-8">
-          <h2 className="text-3xl font-bold">Categorias destacadas</h2>
+        <div className="flex items-center gap-4 mb-6 md:mb-8">
+          <h2 className="text-xl md:text-3xl font-bold">Categorias destacadas</h2>
           <Link href="/servicios" className="flex items-center gap-1 text-deep-purple font-medium hover:underline">
             Ver todas <ArrowRight className="h-5 w-5" />
           </Link>
@@ -27,10 +27,10 @@ export function CategoriesShowcaseSection() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.slice(0, 4).map((cat) => (
             <Link key={cat.value} href={`/servicios?categoria=${cat.value}`}>
-              <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${categoryGradients[cat.value] || 'from-gray-200 to-gray-100'} h-[240px] md:h-[280px] p-6 flex flex-col justify-between hover:shadow-lg transition-shadow cursor-pointer group`}>
-                <h3 className="text-xl md:text-2xl font-bold text-deep-purple leading-tight">{cat.label}</h3>
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${cat.color} self-end group-hover:scale-110 transition-transform`}>
-                  <cat.icon className="h-7 w-7" />
+              <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${categoryGradients[cat.value] || 'from-gray-200 to-gray-100'} h-[160px] md:h-[280px] p-4 md:p-6 flex flex-col justify-between hover:shadow-lg transition-shadow cursor-pointer group`}>
+                <h3 className="text-base md:text-2xl font-bold text-deep-purple leading-tight">{cat.label}</h3>
+                <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center ${cat.color} self-end group-hover:scale-110 transition-transform`}>
+                  <cat.icon className="h-5 w-5 md:h-7 md:w-7" />
                 </div>
               </div>
             </Link>
