@@ -46,10 +46,10 @@ export default function AdminFinanzasPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Ingresos Totales" value={`$${(stats?.totalRevenue || 0).toLocaleString()}`} icon={DollarSign} description="Total facturado en la plataforma" />
-        <StatsCard title="Comisiones Vivelo" value={`$${(stats?.totalCommissions || 0).toLocaleString()}`} icon={TrendingUp} description="Ganancia de la plataforma" />
-        <StatsCard title="Pagos a Proveedores" value={`$${(stats?.totalProviderPayouts || 0).toLocaleString()}`} icon={CreditCard} description="Total pagado a proveedores" />
-        <StatsCard title="Revenue Pendiente" value={`$${(stats?.pendingRevenue || 0).toLocaleString()}`} icon={Clock} description="Reservas sin confirmar" />
+        <StatsCard title="GMV (Ventas Totales)" value={`$${(stats?.totalRevenue || 0).toLocaleString()}`} icon={DollarSign} description="Total facturado a clientes" />
+        <StatsCard title="Revenue Vivelo" value={`$${(stats?.totalCommissions || 0).toLocaleString()}`} icon={TrendingUp} description="Comisiones cobradas" />
+        <StatsCard title="Pagos a Proveedores" value={`$${(stats?.totalProviderPayouts || 0).toLocaleString()}`} icon={CreditCard} description="Neto transferido a sellers" />
+        <StatsCard title="GMV Pendiente" value={`$${(stats?.pendingRevenue || 0).toLocaleString()}`} icon={Clock} description="Reservas sin confirmar" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -88,8 +88,9 @@ export default function AdminFinanzasPage() {
                   <TableRow>
                     <TableHead>Mes</TableHead>
                     <TableHead>Reservas</TableHead>
-                    <TableHead>Ingresos</TableHead>
-                    <TableHead>Comisiones</TableHead>
+                    <TableHead>GMV</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>A Proveedores</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -98,7 +99,8 @@ export default function AdminFinanzasPage() {
                       <TableCell className="font-medium">{month}</TableCell>
                       <TableCell>{data.bookings}</TableCell>
                       <TableCell>${data.revenue.toLocaleString()}</TableCell>
-                      <TableCell>${data.commissions.toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">${data.commissions.toLocaleString()}</TableCell>
+                      <TableCell>${(data.revenue - data.commissions).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

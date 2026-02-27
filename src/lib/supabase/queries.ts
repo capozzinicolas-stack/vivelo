@@ -864,15 +864,18 @@ export async function getProviderStats(providerId: string) {
 
   const activeServices = services.filter(s => s.status === 'active');
   const pendingBookings = bookings.filter(b => b.status === 'pending');
-  // Provider revenue = total charged to client minus Vivelo's commission
-  const revenue = bookings
-    .filter(b => b.status === 'confirmed' || b.status === 'completed')
-    .reduce((s, b) => s + b.total - b.commission, 0);
+  const confirmedBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed');
+  // GMV = total charged to clients (gross merchandise value)
+  const gmv = confirmedBookings.reduce((s, b) => s + b.total, 0);
+  // Total commission deducted
+  const totalCommission = confirmedBookings.reduce((s, b) => s + b.commission, 0);
+  // Net revenue = what provider actually receives
+  const revenue = gmv - totalCommission;
   const avgRating = activeServices.length
     ? Number((activeServices.reduce((s, sv) => s + sv.avg_rating, 0) / activeServices.length).toFixed(1))
     : 0;
 
-  return { activeServices: activeServices.length, pendingBookings, revenue, avgRating };
+  return { activeServices: activeServices.length, pendingBookings, revenue, gmv, totalCommission, avgRating };
 }
 
 export async function getClientStats(clientId: string) {

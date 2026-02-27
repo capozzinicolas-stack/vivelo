@@ -227,9 +227,21 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
                 )}
                 <Separator />
                 <div className="flex justify-between font-bold text-base">
-                  <span>Total</span>
+                  <span>Total cliente</span>
                   <span>${booking.total.toLocaleString()}</span>
                 </div>
+                {role === 'provider' && booking.commission > 0 && (
+                  <>
+                    <div className="flex justify-between text-red-500">
+                      <span>Comision Vivelo{booking.commission_rate_snapshot ? ` (${(booking.commission_rate_snapshot * 100).toFixed(1)}%)` : ''}</span>
+                      <span>-${booking.commission.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-base text-green-600">
+                      <span>Tu pago neto</span>
+                      <span>${(booking.total - booking.commission).toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

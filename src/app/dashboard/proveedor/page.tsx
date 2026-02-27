@@ -12,12 +12,12 @@ import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { useAuthContext } from '@/providers/auth-provider';
 import { getProviderStats, getReviewsByProvider, getProfileById } from '@/lib/supabase/queries';
 import { COMMISSION_RATE, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
-import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2, Percent } from 'lucide-react';
+import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2 } from 'lucide-react';
 import type { Booking, BookingStatus, Review } from '@/types/database';
 
 export default function ProveedorDashboard() {
   const { user } = useAuthContext();
-  const [stats, setStats] = useState<{ activeServices: number; pendingBookings: Booking[]; revenue: number; avgRating: number } | null>(null);
+  const [stats, setStats] = useState<{ activeServices: number; pendingBookings: Booking[]; revenue: number; gmv: number; totalCommission: number; avgRating: number } | null>(null);
   const [commissionRate, setCommissionRate] = useState<number>(COMMISSION_RATE);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +79,7 @@ export default function ProveedorDashboard() {
         <h1 className="text-2xl font-bold">Dashboard Proveedor</h1>
         <Button asChild><Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Crear Servicio</Link></Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link href="/dashboard/proveedor/servicios" className="block hover:opacity-80 transition-opacity">
           <StatsCard title="Servicios Activos" value={stats?.activeServices || 0} icon={Package} />
         </Link>
@@ -87,13 +87,36 @@ export default function ProveedorDashboard() {
           <StatsCard title="Reservas Pendientes" value={pendientes.length} icon={CalendarCheck} />
         </Link>
         <Link href="/dashboard/proveedor/reservas" className="block hover:opacity-80 transition-opacity">
-          <StatsCard title="Ingresos" value={`$${(stats?.revenue || 0).toLocaleString()}`} icon={DollarSign} trend={{ value: 12, direction: 'up' }} />
+          <StatsCard title="Ventas Totales" value={`$${(stats?.gmv || 0).toLocaleString()}`} icon={DollarSign} description="Total facturado a clientes" />
         </Link>
         <button onClick={handleOpenReviews} className="text-left hover:opacity-80 transition-opacity">
           <StatsCard title="Rating Promedio" value={stats?.avgRating || 0} icon={Star} />
         </button>
-        <StatsCard title="Tu Comision" value={`${(commissionRate * 100).toFixed(1)}%`} icon={Percent} description="Porcentaje por transaccion" />
       </div>
+
+      {/* Financial summary card */}
+      <Card>
+        <CardHeader><CardTitle>Resumen Financiero</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-lg bg-muted">
+              <p className="text-sm text-muted-foreground">Ventas Totales (GMV)</p>
+              <p className="text-2xl font-bold">${(stats?.gmv || 0).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Lo que pagan tus clientes</p>
+            </div>
+            <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
+              <p className="text-sm text-muted-foreground">Comision Vivelo ({(commissionRate * 100).toFixed(1)}%)</p>
+              <p className="text-2xl font-bold text-red-600">-${(stats?.totalCommission || 0).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Tarifa de la plataforma</p>
+            </div>
+            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
+              <p className="text-sm text-muted-foreground">Tu Pago Neto</p>
+              <p className="text-2xl font-bold text-green-600">${(stats?.revenue || 0).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">Lo que recibes</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Reservas por Confirmar</CardTitle></CardHeader>

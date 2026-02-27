@@ -41,21 +41,23 @@ export default function ProveedorReservasPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{tabs.map((s) => <TabsTrigger key={s} value={s}>{tabLabels[s]}</TabsTrigger>)}</TabsList>
         <TabsContent value={tab} className="mt-4">
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Servicio</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Invitados</TableHead>
-                  <TableHead>Total</TableHead>
+                  <TableHead>Venta</TableHead>
+                  <TableHead>Comision</TableHead>
+                  <TableHead>Tu Pago</TableHead>
                   <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
                 ) : filtered.map((b) => (
                   <TableRow
                     key={b.id}
@@ -66,7 +68,9 @@ export default function ProveedorReservasPage() {
                     <TableCell>{b.client?.full_name || 'Cliente'}</TableCell>
                     <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell>{b.guest_count}</TableCell>
-                    <TableCell className="font-medium">${b.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-muted-foreground">${b.total.toLocaleString()}</TableCell>
+                    <TableCell className="text-red-500">-${b.commission.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium text-green-600">${(b.total - b.commission).toLocaleString()}</TableCell>
                     <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
                   </TableRow>
                 ))}
