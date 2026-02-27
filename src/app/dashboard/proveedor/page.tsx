@@ -10,14 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getProviderStats, getReviewsByProvider } from '@/lib/supabase/queries';
-import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
-import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2 } from 'lucide-react';
+import { getProviderStats, getReviewsByProvider, getProfileById } from '@/lib/supabase/queries';
+import { COMMISSION_RATE, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
+import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2, Percent } from 'lucide-react';
 import type { Booking, BookingStatus, Review } from '@/types/database';
 
 export default function ProveedorDashboard() {
   const { user } = useAuthContext();
   const [stats, setStats] = useState<{ activeServices: number; pendingBookings: Booking[]; revenue: number; avgRating: number } | null>(null);
+  const [commissionRate, setCommissionRate] = useState<number>(COMMISSION_RATE);
   const [loading, setLoading] = useState(true);
 
   // Booking detail dialog
@@ -31,7 +32,10 @@ export default function ProveedorDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    getProviderStats(user.id).then(setStats).finally(() => setLoading(false));
+    Promise.all([getProviderStats(user.id), getProfileById(user.id)]).then(([s, profile]) => {
+      setStats(s);
+      if (profile?.commission_rate) setCommissionRate(profile.commission_rate);
+    }).finally(() => setLoading(false));
   }, [user]);
 
   const handleOpenReviews = async () => {
@@ -75,7 +79,7 @@ export default function ProveedorDashboard() {
         <h1 className="text-2xl font-bold">Dashboard Proveedor</h1>
         <Button asChild><Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Crear Servicio</Link></Button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Link href="/dashboard/proveedor/servicios" className="block hover:opacity-80 transition-opacity">
           <StatsCard title="Servicios Activos" value={stats?.activeServices || 0} icon={Package} />
         </Link>
@@ -88,6 +92,7 @@ export default function ProveedorDashboard() {
         <button onClick={handleOpenReviews} className="text-left hover:opacity-80 transition-opacity">
           <StatsCard title="Rating Promedio" value={stats?.avgRating || 0} icon={Star} />
         </button>
+        <StatsCard title="Tu Comision" value={`${(commissionRate * 100).toFixed(1)}%`} icon={Percent} description="Porcentaje por transaccion" />
       </div>
 
       <Card>

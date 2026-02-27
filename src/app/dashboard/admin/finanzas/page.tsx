@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getFinancialStats } from '@/lib/supabase/queries';
+import { getFinancialStats, getProvidersWithCommission } from '@/lib/supabase/queries';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,10 +17,17 @@ export default function AdminFinanzasPage() {
     monthlyData: Record<string, { revenue: number; commissions: number; bookings: number }>;
     totalBookings: number;
   } | null>(null);
+  const [avgCommission, setAvgCommission] = useState<number>(COMMISSION_RATE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getFinancialStats().then(setStats).finally(() => setLoading(false));
+    Promise.all([getFinancialStats(), getProvidersWithCommission()]).then(([s, providers]) => {
+      setStats(s);
+      const totalSvc = providers.reduce((sum, p) => sum + p.service_count, 0);
+      if (totalSvc > 0) {
+        setAvgCommission(providers.reduce((sum, p) => sum + (p.commission_rate ?? COMMISSION_RATE) * p.service_count, 0) / totalSvc);
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -35,7 +42,7 @@ export default function AdminFinanzasPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Finanzas</h1>
-        <p className="text-sm text-muted-foreground">Tasa de comision: {(COMMISSION_RATE * 100).toFixed(0)}%</p>
+        <p className="text-sm text-muted-foreground">Comision promedio ponderada: {(avgCommission * 100).toFixed(1)}%</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -59,8 +66,8 @@ export default function AdminFinanzasPage() {
                 <span className="font-medium">${avgBookingValue.toLocaleString()}</span>
               </div>
               <div className="flex justify-between p-3 rounded-lg bg-muted">
-                <span className="text-sm">Margen de comision</span>
-                <span className="font-medium">{(COMMISSION_RATE * 100).toFixed(0)}%</span>
+                <span className="text-sm">Margen de comision (promedio ponderado)</span>
+                <span className="font-medium">{(avgCommission * 100).toFixed(1)}%</span>
               </div>
               <div className="flex justify-between p-3 rounded-lg bg-muted">
                 <span className="text-sm">Comision promedio por reserva</span>

@@ -9,7 +9,7 @@ import type { UserRole } from '@/types/database';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell, Store } from 'lucide-react';
 
 const navByRole: Record<UserRole, { label: string; href: string; icon: React.ElementType }[]> = {
   client: [
@@ -30,6 +30,7 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
   admin: [
     { label: 'Resumen', href: '/dashboard/admin', icon: LayoutDashboard },
     { label: 'Usuarios', href: '/dashboard/admin/usuarios', icon: Users },
+    { label: 'Proveedores', href: '/dashboard/admin/proveedores', icon: Store },
     { label: 'Servicios', href: '/dashboard/admin/servicios', icon: ShieldCheck },
     { label: 'Reservas', href: '/dashboard/admin/reservas', icon: CalendarCheck },
     { label: 'Finanzas', href: '/dashboard/admin/finanzas', icon: DollarSign },

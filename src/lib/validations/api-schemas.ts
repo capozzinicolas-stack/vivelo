@@ -19,6 +19,13 @@ export const GoogleSyncSchema = z.object({
   providerId: z.string().uuid('providerId debe ser un UUID valido'),
 });
 
+export const UpdateProviderCommissionSchema = z.object({
+  providerId: z.string().uuid('providerId debe ser un UUID valido'),
+  commissionRate: z.number()
+    .min(0, 'La comision no puede ser negativa')
+    .max(1, 'La comision no puede ser mayor a 100%'),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

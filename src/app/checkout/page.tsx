@@ -11,6 +11,7 @@ import { createOrder, createBooking, createSubBookings, checkVendorAvailability,
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
 import { COMMISSION_RATE } from '@/lib/constants';
+import { getProviderCommissionRate, calculateCommission } from '@/lib/commission';
 import { categoryMap } from '@/data/categories';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -115,6 +116,7 @@ export default function CheckoutPage() {
 
   const unavailableItems = availabilityResults.filter(r => !r.available);
   const allAvailable = unavailableItems.length === 0 && !verifying;
+  // Order-level commission uses default rate for display; actual per-booking rates are calculated at booking creation
   const commission = Math.round(cartTotal * COMMISSION_RATE * 100) / 100;
 
   const handleCreateOrderAndPay = async () => {
@@ -174,7 +176,9 @@ export default function CheckoutPage() {
         bufferAfterMinutes: buffers.bufferAfterMinutes,
       });
 
-      const itemCommission = Math.round(item.total * COMMISSION_RATE * 100) / 100;
+      // Get per-provider commission rate (falls back to COMMISSION_RATE)
+      const providerRate = await getProviderCommissionRate(item.service_snapshot.provider_id);
+      const itemCommission = calculateCommission(item.total, providerRate);
 
       // Snapshot the cancellation policy at purchase time
       let cancellation_policy_snapshot: Record<string, unknown> | null = null;
@@ -206,6 +210,7 @@ export default function CheckoutPage() {
         base_total: item.base_total,
         extras_total: item.extras_total,
         commission: itemCommission,
+        commission_rate_snapshot: providerRate,
         total: item.total,
         selected_extras: item.selected_extras.map(ext => ({
           extra_id: ext.extra_id,

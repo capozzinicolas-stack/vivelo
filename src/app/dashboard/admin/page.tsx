@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { StatsCard } from '@/components/dashboard/stats-card';
-import { getAdminStats, getAllBookings, getAllProfiles } from '@/lib/supabase/queries';
+import { getAdminStats, getAllBookings, getAllProfiles, getProvidersWithCommission } from '@/lib/supabase/queries';
 import { COMMISSION_RATE, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,13 +15,19 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<{ totalUsers: number; totalServices: number; totalBookings: number; totalComisiones: number } | null>(null);
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [recentUsers, setRecentUsers] = useState<Profile[]>([]);
+  const [avgCommission, setAvgCommission] = useState<number>(COMMISSION_RATE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getAdminStats(), getAllBookings(), getAllProfiles()]).then(([s, b, u]) => {
+    Promise.all([getAdminStats(), getAllBookings(), getAllProfiles(), getProvidersWithCommission()]).then(([s, b, u, providers]) => {
       setStats(s);
       setRecentBookings(b.slice(0, 5));
       setRecentUsers(u.slice(0, 5));
+      // Weighted average commission
+      const totalSvc = providers.reduce((sum, p) => sum + p.service_count, 0);
+      if (totalSvc > 0) {
+        setAvgCommission(providers.reduce((sum, p) => sum + (p.commission_rate ?? COMMISSION_RATE) * p.service_count, 0) / totalSvc);
+      }
     }).finally(() => setLoading(false));
   }, []);
 
@@ -35,7 +41,7 @@ export default function AdminDashboard() {
         <StatsCard title="Total Usuarios" value={stats?.totalUsers || 0} icon={Users} />
         <StatsCard title="Total Servicios" value={stats?.totalServices || 0} icon={Package} />
         <StatsCard title="Reservas" value={stats?.totalBookings || 0} icon={CalendarCheck} />
-        <StatsCard title="Comisiones" value={`$${(stats?.totalComisiones || 0).toLocaleString()}`} description={`${(COMMISSION_RATE * 100).toFixed(0)}% por transaccion`} icon={DollarSign} />
+        <StatsCard title="Comisiones" value={`$${(stats?.totalComisiones || 0).toLocaleString()}`} description={`Promedio ponderado: ${(avgCommission * 100).toFixed(1)}%`} icon={DollarSign} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

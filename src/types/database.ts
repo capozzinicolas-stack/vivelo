@@ -62,6 +62,7 @@ export interface Profile {
   banking_status: BankingStatus;
   banking_rejection_reason: string | null;
   default_cancellation_policy_id?: string | null;
+  commission_rate: number;
   created_at: string;
   updated_at: string;
 }
@@ -160,6 +161,7 @@ export interface Booking {
   cancellation_policy_snapshot?: Record<string, unknown> | null;
   refund_amount?: number | null;
   refund_percent?: number | null;
+  commission_rate_snapshot?: number | null;
   cancelled_at?: string | null;
   cancelled_by?: string | null;
   created_at: string;

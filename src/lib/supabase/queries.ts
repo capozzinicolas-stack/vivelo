@@ -450,6 +450,7 @@ export async function createBooking(booking: {
   effective_end?: string | null;
   billing_type_snapshot?: string | null;
   order_id?: string | null;
+  commission_rate_snapshot?: number | null;
   cancellation_policy_snapshot?: Record<string, unknown> | null;
 }): Promise<Booking> {
   if (isMockMode()) {
@@ -463,6 +464,7 @@ export async function createBooking(booking: {
       effective_end: booking.effective_end ?? null,
       billing_type_snapshot: booking.billing_type_snapshot ?? null,
       order_id: booking.order_id ?? null,
+      commission_rate_snapshot: booking.commission_rate_snapshot ?? null,
       cancellation_policy_snapshot: booking.cancellation_policy_snapshot ?? null,
       status: 'pending',
       stripe_payment_intent_id: null,
@@ -514,6 +516,7 @@ export async function createBooking(booking: {
     effective_start: booking.effective_start,
     effective_end: booking.effective_end,
     billing_type_snapshot: booking.billing_type_snapshot,
+    commission_rate_snapshot: booking.commission_rate_snapshot ?? null,
     cancellation_policy_snapshot: booking.cancellation_policy_snapshot ?? null,
   };
 
@@ -730,6 +733,59 @@ export async function updateProfileVerified(id: string, verified: boolean): Prom
   if (error) throw error;
 }
 
+// ─── ADMIN: Provider Commission ──────────────────────────────
+
+export async function getProvidersWithCommission(): Promise<(Profile & { service_count: number })[]> {
+  if (isMockMode()) {
+    const { mockUsers } = await import('@/data/mock-users');
+    return mockUsers
+      .filter(u => u.role === 'provider')
+      .map(u => ({ ...u, commission_rate: 0.12, service_count: 0 }));
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, avatar_url, role, verified, company_name, commission_rate, created_at, updated_at')
+    .eq('role', 'provider')
+    .order('full_name', { ascending: true });
+
+  if (error) throw error;
+
+  // Get service counts per provider
+  const providerIds = (data || []).map(p => p.id);
+  const serviceCounts: Record<string, number> = {};
+  if (providerIds.length > 0) {
+    const { data: services } = await supabase
+      .from('services')
+      .select('provider_id')
+      .in('provider_id', providerIds)
+      .eq('status', 'active');
+    if (services) {
+      for (const s of services) {
+        serviceCounts[s.provider_id] = (serviceCounts[s.provider_id] || 0) + 1;
+      }
+    }
+  }
+
+  return (data || []).map(p => ({
+    ...p,
+    service_count: serviceCounts[p.id] || 0,
+  })) as unknown as (Profile & { service_count: number })[];
+}
+
+export async function updateProviderCommissionRate(providerId: string, rate: number): Promise<void> {
+  const res = await fetch('/api/admin/providers/commission', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ providerId, commissionRate: rate }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Error actualizando comision');
+  }
+}
+
 // ─── ADMIN: All Services ────────────────────────────────────
 
 export async function getAllServices(): Promise<Service[]> {
@@ -778,7 +834,10 @@ export async function getFinancialStats() {
     monthlyData[month].bookings += 1;
   });
 
-  return { totalRevenue, totalCommissions, totalProviderPayouts, pendingRevenue, monthlyData, totalBookings: confirmed.length };
+  // Effective commission margin = totalCommissions / totalRevenue
+  const effectiveMargin = totalRevenue > 0 ? totalCommissions / totalRevenue : 0;
+
+  return { totalRevenue, totalCommissions, totalProviderPayouts, pendingRevenue, monthlyData, totalBookings: confirmed.length, effectiveMargin };
 }
 
 // ─── STATS ──────────────────────────────────────────────────

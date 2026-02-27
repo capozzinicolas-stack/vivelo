@@ -106,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         bank_document_url: null,
         banking_status: 'not_submitted',
         banking_rejection_reason: null,
+        commission_rate: 0.12,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
