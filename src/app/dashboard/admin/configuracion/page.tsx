@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { COMMISSION_RATE, ZONES } from '@/lib/constants';
 import { categories } from '@/data/categories';
-import { getCancellationPolicies, createCancellationPolicy, updateCancellationPolicy, deleteCancellationPolicy } from '@/lib/supabase/queries';
+import { getCancellationPolicies, createCancellationPolicy, updateCancellationPolicy, deleteCancellationPolicy, getProvidersWithCommission } from '@/lib/supabase/queries';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +39,7 @@ export default function AdminConfiguracionPage() {
   const { toast } = useToast();
   const [policies, setPolicies] = useState<CancellationPolicy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commissionStats, setCommissionStats] = useState<{ avg: number; min: number; max: number; count: number }>({ avg: COMMISSION_RATE, min: COMMISSION_RATE, max: COMMISSION_RATE, count: 0 });
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,10 +54,23 @@ export default function AdminConfiguracionPage() {
 
   const loadPolicies = useCallback(async () => {
     try {
-      const data = await getCancellationPolicies();
+      const [data, providers] = await Promise.all([getCancellationPolicies(), getProvidersWithCommission()]);
       setPolicies(data);
+      if (providers.length > 0) {
+        const rates = providers.map(p => p.commission_rate ?? COMMISSION_RATE);
+        const totalSvc = providers.reduce((s, p) => s + p.service_count, 0);
+        const weightedAvg = totalSvc > 0
+          ? providers.reduce((s, p) => s + (p.commission_rate ?? COMMISSION_RATE) * p.service_count, 0) / totalSvc
+          : rates.reduce((s, r) => s + r, 0) / rates.length;
+        setCommissionStats({
+          avg: weightedAvg,
+          min: Math.min(...rates),
+          max: Math.max(...rates),
+          count: providers.length,
+        });
+      }
     } catch {
-      toast({ title: 'Error cargando politicas', variant: 'destructive' });
+      toast({ title: 'Error cargando configuracion', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -165,14 +179,28 @@ export default function AdminConfiguracionPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5" /> Comisiones</CardTitle>
-            <CardDescription>Tasa de comision que Vivelo cobra por cada transaccion</CardDescription>
+            <CardDescription>Tasas de comision por proveedor — gestionables desde Proveedores</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-              <span className="text-sm font-medium">Tasa actual</span>
-              <span className="text-2xl font-bold text-primary">{(COMMISSION_RATE * 100).toFixed(0)}%</span>
+              <span className="text-sm font-medium">Promedio ponderado</span>
+              <span className="text-2xl font-bold text-primary">{(commissionStats.avg * 100).toFixed(1)}%</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">Para cambiar la tasa, edita COMMISSION_RATE en src/lib/constants.ts y redeploy.</p>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground">Minima</p>
+                <p className="text-lg font-semibold">{(commissionStats.min * 100).toFixed(1)}%</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground">Base (default)</p>
+                <p className="text-lg font-semibold">{(COMMISSION_RATE * 100).toFixed(0)}%</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground">Maxima</p>
+                <p className="text-lg font-semibold">{(commissionStats.max * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">{commissionStats.count} proveedores activos. Gestiona tasas individuales en <a href="/dashboard/admin/proveedores" className="text-primary underline">Proveedores</a>.</p>
           </CardContent>
         </Card>
 
