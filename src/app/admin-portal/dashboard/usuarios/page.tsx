@@ -24,14 +24,18 @@ export default function AdminUsuariosPage() {
 
   useEffect(() => {
     fetch('/api/admin/users')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      .then(async res => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          console.error('[AdminUsuarios] API error:', res.status, body);
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
         return res.json();
       })
       .then(setUsers)
       .catch(err => {
         console.error('[AdminUsuarios] Error fetching users:', err);
-        toast({ title: 'Error al cargar usuarios', variant: 'destructive' });
+        toast({ title: 'Error al cargar usuarios', description: err.message, variant: 'destructive' });
       })
       .finally(() => setLoading(false));
   }, [toast]);
