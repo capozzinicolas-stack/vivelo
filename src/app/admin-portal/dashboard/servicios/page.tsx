@@ -189,7 +189,7 @@ export default function AdminServiciosPage() {
                               <Eye className="h-3 w-3" />
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Editar" asChild>
-                              <Link href={`/dashboard/admin/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
+                              <Link href={`/dashboard/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Activar" onClick={() => handleAction(s.id, 'active', s.title)}><CheckCircle className="h-3 w-3 text-green-600" /></Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Pausar" onClick={() => handleAction(s.id, 'paused', s.title)}><Pause className="h-3 w-3 text-yellow-600" /></Button>
@@ -294,7 +294,7 @@ export default function AdminServiciosPage() {
 
                   <div className="flex gap-2 pt-2">
                     <Button size="sm" asChild>
-                      <Link href={`/dashboard/admin/servicios/${preview.id}/editar`}><Pencil className="h-3 w-3 mr-1" /> Editar</Link>
+                      <Link href={`/dashboard/servicios/${preview.id}/editar`}><Pencil className="h-3 w-3 mr-1" /> Editar</Link>
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => { handleAction(preview.id, preview.status === 'active' ? 'paused' : 'active', preview.title); setPreview(null); }}>
                       {preview.status === 'active' ? <><Pause className="h-3 w-3 mr-1" /> Pausar</> : <><CheckCircle className="h-3 w-3 mr-1" /> Activar</>}

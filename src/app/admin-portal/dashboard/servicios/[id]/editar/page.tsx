@@ -156,7 +156,7 @@ export default function AdminEditarServicioPage() {
       await updateService(id, updateData);
       await updateServiceStatus(id, status);
       toast({ title: 'Servicio actualizado!' });
-      router.push('/dashboard/admin/servicios');
+      router.push('/dashboard/servicios');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : JSON.stringify(err);
       console.error('Error updating service:', msg, err);
@@ -224,7 +224,7 @@ export default function AdminEditarServicioPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" asChild><Link href="/dashboard/admin/servicios"><ArrowLeft className="h-4 w-4" /></Link></Button>
+        <Button variant="ghost" size="sm" asChild><Link href="/dashboard/servicios"><ArrowLeft className="h-4 w-4" /></Link></Button>
         <div>
           <h1 className="text-2xl font-bold">Editar Servicio (Admin)</h1>
           <p className="text-sm text-muted-foreground">Proveedor: <Badge variant="outline">{providerName}</Badge></p>

@@ -354,7 +354,7 @@ export default function AdminConfiguracionPage() {
                 <p className="text-lg font-semibold">{(commissionStats.max * 100).toFixed(1)}%</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">{commissionStats.count} proveedores activos. Gestiona tasas individuales en <a href="/dashboard/admin/proveedores" className="text-primary underline">Proveedores</a>.</p>
+            <p className="text-xs text-muted-foreground">{commissionStats.count} proveedores activos. Gestiona tasas individuales en <a href="/dashboard/proveedores" className="text-primary underline">Proveedores</a>.</p>
           </CardContent>
         </Card>
       </div>

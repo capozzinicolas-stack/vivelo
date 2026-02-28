@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { headers } from "next/headers";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
 import { CatalogProvider } from "@/providers/catalog-provider";
@@ -32,21 +33,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = headers();
+  const isAdminPortal = headersList.get('x-admin-portal') === '1';
+
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           <CatalogProvider>
-            <CartProvider>
-              <ChatProvider>
-              <Navbar />
-              <main className="min-h-screen pb-16 lg:pb-0">{children}</main>
-              <Footer />
-              <MobileBottomNav />
-              <Toaster />
-              <ChatBubble />
-              </ChatProvider>
-            </CartProvider>
+            {isAdminPortal ? (
+              <>
+                {children}
+                <Toaster />
+              </>
+            ) : (
+              <CartProvider>
+                <ChatProvider>
+                  <Navbar />
+                  <main className="min-h-screen pb-16 lg:pb-0">{children}</main>
+                  <Footer />
+                  <MobileBottomNav />
+                  <Toaster />
+                  <ChatBubble />
+                </ChatProvider>
+              </CartProvider>
+            )}
           </CatalogProvider>
         </AuthProvider>
       </body>

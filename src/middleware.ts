@@ -10,6 +10,54 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host') || '';
+  const isAdminDomain = hostname.startsWith('admin.');
+
+  if (isAdminDomain) {
+    const { pathname } = request.nextUrl;
+
+    // No rewrite for API, static assets, Next.js internals
+    if (
+      pathname.startsWith('/api/') ||
+      pathname.startsWith('/_next/') ||
+      pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$/)
+    ) {
+      return NextResponse.next();
+    }
+
+    // Root → redirect to /login
+    if (pathname === '/') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Rewrite to /admin-portal/*
+    const url = request.nextUrl.clone();
+    url.pathname = `/admin-portal${pathname}`;
+    const response = NextResponse.rewrite(url);
+    response.headers.set('x-admin-portal', '1');
+    return response;
+  }
+
+  // Block direct access to /admin-portal/* from main domain (allow in dev for testing)
+  if (request.nextUrl.pathname.startsWith('/admin-portal')) {
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+    // In dev, set the admin portal header so layout hides customer chrome
+    const response = NextResponse.next();
+    response.headers.set('x-admin-portal', '1');
+    return response;
+  }
+
+  // Redirect /dashboard/admin/* to admin subdomain
+  if (request.nextUrl.pathname.startsWith('/dashboard/admin')) {
+    const adminDomain = process.env.NEXT_PUBLIC_ADMIN_DOMAIN || 'admin.solovivelo.com';
+    const protocol = request.nextUrl.protocol;
+    const subpath = request.nextUrl.pathname.replace('/dashboard/admin', '/dashboard');
+    return NextResponse.redirect(new URL(`${protocol}//${adminDomain}${subpath}`));
+  }
+
   const { pathname } = request.nextUrl;
 
   // Allow public paths

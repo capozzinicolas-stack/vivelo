@@ -48,7 +48,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Reservas Recientes</CardTitle>
-            <Button variant="ghost" size="sm" asChild><Link href="/dashboard/admin/reservas">Ver todas <ArrowRight className="h-4 w-4 ml-1" /></Link></Button>
+            <Button variant="ghost" size="sm" asChild><Link href="/dashboard/reservas">Ver todas <ArrowRight className="h-4 w-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent>
             {recentBookings.length === 0 ? (
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Usuarios Recientes</CardTitle>
-            <Button variant="ghost" size="sm" asChild><Link href="/dashboard/admin/usuarios">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link></Button>
+            <Button variant="ghost" size="sm" asChild><Link href="/dashboard/usuarios">Ver todos <ArrowRight className="h-4 w-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent>
             {recentUsers.length === 0 ? (
