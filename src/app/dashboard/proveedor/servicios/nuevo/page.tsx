@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { categories, subcategoriesByCategory } from '@/data/categories';
-import { ZONES, PRICE_UNITS } from '@/lib/constants';
+import { useCatalog } from '@/providers/catalog-provider';
+import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { createService, getCancellationPolicies } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
@@ -26,6 +26,7 @@ export default function NuevoServicioPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
+  const { categories, getSubcategoriesByCategory, zones, getCategoryBySlug } = useCatalog();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -68,14 +69,15 @@ export default function NuevoServicioPage() {
   };
 
   const availableSubcategories = category
-    ? subcategoriesByCategory[category as ServiceCategory] || []
+    ? getSubcategoriesByCategory(category)
     : [];
 
   const handleCategoryChange = (val: string) => {
     setCategory(val);
     setSubcategory('');
     setCategoryDetails({});
-    const newSku = generateServiceSku(val);
+    const catInfo = getCategoryBySlug(val);
+    const newSku = generateServiceSku(catInfo?.sku_prefix || 'XX');
     setSku(newSku);
     setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) })));
   };
@@ -174,7 +176,7 @@ export default function NuevoServicioPage() {
             <div><Label>Categoria *</Label>
               <Select value={category} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar categoria" /></SelectTrigger>
-                <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {availableSubcategories.length > 0 && (
@@ -182,7 +184,7 @@ export default function NuevoServicioPage() {
                 <Select value={subcategory} onValueChange={setSubcategory}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar subcategoria" /></SelectTrigger>
                   <SelectContent>
-                    {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    {availableSubcategories.filter(s => s.is_active).map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -192,7 +194,7 @@ export default function NuevoServicioPage() {
                 <Label>SKU</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={sku} readOnly className="bg-muted font-mono" />
-                  <Button type="button" variant="outline" size="sm" onClick={() => { const newSku = generateServiceSku(category); setSku(newSku); setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) }))); }}>Regenerar</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { const newSku = generateServiceSku(getCategoryBySlug(category)?.sku_prefix || 'XX'); setSku(newSku); setExtras(prev => prev.map((ex, i) => ({ ...ex, sku: generateExtraSku(newSku, i) }))); }}>Regenerar</Button>
                 </div>
               </div>
             )}
@@ -259,10 +261,10 @@ export default function NuevoServicioPage() {
           <CardHeader><CardTitle>Zonas de Servicio</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {ZONES.map((z) => (
-                <label key={z} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox checked={selectedZones.includes(z)} onCheckedChange={() => toggleZone(z)} />
-                  <span className="text-sm">{z}</span>
+              {zones.filter(z => z.is_active).map((z) => (
+                <label key={z.slug} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={selectedZones.includes(z.label)} onCheckedChange={() => toggleZone(z.label)} />
+                  <span className="text-sm">{z.label}</span>
                 </label>
               ))}
             </div>

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuthContext } from '@/providers/auth-provider';
 import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements } from '@/lib/supabase/queries';
-import { categoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrado
 const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 export default function ProveedorServiciosPage() {
+  const { categoryMap } = useCatalog();
   const { user } = useAuthContext();
   const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);

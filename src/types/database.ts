@@ -4,21 +4,34 @@ export type CampaignStatus = 'draft' | 'active' | 'ended' | 'cancelled';
 export type NotificationType = 'featured_placement' | 'campaign_enrollment' | 'campaign_available' | 'system';
 export type BlogMediaType = 'text' | 'video' | 'audio';
 export type BlogStatus = 'draft' | 'published' | 'archived';
-export type ServiceCategory = 'FOOD_DRINKS' | 'AUDIO' | 'DECORATION' | 'PHOTO_VIDEO' | 'STAFF' | 'FURNITURE';
+export type ServiceCategory = string;
+export type ServiceSubcategory = string;
 
-export type ServiceSubcategory =
-  // Alimentos y Bebidas
-  | 'TAQUIZA' | 'CATERING_POR_TIEMPOS' | 'ESTACIONES_FOODTRUCKS' | 'REPOSTERIA' | 'MESAS_DE_DULCES' | 'COFFEE_BREAK' | 'BARRA_COCTELERIA'
-  // Audio y Entretenimiento
-  | 'MARIACHI' | 'GRUPO_EN_VIVO' | 'DJ' | 'BANDA' | 'DUETO_TRIO' | 'SAXOFON_VIOLIN' | 'KARAOKE' | 'ANIMADOR_MC' | 'IMITADOR' | 'COMEDIANTE'
-  // Decoracion y Ambientacion
-  | 'FLORAL' | 'GLOBOS_BACKDROPS' | 'CENTROS_DE_MESA' | 'ESCENOGRAFIA_TEMATIZACION' | 'ILUMINACION_AMBIENTAL'
-  // Foto y Video
-  | 'FOTOGRAFIA' | 'VIDEO' | 'DRON' | 'CABINA_360' | 'PHOTOBOOTH_IMPRESIONES' | 'SESION_PRIVADA'
-  // Staff y Operacion
-  | 'MESEROS' | 'BARTENDER' | 'CHEF_EN_SITIO' | 'PARRILLERO' | 'COORDINADOR_PLANNER' | 'HOSTESS' | 'LIMPIEZA' | 'SEGURIDAD' | 'VALET_PARKING' | 'NINERA'
-  // Mobiliario y Equipo
-  | 'SILLAS_MESAS' | 'LOUNGE' | 'MANTELERIA' | 'CARPAS' | 'TARIMAS_ESCENARIOS' | 'PISTA_DE_BAILE' | 'ILUMINACION_EQUIPO' | 'PROYECTOR_PANTALLAS_LED' | 'PLANTA_DE_LUZ' | 'CLIMA';
+export interface CatalogCategory {
+  slug: string;
+  label: string;
+  description: string;
+  icon: string;
+  color: string;
+  sku_prefix: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface CatalogSubcategory {
+  slug: string;
+  category_slug: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface CatalogZone {
+  slug: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
 export type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';

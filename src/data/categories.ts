@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use useCatalog() from '@/providers/catalog-provider' instead.
+ * This file is kept as fallback data for mock mode and initial load.
+ * It will be removed in a future iteration.
+ */
 import { UtensilsCrossed, Music, Flower2, Camera, Users, Armchair } from 'lucide-react';
 import { ServiceCategory, ServiceSubcategory } from '@/types/database';
 import { LucideIcon } from 'lucide-react';

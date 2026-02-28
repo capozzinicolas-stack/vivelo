@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import type { FeaturedPlacement, Campaign, FeaturedSection, Service, ShowcaseItem, SiteBanner } from '@/types/database';
 import { FEATURED_SECTION_LABELS, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, GRADIENT_OPTIONS, BANNER_KEY_LABELS } from '@/lib/constants';
-import { categories, subcategoriesByCategory } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { useToast } from '@/hooks/use-toast';
 import {
   getAllFeaturedPlacements, createFeaturedPlacement, deleteFeaturedPlacement,
@@ -27,6 +27,7 @@ import {
 } from '@/lib/supabase/queries';
 
 export default function AdminMarketingPage() {
+  const { categories, getSubcategoriesByCategory } = useCatalog();
   const { toast } = useToast();
   const [placements, setPlacements] = useState<FeaturedPlacement[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -284,7 +285,7 @@ export default function AdminMarketingPage() {
 
   // Available subcategories based on selected parent category
   const availableSubcategories = sParentCategory
-    ? (subcategoriesByCategory[sParentCategory as keyof typeof subcategoriesByCategory] || [])
+    ? getSubcategoriesByCategory(sParentCategory)
     : [];
 
   const groupedPlacements = (['servicios_destacados', 'servicios_recomendados', 'mas_vendidos'] as FeaturedSection[]).map(section => ({
@@ -651,8 +652,8 @@ export default function AdminMarketingPage() {
                   <Select value={sParentCategory} onValueChange={(v) => { setSParentCategory(v); setSSubcategory(''); }}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar categoria" /></SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      {categories.filter(c => c.is_active).map(c => (
+                        <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -662,8 +663,8 @@ export default function AdminMarketingPage() {
                   <Select value={sSubcategory} onValueChange={setSSubcategory} disabled={!sParentCategory}>
                     <SelectTrigger><SelectValue placeholder={sParentCategory ? 'Seleccionar subcategoria' : 'Primero selecciona categoria'} /></SelectTrigger>
                     <SelectContent>
-                      {availableSubcategories.map(sc => (
-                        <SelectItem key={sc.value} value={sc.value}>{sc.label}</SelectItem>
+                      {availableSubcategories.filter(sc => sc.is_active).map(sc => (
+                        <SelectItem key={sc.slug} value={sc.slug}>{sc.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

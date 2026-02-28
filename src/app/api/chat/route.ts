@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { VIVI_SYSTEM_PROMPT } from '@/lib/chat/system-prompt';
-import { chatTools } from '@/lib/chat/tools';
+import { getChatTools } from '@/lib/chat/tools';
 import { executeToolCall } from '@/lib/chat/tool-executor';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 const MAX_TOOL_ROUNDS = 5;
 const MAX_MESSAGES = 40; // sliding window: 20 pairs
@@ -75,6 +76,22 @@ export async function POST(request: NextRequest) {
   // Process in background — don't await
   (async () => {
     try {
+      // Build dynamic tool schemas from catalog
+      let categorySlugs: string[] = [];
+      let zoneLabels: string[] = [];
+      try {
+        const supabaseAdmin = createAdminSupabaseClient();
+        const [catRes, zoneRes] = await Promise.all([
+          supabaseAdmin.from('service_categories').select('slug').eq('is_active', true).order('sort_order'),
+          supabaseAdmin.from('service_zones').select('label').eq('is_active', true).order('sort_order'),
+        ]);
+        if (catRes.data) categorySlugs = catRes.data.map(c => c.slug);
+        if (zoneRes.data) zoneLabels = zoneRes.data.map(z => z.label);
+      } catch {
+        // Fallback: getChatTools with empty arrays uses hardcoded defaults
+      }
+      const tools = getChatTools(categorySlugs, zoneLabels);
+
       const claudeMessages: Anthropic.MessageParam[] = userMessages.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -87,7 +104,7 @@ export async function POST(request: NextRequest) {
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1024,
           system: VIVI_SYSTEM_PROMPT,
-          tools: chatTools,
+          tools,
           messages: claudeMessages,
         });
 

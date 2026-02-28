@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -2183,4 +2183,112 @@ export async function updateProviderDefaultPolicy(providerId: string, policyId: 
   } catch {
     console.warn('[updateProviderDefaultPolicy] Column not available');
   }
+}
+
+// ─── CATALOG (Dynamic Categories, Subcategories, Zones) ─────
+
+export async function getCatalogCategories(): Promise<CatalogCategory[]> {
+  if (isMockMode()) {
+    const { categories } = await import('@/data/categories');
+    return categories.map((c, i) => ({
+      slug: c.value,
+      label: c.label,
+      description: c.description,
+      icon: c.icon.displayName || 'Tag',
+      color: c.color,
+      sku_prefix: c.value === 'FOOD_DRINKS' ? 'FD' : c.value === 'AUDIO' ? 'AU' : c.value === 'DECORATION' ? 'DE' : c.value === 'PHOTO_VIDEO' ? 'PV' : c.value === 'STAFF' ? 'ST' : 'FU',
+      sort_order: i + 1,
+      is_active: true,
+    }));
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(`Error cargando categorias: ${error.message}`);
+  return data || [];
+}
+
+export async function getCatalogSubcategories(): Promise<CatalogSubcategory[]> {
+  if (isMockMode()) {
+    const { categories } = await import('@/data/categories');
+    return categories.flatMap((c) =>
+      c.subcategories.map((s, i) => ({
+        slug: s.value,
+        category_slug: c.value,
+        label: s.label,
+        sort_order: i + 1,
+        is_active: true,
+      }))
+    );
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_subcategories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(`Error cargando subcategorias: ${error.message}`);
+  return data || [];
+}
+
+export async function getCatalogZones(): Promise<CatalogZone[]> {
+  if (isMockMode()) {
+    const { ZONES } = await import('@/lib/constants');
+    return ZONES.map((z, i) => ({
+      slug: z.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      label: z,
+      sort_order: i + 1,
+      is_active: true,
+    }));
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_zones')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(`Error cargando zonas: ${error.message}`);
+  return data || [];
+}
+
+export async function getCategoryServiceCount(slug: string): Promise<number> {
+  if (isMockMode()) return 0;
+
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('services')
+    .select('*', { count: 'exact', head: true })
+    .eq('category', slug)
+    .neq('status', 'archived');
+  if (error) throw new Error(`Error contando servicios: ${error.message}`);
+  return count || 0;
+}
+
+export async function getSubcategoryServiceCount(slug: string): Promise<number> {
+  if (isMockMode()) return 0;
+
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('services')
+    .select('*', { count: 'exact', head: true })
+    .eq('subcategory', slug)
+    .neq('status', 'archived');
+  if (error) throw new Error(`Error contando servicios: ${error.message}`);
+  return count || 0;
+}
+
+export async function getZoneServiceCount(zone: string): Promise<number> {
+  if (isMockMode()) return 0;
+
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('services')
+    .select('*', { count: 'exact', head: true })
+    .contains('zones', [zone])
+    .neq('status', 'archived');
+  if (error) throw new Error(`Error contando servicios: ${error.message}`);
+  return count || 0;
 }

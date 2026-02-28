@@ -26,6 +26,57 @@ export const UpdateProviderCommissionSchema = z.object({
     .max(1, 'La comision no puede ser mayor a 100%'),
 });
 
+// ─── Catalog Schemas ────────────────────────────────────────
+
+export const CreateCategorySchema = z.object({
+  slug: z.string().min(1, 'slug es requerido').regex(/^[A-Z0-9_]+$/, 'slug debe ser UPPER_SNAKE_CASE'),
+  label: z.string().min(1, 'label es requerido'),
+  description: z.string().default(''),
+  icon: z.string().default('Tag'),
+  color: z.string().default('bg-gray-100 text-gray-600'),
+  sku_prefix: z.string().length(2, 'sku_prefix debe tener 2 caracteres').regex(/^[A-Z]+$/, 'sku_prefix debe ser letras mayusculas'),
+  sort_order: z.number().int().default(0),
+  is_active: z.boolean().default(true),
+});
+
+export const UpdateCategorySchema = z.object({
+  label: z.string().min(1).optional(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  color: z.string().optional(),
+  sku_prefix: z.string().length(2).regex(/^[A-Z]+$/).optional(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
+
+export const CreateSubcategorySchema = z.object({
+  slug: z.string().min(1, 'slug es requerido').regex(/^[A-Z0-9_]+$/, 'slug debe ser UPPER_SNAKE_CASE'),
+  category_slug: z.string().min(1, 'category_slug es requerido'),
+  label: z.string().min(1, 'label es requerido'),
+  sort_order: z.number().int().default(0),
+  is_active: z.boolean().default(true),
+});
+
+export const UpdateSubcategorySchema = z.object({
+  category_slug: z.string().min(1).optional(),
+  label: z.string().min(1).optional(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
+
+export const CreateZoneSchema = z.object({
+  slug: z.string().min(1, 'slug es requerido').regex(/^[a-z0-9-]+$/, 'slug debe ser kebab-case'),
+  label: z.string().min(1, 'label es requerido'),
+  sort_order: z.number().int().default(0),
+  is_active: z.boolean().default(true),
+});
+
+export const UpdateZoneSchema = z.object({
+  label: z.string().min(1).optional(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Star, Handshake, ArrowRight } from 'lucide-react';
-import { categoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
 import type { Campaign, CampaignSubscription } from '@/types/database';
 
@@ -25,6 +25,7 @@ export function CampaignOffersSection({ campaigns, loading }: {
   campaigns: (Campaign & { subscriptions: CampaignSubscription[] })[];
   loading: boolean;
 }) {
+  const { categoryMap, getCategoryIcon } = useCatalog();
   const [selectedDiscount, setSelectedDiscount] = useState('ALL');
 
   const allServices = campaigns.flatMap(c =>
@@ -94,11 +95,14 @@ export function CampaignOffersSection({ campaigns, loading }: {
                         <img src={coverImage} alt={svc.title} className="h-32 md:h-56 w-full object-cover" />
                       ) : (
                         <div className={`h-32 md:h-56 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
-                          {cat && (
+                          {cat && (() => {
+                            const CatIcon = getCategoryIcon(cat.slug);
+                            return (
                             <div className={`w-10 h-10 md:w-16 md:h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
-                              <cat.icon className="h-5 w-5 md:h-8 md:w-8" />
+                              <CatIcon className="h-5 w-5 md:h-8 md:w-8" />
                             </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       )}
                       <Badge className="absolute top-2 left-2 md:top-3 md:left-3 bg-gold text-deep-purple border-0 font-semibold text-[10px] md:text-xs">

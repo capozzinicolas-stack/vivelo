@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAllServices, updateServiceStatus, approveDeletion, rejectDeletion } from '@/lib/supabase/queries';
-import { categoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ const tabLabels: Record<string, string> = { all: 'Todos', active: 'Activos', pau
 const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 export default function AdminServiciosPage() {
+  const { categoryMap } = useCatalog();
   const [tab, setTab] = useState('all');
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);

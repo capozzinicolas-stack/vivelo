@@ -1,12 +1,16 @@
+'use client';
+
 import Link from 'next/link';
 import { Star, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { categoryMap, subcategoryMap } from '@/data/categories';
-import type { Service, ServiceSubcategory } from '@/types/database';
+import { useCatalog } from '@/providers/catalog-provider';
+import type { Service } from '@/types/database';
 
 export function ServiceCard({ service }: { service: Service }) {
+  const { categoryMap, subcategoryMap, getCategoryIcon } = useCatalog();
   const cat = categoryMap[service.category];
+  const CatIcon = getCategoryIcon(service.category);
   const visibleZones = service.zones.slice(0, 2);
   const remaining = service.zones.length - 2;
   const coverImage = service.images?.[0];
@@ -21,7 +25,7 @@ export function ServiceCard({ service }: { service: Service }) {
           <div className={`h-48 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
             {cat && (
               <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${cat.color}`}>
-                <cat.icon className="h-8 w-8" />
+                <CatIcon className="h-8 w-8" />
               </div>
             )}
           </div>
@@ -29,8 +33,8 @@ export function ServiceCard({ service }: { service: Service }) {
         <CardContent className="p-4 space-y-3">
           <div className="flex flex-wrap gap-1.5">
             {cat && <Badge className={cat.color} variant="secondary">{cat.label}</Badge>}
-            {service.subcategory && subcategoryMap[service.subcategory as ServiceSubcategory] && (
-              <Badge variant="outline" className="text-xs">{subcategoryMap[service.subcategory as ServiceSubcategory].label}</Badge>
+            {service.subcategory && subcategoryMap[service.subcategory] && (
+              <Badge variant="outline" className="text-xs">{subcategoryMap[service.subcategory].label}</Badge>
             )}
           </div>
           <h3 className="font-semibold text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">{service.title}</h3>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthContext } from '@/providers/auth-provider';
 import { UserRole } from '@/types/database';
-import { categories } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { CategoryMegaMenu } from './category-mega-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,6 +35,7 @@ function getInitials(name: string) {
 export function Navbar() {
   const { user, signOut, isMockMode, switchMockUser } = useAuthContext();
   const { itemCount } = useCart();
+  const { categories, getCategoryIcon } = useCatalog();
   const pathname = usePathname();
   const [openMegaMenu, setOpenMegaMenu] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export function Navbar() {
     setOpenMegaMenu(null);
   };
 
-  const openCategory = openMegaMenu ? categories.find((c) => c.value === openMegaMenu) : null;
+  const openCategory = openMegaMenu ? categories.find((c) => c.slug === openMegaMenu) : null;
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b shadow-sm">
@@ -57,23 +58,26 @@ export function Navbar() {
 
         {/* Desktop nav: categories + servicios */}
         <nav className="hidden lg:flex items-center gap-1 mx-4">
-          {categories.map((cat) => (
-            <div
-              key={cat.value}
-              className="relative"
-              onMouseEnter={() => handleCategoryHover(cat.value)}
-            >
-              <Link
-                href={`/servicios?categoria=${cat.value}`}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md text-center transition-colors hover:bg-muted w-[90px] ${
-                  openMegaMenu === cat.value ? 'bg-muted text-violet-600' : 'text-muted-foreground'
-                }`}
+          {categories.filter(c => c.is_active).map((cat) => {
+            const CatIcon = getCategoryIcon(cat.slug);
+            return (
+              <div
+                key={cat.slug}
+                className="relative"
+                onMouseEnter={() => handleCategoryHover(cat.slug)}
               >
-                <cat.icon className="h-5 w-5" />
-                <span className="text-[11px] font-medium leading-tight">{cat.label}</span>
-              </Link>
-            </div>
-          ))}
+                <Link
+                  href={`/servicios?categoria=${cat.slug}`}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md text-center transition-colors hover:bg-muted w-[90px] ${
+                    openMegaMenu === cat.slug ? 'bg-muted text-violet-600' : 'text-muted-foreground'
+                  }`}
+                >
+                  <CatIcon className="h-5 w-5" />
+                  <span className="text-[11px] font-medium leading-tight">{cat.label}</span>
+                </Link>
+              </div>
+            );
+          })}
           <Link
             href="/servicios"
             className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-md text-[11px] font-medium transition-colors hover:bg-muted w-[90px] text-center ${

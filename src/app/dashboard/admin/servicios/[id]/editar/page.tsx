@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { categories, subcategoriesByCategory } from '@/data/categories';
-import { ZONES, PRICE_UNITS } from '@/lib/constants';
+import { useCatalog } from '@/providers/catalog-provider';
+import { PRICE_UNITS } from '@/lib/constants';
 import { getServiceById, updateService, updateServiceStatus, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +31,7 @@ export default function AdminEditarServicioPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { toast } = useToast();
+  const { categories, getSubcategoriesByCategory, zones, getCategoryBySlug } = useCatalog();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -68,7 +69,7 @@ export default function AdminEditarServicioPage() {
   const showMinMaxHours = isPerHour;
 
   const availableSubcategories = category
-    ? subcategoriesByCategory[category as ServiceCategory] || []
+    ? getSubcategoriesByCategory(category)
     : [];
 
   useEffect(() => {
@@ -250,7 +251,7 @@ export default function AdminEditarServicioPage() {
             <div><Label>Categoria *</Label>
               <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(''); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+                <SelectContent>{categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {availableSubcategories.length > 0 && (
@@ -258,7 +259,7 @@ export default function AdminEditarServicioPage() {
                 <Select value={subcategory} onValueChange={setSubcategory}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar subcategoria" /></SelectTrigger>
                   <SelectContent>
-                    {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    {availableSubcategories.filter(s => s.is_active).map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -296,7 +297,7 @@ export default function AdminEditarServicioPage() {
                 <Label>SKU</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={sku} readOnly className="bg-muted font-mono" />
-                  <Button type="button" variant="outline" size="sm" onClick={() => setSku(generateServiceSku(category))}>Regenerar</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSku(generateServiceSku(getCategoryBySlug(category)?.sku_prefix || 'XX'))}>Regenerar</Button>
                 </div>
               </div>
             )}
@@ -338,10 +339,10 @@ export default function AdminEditarServicioPage() {
           <CardHeader><CardTitle>Zonas de Servicio</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {ZONES.map((z) => (
-                <label key={z} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox checked={selectedZones.includes(z)} onCheckedChange={() => toggleZone(z)} />
-                  <span className="text-sm">{z}</span>
+              {zones.filter(z => z.is_active).map((z) => (
+                <label key={z.slug} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={selectedZones.includes(z.label)} onCheckedChange={() => toggleZone(z.label)} />
+                  <span className="text-sm">{z.label}</span>
                 </label>
               ))}
             </div>

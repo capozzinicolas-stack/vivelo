@@ -4,18 +4,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { categories, subcategoriesByCategory } from '@/data/categories';
-import { ZONES } from '@/lib/constants';
+import { useCatalog } from '@/providers/catalog-provider';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Search, CalendarIcon, Users, MapPin } from 'lucide-react';
-import type { ServiceCategory } from '@/types/database';
 
 export function HomeSearchBar() {
   const router = useRouter();
+  const { categories, zones, getSubcategoriesByCategory } = useCatalog();
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [date, setDate] = useState<Date | undefined>();
@@ -23,7 +22,7 @@ export function HomeSearchBar() {
   const [zone, setZone] = useState('');
 
   const availableSubcategories = category && category !== 'ALL'
-    ? subcategoriesByCategory[category as ServiceCategory] || []
+    ? getSubcategoriesByCategory(category)
     : [];
 
   const handleCategoryChange = (val: string) => {
@@ -53,8 +52,8 @@ export function HomeSearchBar() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las categorias</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+              {categories.filter(c => c.is_active).map((c) => (
+                <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -71,7 +70,7 @@ export function HomeSearchBar() {
               <SelectContent>
                 <SelectItem value="ALL">Todas</SelectItem>
                 {availableSubcategories.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -129,8 +128,8 @@ export function HomeSearchBar() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Toda la zona</SelectItem>
-                {ZONES.map((z) => (
-                  <SelectItem key={z} value={z}>{z}</SelectItem>
+                {zones.filter(z => z.is_active).map((z) => (
+                  <SelectItem key={z.slug} value={z.label}>{z.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart, type CartItem } from '@/providers/cart-provider';
 import { useAuthContext } from '@/providers/auth-provider';
-import { categoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { TIME_SLOTS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,8 +20,6 @@ import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft,
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
-import type { ServiceCategory } from '@/types/database';
-
 function calcHours(start: string, end: string): number {
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
@@ -30,13 +28,14 @@ function calcHours(start: string, end: string): number {
 }
 
 function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: () => void; onUpdate: (updates: Partial<CartItem>) => void }) {
+  const { categoryMap, getCategoryIcon } = useCatalog();
   const [editing, setEditing] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(new Date(item.event_date + 'T12:00:00'));
   const [editStartTime, setEditStartTime] = useState(item.start_time);
   const [editEndTime, setEditEndTime] = useState(item.end_time);
   const [editGuests, setEditGuests] = useState(item.guest_count);
 
-  const cat = categoryMap[item.service_snapshot.category as ServiceCategory];
+  const cat = categoryMap[item.service_snapshot.category];
   const isPerPerson = item.service_snapshot.price_unit === 'por persona';
   const isPerHour = item.service_snapshot.price_unit === 'por hora';
   const hasBaseEventHours = item.service_snapshot.price_unit === 'por evento' && item.service_snapshot.base_event_hours;
@@ -85,7 +84,7 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
               <Image src={item.service_snapshot.image} alt={item.service_snapshot.title} width={80} height={80} className="object-cover w-full h-full" />
             ) : (
               <div className={`w-full h-full flex items-center justify-center ${cat?.color.split(' ')[0] || 'bg-gray-200'}`}>
-                {cat && <cat.icon className="h-8 w-8 text-muted-foreground/30" />}
+                {cat && (() => { const CatIcon = getCategoryIcon(cat.slug); return <CatIcon className="h-8 w-8 text-muted-foreground/30" />; })()}
               </div>
             )}
           </div>

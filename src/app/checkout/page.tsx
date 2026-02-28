@@ -12,7 +12,7 @@ import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
 import { COMMISSION_RATE } from '@/lib/constants';
 import { getProviderCommissionRate, calculateCommission } from '@/lib/commission';
-import { categoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,14 +21,13 @@ import { ArrowLeft, Loader2, AlertTriangle, CalendarIcon, Clock, Users, ShieldCh
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
-import type { ServiceCategory } from '@/types/database';
-
 type AvailabilityResult = { itemId: string; available: boolean; reason?: string };
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthContext();
   const { items, clearCart, cartTotal } = useCart();
+  const { categoryMap, getCategoryIcon } = useCatalog();
 
   const [verifying, setVerifying] = useState(true);
   const [availabilityResults, setAvailabilityResults] = useState<AvailabilityResult[]>([]);
@@ -311,8 +310,9 @@ export default function CheckoutPage() {
           )}
 
           {items.map(item => {
-            const cat = categoryMap[item.service_snapshot.category as ServiceCategory];
+            const cat = categoryMap[item.service_snapshot.category];
             const unavailable = availabilityResults.find(r => r.itemId === item.id && !r.available);
+            const CatIcon = cat ? getCategoryIcon(cat.slug) : null;
             return (
               <Card key={item.id} className={unavailable ? 'opacity-50 border-destructive/30' : ''}>
                 <CardContent className="p-4">
@@ -322,7 +322,7 @@ export default function CheckoutPage() {
                         <Image src={item.service_snapshot.image} alt={item.service_snapshot.title} width={64} height={64} className="object-cover w-full h-full" />
                       ) : (
                         <div className={`w-full h-full flex items-center justify-center ${cat?.color.split(' ')[0] || 'bg-gray-200'}`}>
-                          {cat && <cat.icon className="h-6 w-6 text-muted-foreground/30" />}
+                          {CatIcon && <CatIcon className="h-6 w-6 text-muted-foreground/30" />}
                         </div>
                       )}
                     </div>

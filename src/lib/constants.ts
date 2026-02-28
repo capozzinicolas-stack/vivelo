@@ -50,14 +50,6 @@ export const EXTRA_PRICE_TYPES = [
   { value: 'per_hour', label: 'Por hora' },
 ] as const;
 
-export const SKU_PREFIXES: Record<string, string> = {
-  FOOD_DRINKS: 'FD',
-  AUDIO: 'AU',
-  DECORATION: 'DE',
-  PHOTO_VIDEO: 'PV',
-  STAFF: 'ST',
-  FURNITURE: 'FU',
-};
 
 export const FEATURED_SECTION_LABELS: Record<string, string> = {
   servicios_destacados: 'Servicios Destacados',

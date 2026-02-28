@@ -5,10 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { categories, subcategoriesByCategory } from '@/data/categories';
-import { ZONES } from '@/lib/constants';
+import { useCatalog } from '@/providers/catalog-provider';
 import { Search, X } from 'lucide-react';
-import type { ServiceCategory } from '@/types/database';
 
 export interface Filters {
   category: string;
@@ -26,10 +24,11 @@ interface ServiceFiltersProps {
 export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '' };
 
 export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
+  const { categories, zones, getSubcategoriesByCategory } = useCatalog();
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
 
   const availableSubcategories = filters.category
-    ? subcategoriesByCategory[filters.category as ServiceCategory] || []
+    ? getSubcategoriesByCategory(filters.category)
     : [];
 
   return (
@@ -48,7 +47,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
           <SelectTrigger><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas las categorias</SelectItem>
-            {categories.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+            {categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -60,7 +59,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
             <SelectTrigger><SelectValue placeholder="Todas las subcategorias" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las subcategorias</SelectItem>
-              {availableSubcategories.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              {availableSubcategories.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -72,7 +71,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
           <SelectTrigger><SelectValue placeholder="Todas las zonas" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas las zonas</SelectItem>
-            {ZONES.map((z) => <SelectItem key={z} value={z}>{z}</SelectItem>)}
+            {zones.filter(z => z.is_active).map((z) => <SelectItem key={z.slug} value={z.label}>{z.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

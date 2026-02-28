@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/providers/auth-provider";
+import { CatalogProvider } from "@/providers/catalog-provider";
 import { CartProvider } from "@/providers/cart-provider";
 import { ChatProvider } from "@/providers/chat-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -35,16 +36,18 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <CartProvider>
-            <ChatProvider>
+          <CatalogProvider>
+            <CartProvider>
+              <ChatProvider>
               <Navbar />
               <main className="min-h-screen pb-16 lg:pb-0">{children}</main>
               <Footer />
               <MobileBottomNav />
               <Toaster />
               <ChatBubble />
-            </ChatProvider>
-          </CartProvider>
+              </ChatProvider>
+            </CartProvider>
+          </CatalogProvider>
         </AuthProvider>
       </body>
     </html>

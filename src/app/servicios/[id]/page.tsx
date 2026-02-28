@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getServiceById, getProfileById, checkVendorAvailability, getClientEventNames, getServiceBookingCount } from '@/lib/supabase/queries';
 import { resolveBuffers, calculateEffectiveTimes } from '@/lib/availability';
-import { categoryMap, subcategoryMap } from '@/data/categories';
+import { useCatalog } from '@/providers/catalog-provider';
 import { TIME_SLOTS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
@@ -43,6 +43,7 @@ export default function ServiceDetailPage() {
   const { user } = useAuthContext();
   const { items, addItem } = useCart();
   const { toast } = useToast();
+  const { categoryMap, subcategoryMap, getCategoryIcon } = useCatalog();
 
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
@@ -273,7 +274,7 @@ export default function ServiceDetailPage() {
             <MediaGallery images={service.images || []} videos={service.videos || []} title={service.title} />
           ) : (
             <div className={`${cat?.color.split(' ')[0] || 'bg-gray-200'} h-64 md:h-96 rounded-xl flex items-center justify-center`}>
-              {cat && <cat.icon className="h-20 w-20 text-muted-foreground/30" />}
+              {cat && (() => { const CatIcon = getCategoryIcon(cat.slug); return <CatIcon className="h-20 w-20 text-muted-foreground/30" />; })()}
             </div>
           )}
 
