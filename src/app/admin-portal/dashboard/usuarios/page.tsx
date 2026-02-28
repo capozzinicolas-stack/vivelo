@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { CheckCircle, XCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
 import type { Profile, UserRole } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -21,6 +21,7 @@ export default function AdminUsuariosPage() {
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,6 +69,26 @@ export default function AdminUsuariosPage() {
       toast({ title: verified ? 'Usuario verificado' : 'Verificacion removida' });
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleResetPassword = async (id: string, email: string) => {
+    setResettingId(id);
+    try {
+      const res = await fetch('/api/admin/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al enviar enlace');
+      }
+      toast({ title: `Enlace de restablecimiento enviado a ${email}` });
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Error al enviar enlace', variant: 'destructive' });
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -129,10 +150,14 @@ export default function AdminUsuariosPage() {
                         : <XCircle className="h-4 w-4 text-red-400" />}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{new Date(u.created_at).toLocaleDateString('es-MX')}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
                       <Button size="sm" variant="outline" className="h-7" aria-label={u.verified ? 'Quitar verificacion de usuario' : 'Verificar usuario'} onClick={() => handleVerify(u.id, !u.verified)}>
                         <ShieldCheck className="h-3 w-3 mr-1" />
                         {u.verified ? 'Quitar' : 'Verificar'}
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7" aria-label="Restablecer contrasena" disabled={resettingId === u.id} onClick={() => handleResetPassword(u.id, u.email)}>
+                        {resettingId === u.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <KeyRound className="h-3 w-3 mr-1" />}
+                        Restablecer
                       </Button>
                     </TableCell>
                   </TableRow>
