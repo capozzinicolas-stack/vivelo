@@ -1,44 +1,47 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getProfileById, getServicesByProvider } from '@/lib/supabase/queries';
+import { getProfileByIdServer, getServicesByProviderServer } from '@/lib/supabase/server-queries';
 import { ServiceCard } from '@/components/services/service-card';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MapPin, Star, Loader2, ShieldCheck } from 'lucide-react';
-import type { Profile, Service } from '@/types/database';
+import { ArrowLeft, MapPin, Star, ShieldCheck } from 'lucide-react';
+import { notFound } from 'next/navigation';
 
-export default function ProveedorPublicPage() {
-  const { id } = useParams<{ id: string }>();
-  const [provider, setProvider] = useState<Profile | null>(null);
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+interface Props {
+  params: { id: string };
+}
 
-  useEffect(() => {
-    Promise.all([
-      getProfileById(id),
-      getServicesByProvider(id),
-    ]).then(([profile, svcs]) => {
-      setProvider(profile);
-      setServices(svcs.filter(s => s.status === 'active').map(s => ({ ...s, provider: profile || undefined })));
-    }).finally(() => setLoading(false));
-  }, [id]);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const provider = await getProfileByIdServer(params.id);
+  if (!provider) return { title: 'Proveedor no encontrado' };
 
-  if (loading) {
-    return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
-  }
+  const name = provider.company_name || provider.full_name;
+  return {
+    title: name,
+    description: provider.bio || `Conoce a ${name}, proveedor de servicios para eventos en Vivelo`,
+    openGraph: {
+      title: `${name} - Proveedor en Vivelo`,
+      description: provider.bio || undefined,
+      ...(provider.avatar_url ? { images: [{ url: provider.avatar_url }] } : {}),
+    },
+  };
+}
+
+export default async function ProveedorPublicPage({ params }: Props) {
+  const [provider, allServices] = await Promise.all([
+    getProfileByIdServer(params.id),
+    getServicesByProviderServer(params.id),
+  ]);
 
   if (!provider) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold mb-4">Proveedor no encontrado</h1>
-        <Button asChild><Link href="/servicios"><ArrowLeft className="h-4 w-4 mr-2" />Volver a servicios</Link></Button>
-      </div>
-    );
+    notFound();
   }
+
+  const services = allServices
+    .filter(s => s.status === 'active')
+    .map(s => ({ ...s, provider: provider || undefined }));
 
   const initials = provider.full_name
     ?.split(' ')
@@ -53,8 +56,39 @@ export default function ProveedorPublicPage() {
     : 0;
   const totalReviews = services.reduce((s, sv) => s + sv.review_count, 0);
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
+  const providerName = provider.company_name || provider.full_name;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    name: providerName,
+    description: provider.bio || undefined,
+    ...(provider.avatar_url ? { image: provider.avatar_url } : {}),
+    url: `${siteUrl}/proveedores/${params.id}`,
+    ...(allZones.length > 0 ? { areaServed: allZones.map(z => ({ '@type': 'Place', name: z })) } : {}),
+    ...(avgRating > 0 ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: avgRating,
+        reviewCount: totalReviews,
+      },
+    } : {}),
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      <Breadcrumbs items={[
+        { label: 'Inicio', href: '/' },
+        { label: 'Servicios', href: '/servicios' },
+        { label: providerName },
+      ]} />
+
       <Button variant="ghost" asChild className="mb-6"><Link href="/servicios"><ArrowLeft className="h-4 w-4 mr-2" />Volver a servicios</Link></Button>
 
       <div className="max-w-4xl mx-auto space-y-8">
@@ -66,7 +100,7 @@ export default function ProveedorPublicPage() {
           </Avatar>
           <div className="space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-3xl font-bold">{provider.company_name || provider.full_name}</h1>
+              <h1 className="text-3xl font-bold">{providerName}</h1>
               {provider.verified && (
                 <Badge className="bg-green-100 text-green-800 gap-1"><ShieldCheck className="h-3 w-3" />Verificado</Badge>
               )}

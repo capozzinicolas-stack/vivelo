@@ -175,6 +175,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Send cancellation email (non-blocking)
+    try {
+      const { sendCancellationNotice } = await import('@/lib/email');
+      const adminClient = createAdminSupabaseClient();
+      const { data: clientProfile } = await adminClient.from('profiles').select('full_name, email').eq('id', booking.client_id).single();
+      const { data: serviceData } = await adminClient.from('services').select('title').eq('id', booking.service_id).single();
+      if (clientProfile?.email) {
+        sendCancellationNotice({
+          clientName: clientProfile.full_name || 'Cliente',
+          clientEmail: clientProfile.email,
+          serviceTitle: serviceData?.title || 'Servicio',
+          eventDate: booking.event_date as string,
+          refundAmount: refund_amount,
+          refundPercent: refund_percent,
+          bookingId,
+        });
+      }
+    } catch (emailErr) {
+      console.error('[Cancel] Email notification failed:', emailErr);
+    }
+
     return NextResponse.json({
       success: true,
       refund_amount,

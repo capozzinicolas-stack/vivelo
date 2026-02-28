@@ -177,6 +177,9 @@ export interface Booking {
   commission_rate_snapshot?: number | null;
   cancelled_at?: string | null;
   cancelled_by?: string | null;
+  campaign_id?: string | null;
+  discount_amount?: number;
+  discount_pct?: number;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -194,6 +197,8 @@ export interface Order {
   platform_fee: number;
   stripe_fee: number;
   total: number;
+  discount_total?: number;
+  original_total?: number;
   status: OrderStatus;
   created_at: string;
   updated_at: string;
@@ -327,6 +332,12 @@ export interface BlogPost {
   media_url: string | null;
   status: BlogStatus;
   publish_date: string | null;
+  author_id?: string | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  focus_keyword?: string | null;
+  tags?: string[];
+  og_image?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -367,6 +378,33 @@ export interface SiteBanner {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export type MarketingEventType = 'impression' | 'click';
+export type PlacementType = 'featured_placement' | 'campaign' | 'banner' | 'showcase' | 'featured_provider';
+
+export interface MarketingEvent {
+  id: string;
+  event_type: MarketingEventType;
+  placement_type: PlacementType;
+  placement_id: string;
+  service_id: string | null;
+  user_id: string | null;
+  page_url: string | null;
+  created_at: string;
+}
+
+export interface UtmAttribution {
+  id: string;
+  user_id: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+  landing_page: string | null;
+  referrer: string | null;
+  created_at: string;
 }
 
 export interface Database {

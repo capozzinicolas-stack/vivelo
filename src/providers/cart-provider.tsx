@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { trackAddToCart } from '@/lib/analytics';
 
 export interface CartItemExtra {
   extra_id: string;
@@ -39,6 +40,11 @@ export interface CartItem {
   notes: string | null;
   event_name: string | null;
   added_at: string;
+  // Campaign discount fields (optional)
+  campaign_id?: string;
+  discount_pct?: number;
+  discount_amount?: number;
+  original_total?: number;
 }
 
 interface CartContextType {
@@ -95,6 +101,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItem = useCallback((item: CartItem) => {
     setItems(prev => [...prev, item]);
+    trackAddToCart(item);
   }, []);
 
   const removeItem = useCallback((id: string) => {

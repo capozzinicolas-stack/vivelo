@@ -1,14 +1,11 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { ArrowLeft, FileText, Video, Mic, Calendar } from 'lucide-react';
-import type { BlogPost } from '@/types/database';
-import { getBlogPostBySlug } from '@/lib/supabase/queries';
+import { getBlogPostBySlugServer } from '@/lib/supabase/server-queries';
+import { notFound } from 'next/navigation';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,
@@ -22,50 +19,69 @@ const mediaTypeLabels: Record<string, string> = {
   audio: 'Audio',
 };
 
-export default function BlogPostPage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  const [post, setPost] = useState<BlogPost | null>(null);
-  const [loading, setLoading] = useState(true);
+interface Props {
+  params: { slug: string };
+}
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getBlogPostBySlug(slug);
-        setPost(data);
-      } catch (err) {
-        console.error('Error loading blog post:', err);
-      }
-      setLoading(false);
-    }
-    if (slug) load();
-  }, [slug]);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const post = await getBlogPostBySlugServer(params.slug);
+  if (!post) return { title: 'Post no encontrado' };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <Skeleton className="h-6 w-24 mb-8" />
-        <Skeleton className="h-10 w-3/4 mb-4" />
-        <Skeleton className="h-4 w-48 mb-8" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
+  return {
+    title: post.title,
+    description: post.excerpt || `Lee ${post.title} en el blog de Vivelo`,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt || undefined,
+      type: 'article',
+      ...(post.cover_image ? { images: [{ url: post.cover_image }] } : {}),
+      ...(post.publish_date ? { publishedTime: post.publish_date } : {}),
+    },
+  };
+}
+
+export default async function BlogPostPage({ params }: Props) {
+  const post = await getBlogPostBySlugServer(params.slug);
 
   if (!post) {
-    return (
-      <div className="container mx-auto px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold mb-4">Post no encontrado</h1>
-        <p className="text-muted-foreground mb-6">El articulo que buscas no existe o no esta publicado.</p>
-        <Button asChild><Link href="/blog">Ver todos los posts</Link></Button>
-      </div>
-    );
+    notFound();
   }
 
   const MediaIcon = mediaTypeIcons[post.media_type] || FileText;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt || undefined,
+    ...(post.cover_image ? { image: post.cover_image } : {}),
+    ...(post.publish_date ? { datePublished: post.publish_date } : {}),
+    dateModified: post.updated_at,
+    publisher: {
+      '@type': 'Organization',
+      name: 'Vivelo',
+      url: siteUrl,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteUrl}/blog/${post.slug}`,
+    },
+  };
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-3xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      <Breadcrumbs items={[
+        { label: 'Inicio', href: '/' },
+        { label: 'Blog', href: '/blog' },
+        { label: post.title },
+      ]} />
+
       <Button variant="ghost" asChild className="mb-6">
         <Link href="/blog"><ArrowLeft className="h-4 w-4 mr-2" />Volver al Blog</Link>
       </Button>

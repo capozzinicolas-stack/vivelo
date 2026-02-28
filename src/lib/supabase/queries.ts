@@ -452,6 +452,9 @@ export async function createBooking(booking: {
   order_id?: string | null;
   commission_rate_snapshot?: number | null;
   cancellation_policy_snapshot?: Record<string, unknown> | null;
+  campaign_id?: string | null;
+  discount_amount?: number;
+  discount_pct?: number;
 }): Promise<Booking> {
   if (isMockMode()) {
     const newBooking: Booking = {
@@ -518,6 +521,9 @@ export async function createBooking(booking: {
     billing_type_snapshot: booking.billing_type_snapshot,
     commission_rate_snapshot: booking.commission_rate_snapshot ?? null,
     cancellation_policy_snapshot: booking.cancellation_policy_snapshot ?? null,
+    ...(booking.campaign_id ? { campaign_id: booking.campaign_id } : {}),
+    ...(booking.discount_amount ? { discount_amount: booking.discount_amount } : {}),
+    ...(booking.discount_pct ? { discount_pct: booking.discount_pct } : {}),
   };
 
   const { data, error } = await supabase
@@ -1467,6 +1473,100 @@ export async function updateCampaignStatus(id: string, status: CampaignStatus): 
   if (error) throw new Error(`Error actualizando campana: ${error.message}`);
 }
 
+export async function updateCampaign(id: string, updates: Partial<Campaign>): Promise<void> {
+  if (isMockMode()) {
+    const { mockCampaigns } = await import('@/data/mock-marketing');
+    const campaign = mockCampaigns.find(c => c.id === id);
+    if (campaign) Object.assign(campaign, updates, { updated_at: new Date().toISOString() });
+    return;
+  }
+  const supabase = createClient();
+  const { error } = await supabase.from('campaigns').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(`Error actualizando campana: ${error.message}`);
+}
+
+export async function getActiveCampaignForService(serviceId: string): Promise<Campaign | null> {
+  if (isMockMode()) {
+    const { mockCampaigns, mockCampaignSubscriptions } = await import('@/data/mock-marketing');
+    const now = new Date().toISOString();
+    const sub = mockCampaignSubscriptions.find(s =>
+      s.service_id === serviceId && s.status === 'active'
+    );
+    if (!sub) return null;
+    const campaign = mockCampaigns.find(c =>
+      c.id === sub.campaign_id && c.status === 'active' &&
+      c.start_date <= now && c.end_date >= now
+    );
+    return campaign || null;
+  }
+
+  const supabase = createClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('campaign_subscriptions')
+    .select('campaign:campaigns(*)')
+    .eq('service_id', serviceId)
+    .eq('status', 'active')
+    .single();
+  if (error || !data?.campaign) return null;
+
+  const campaign = data.campaign as unknown as Campaign;
+  if (campaign.status !== 'active' || campaign.start_date > now || campaign.end_date < now) return null;
+  return campaign;
+}
+
+export async function getReviewsByService(serviceId: string): Promise<Review[]> {
+  if (isMockMode()) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*, client:profiles!client_id(*)')
+    .eq('service_id', serviceId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.warn('[getReviewsByService] Query failed:', error.message);
+    return [];
+  }
+  return (data || []) as unknown as Review[];
+}
+
+export async function getRelatedServices(categoryIds: string[], excludeIds: string[], limit = 4): Promise<Service[]> {
+  if (isMockMode()) {
+    const { mockServices } = await import('@/data/mock-services');
+    return mockServices
+      .filter(s => categoryIds.includes(s.category) && !excludeIds.includes(s.id) && s.status === 'active')
+      .slice(0, limit);
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, provider:profiles!provider_id(*)')
+    .in('category', categoryIds)
+    .not('id', 'in', `(${excludeIds.join(',')})`)
+    .eq('status', 'active')
+    .limit(limit);
+  if (error) {
+    console.warn('[getRelatedServices] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function incrementServiceViewCount(serviceId: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase.rpc('increment_view_count', { p_service_id: serviceId });
+  if (error) {
+    // Fallback: manual increment
+    const { data } = await supabase.from('services').select('view_count').eq('id', serviceId).single();
+    if (data) {
+      await supabase.from('services').update({ view_count: (data.view_count || 0) + 1 }).eq('id', serviceId);
+    }
+  }
+}
+
 export async function getActiveCampaignsWithServices(): Promise<(Campaign & { subscriptions: CampaignSubscription[] })[]> {
   if (isMockMode()) {
     const { mockCampaigns, mockCampaignSubscriptions } = await import('@/data/mock-marketing');
@@ -2002,6 +2102,8 @@ export async function createOrder(data: {
   subtotal: number;
   platform_fee: number;
   total: number;
+  discount_total?: number;
+  original_total?: number;
 }): Promise<Order> {
   if (isMockMode()) {
     return {

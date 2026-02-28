@@ -7,20 +7,23 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
 import { StripeProvider } from '@/providers/stripe-provider';
 import { StripePaymentForm } from '@/components/checkout/stripe-payment-form';
-import { createOrder, createBooking, createSubBookings, checkVendorAvailability, getCancellationPolicyById } from '@/lib/supabase/queries';
+import { createOrder, createBooking, createSubBookings, checkVendorAvailability, getCancellationPolicyById, getActiveCampaignForService, getRelatedServices } from '@/lib/supabase/queries';
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
+import { ServiceCard } from '@/components/services/service-card';
 import { COMMISSION_RATE } from '@/lib/constants';
+import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 import { getProviderCommissionRate, calculateCommission } from '@/lib/commission';
 import { useCatalog } from '@/providers/catalog-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Loader2, AlertTriangle, CalendarIcon, Clock, Users, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CalendarIcon, Clock, Users, ShieldCheck, RefreshCcw, Headphones, Gift } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
+import type { Service } from '@/types/database';
 type AvailabilityResult = { itemId: string; available: boolean; reason?: string };
 
 export default function CheckoutPage() {
@@ -35,6 +38,8 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [relatedServices, setRelatedServices] = useState<Service[]>([]);
   // Keep a snapshot of cart items for booking creation after payment
   const cartSnapshotRef = useRef(items);
 
@@ -58,6 +63,16 @@ export default function CheckoutPage() {
       cartSnapshotRef.current = items;
     }
   }, [items, clientSecret]);
+
+  // Track begin checkout + load cross-sell
+  useEffect(() => {
+    if (user && items.length > 0) {
+      trackBeginCheckout(items, cartTotal);
+      const categories = Array.from(new Set(items.map(i => i.service_snapshot.category)));
+      const excludeIds = items.map(i => i.service_id);
+      getRelatedServices(categories, excludeIds, 4).then(setRelatedServices).catch(() => {});
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Verify availability of all items
   useEffect(() => {
@@ -125,12 +140,27 @@ export default function CheckoutPage() {
     setError('');
 
     try {
+      // Calculate campaign discounts for all items
+      let discountTotal = 0;
+      for (const item of items) {
+        try {
+          const campaign = await getActiveCampaignForService(item.service_id);
+          if (campaign && campaign.discount_pct > 0) {
+            const itemDiscount = Math.round(item.total * (campaign.discount_pct / 100));
+            discountTotal += itemDiscount;
+          }
+        } catch { /* ignore campaign lookup errors */ }
+      }
+
+      const finalTotal = cartTotal - discountTotal;
+
       // 1. Create order (NO bookings yet — those are created after payment)
       const order = await createOrder({
         client_id: user.id,
         subtotal: cartTotal,
         platform_fee: commission,
-        total: cartTotal,
+        total: finalTotal,
+        ...(discountTotal > 0 ? { discount_total: discountTotal, original_total: cartTotal } : {}),
       });
 
       setOrderId(order.id);
@@ -139,7 +169,7 @@ export default function CheckoutPage() {
       const res = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, amount: cartTotal }),
+        body: JSON.stringify({ orderId: order.id, amount: finalTotal }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al crear el pago');
@@ -177,7 +207,7 @@ export default function CheckoutPage() {
 
       // Get per-provider commission rate (falls back to COMMISSION_RATE)
       const providerRate = await getProviderCommissionRate(item.service_snapshot.provider_id);
-      const itemCommission = calculateCommission(item.total, providerRate);
+      let itemCommission = calculateCommission(item.total, providerRate);
 
       // Snapshot the cancellation policy at purchase time
       let cancellation_policy_snapshot: Record<string, unknown> | null = null;
@@ -197,6 +227,27 @@ export default function CheckoutPage() {
         }
       }
 
+      // Check for active campaign discount
+      let campaignId: string | undefined;
+      let discountAmount = 0;
+      let discountPct = 0;
+      let bookingTotal = item.total;
+      try {
+        const campaign = await getActiveCampaignForService(item.service_id);
+        if (campaign && campaign.discount_pct > 0) {
+          campaignId = campaign.id;
+          discountPct = campaign.discount_pct;
+          discountAmount = Math.round(item.total * (discountPct / 100));
+          bookingTotal = item.total - discountAmount;
+
+          // Adjust commission with campaign's commission_reduction_pct
+          if (campaign.commission_reduction_pct > 0) {
+            const adjustedRate = Math.max(0, providerRate - (campaign.commission_reduction_pct / 100));
+            itemCommission = calculateCommission(bookingTotal, adjustedRate);
+          }
+        }
+      } catch { /* ignore campaign lookup errors */ }
+
       const booking = await createBooking({
         service_id: item.service_id,
         client_id: userId,
@@ -210,7 +261,7 @@ export default function CheckoutPage() {
         extras_total: item.extras_total,
         commission: itemCommission,
         commission_rate_snapshot: providerRate,
-        total: item.total,
+        total: bookingTotal,
         selected_extras: item.selected_extras.map(ext => ({
           extra_id: ext.extra_id,
           name: ext.name,
@@ -226,6 +277,7 @@ export default function CheckoutPage() {
         billing_type_snapshot: item.service_snapshot.price_unit,
         order_id: orderIdParam,
         cancellation_policy_snapshot,
+        ...(campaignId ? { campaign_id: campaignId, discount_amount: discountAmount, discount_pct: discountPct } : {}),
       });
 
       // Create sub-bookings for extras
@@ -263,6 +315,7 @@ export default function CheckoutPage() {
       // Payment was successful, so proceed anyway — webhook will handle confirmation
     }
 
+    trackPurchase(orderId, cartSnapshotRef.current, cartTotal);
     clearCart();
     router.push(`/checkout/confirmacion/${orderId}`);
   };
@@ -343,6 +396,37 @@ export default function CheckoutPage() {
               </Card>
             );
           })}
+
+          {/* Referral code */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift className="h-4 w-4 text-gold" />
+                <span className="text-sm font-medium">Codigo de referido</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ej: VIVELO-ABC123"
+                  value={referralCode}
+                  onChange={e => setReferralCode(e.target.value.toUpperCase())}
+                  className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cross-sell */}
+          {relatedServices.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">Tambien te puede interesar</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {relatedServices.slice(0, 4).map(s => (
+                  <ServiceCard key={s.id} service={s} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Payment */}
@@ -386,9 +470,23 @@ export default function CheckoutPage() {
                     )}
                   </Button>
 
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4 shrink-0" />
-                    <span>Pago seguro procesado por Stripe. No almacenamos datos de tu tarjeta.</span>
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                      <span>Pago 100% seguro</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <RefreshCcw className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                      <span>Cancelacion flexible</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Headphones className="h-3.5 w-3.5 shrink-0 text-purple-600" />
+                      <span>Soporte 24/7</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="text-[10px] font-bold text-slate-600">stripe</span>
+                      <span>Procesado por Stripe</span>
+                    </div>
                   </div>
                 </>
               ) : (

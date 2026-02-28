@@ -104,14 +104,29 @@ export default function ProviderCampanasPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex gap-6 text-sm">
+                  <div className="flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-1">
                       <Percent className="h-4 w-4 text-muted-foreground" />
-                      <span>{campaign.discount_pct}% descuento</span>
+                      <span>{campaign.discount_pct}% descuento al cliente</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <CalendarDays className="h-4 w-4 text-muted-foreground" />
                       <span>{new Date(campaign.start_date).toLocaleDateString('es-MX')} - {new Date(campaign.end_date).toLocaleDateString('es-MX')}</span>
+                    </div>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                    <p className="font-medium text-xs uppercase text-muted-foreground">Distribucion del costo</p>
+                    <div className="flex justify-between">
+                      <span>Reduccion de comision:</span>
+                      <span className="font-medium">{campaign.commission_reduction_pct}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Vivelo absorbe:</span>
+                      <span className="font-medium">{campaign.vivelo_absorbs_pct}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Proveedor absorbe:</span>
+                      <span className="font-medium">{campaign.provider_absorbs_pct}%</span>
                     </div>
                   </div>
                   <Separator />

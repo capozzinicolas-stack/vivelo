@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Star, Handshake, ArrowRight } from 'lucide-react';
 import { useCatalog } from '@/providers/catalog-provider';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
+import { TrackedCard } from '@/components/homepage/tracked-card';
 import type { Campaign, CampaignSubscription } from '@/types/database';
 
 const discountPills = [
@@ -86,7 +87,7 @@ export function CampaignOffersSection({ campaigns, loading }: {
             const coverImage = svc.images?.[0];
             const discountedPrice = Math.round(svc.base_price * (1 - item.discount_pct / 100));
             return (
-              <div key={item.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
+              <TrackedCard key={item.id} placementType="campaign" placementId={item.id} serviceId={svc.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
                 <Link href={`/servicios/${svc.id}`}>
                   <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
                     <div className="relative">
@@ -150,7 +151,7 @@ export function CampaignOffersSection({ campaigns, loading }: {
                     </CardContent>
                   </Card>
                 </Link>
-              </div>
+              </TrackedCard>
             );
           })}
         </HorizontalCarousel>

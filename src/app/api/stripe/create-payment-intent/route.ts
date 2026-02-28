@@ -17,9 +17,35 @@ export async function POST(request: NextRequest) {
     // Verify the order/booking belongs to this user
     const { supabase } = auth;
     if (orderId) {
-      const { data: order } = await supabase.from('orders').select('client_id').eq('id', orderId).single();
+      const { data: order } = await supabase.from('orders').select('client_id, discount_total').eq('id', orderId).single();
       if (!order || order.client_id !== auth.user.id) {
         return NextResponse.json({ error: 'Orden no encontrada o no autorizada' }, { status: 403 });
+      }
+
+      // Validate campaign discounts server-side
+      if (order.discount_total && order.discount_total > 0) {
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('service_id, campaign_id')
+          .eq('order_id', orderId)
+          .not('campaign_id', 'is', null);
+
+        if (bookings && bookings.length > 0) {
+          const now = new Date().toISOString();
+          for (const b of bookings) {
+            const { data: sub } = await supabase
+              .from('campaign_subscriptions')
+              .select('campaign:campaigns(*)')
+              .eq('service_id', b.service_id)
+              .eq('status', 'active')
+              .single();
+
+            const campaign = sub?.campaign as { status?: string; start_date?: string; end_date?: string } | null;
+            if (!campaign || campaign.status !== 'active' || !campaign.start_date || !campaign.end_date || campaign.start_date > now || campaign.end_date < now) {
+              return NextResponse.json({ error: 'Una campana de descuento ya no es valida. Vuelve a crear la orden.' }, { status: 400 });
+            }
+          }
+        }
       }
     } else if (bookingId) {
       const { data: booking } = await supabase.from('bookings').select('client_id').eq('id', bookingId).single();

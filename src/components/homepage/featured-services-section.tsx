@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Star, ArrowRight } from 'lucide-react';
 import { useCatalog } from '@/providers/catalog-provider';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
+import { TrackedCard } from '@/components/homepage/tracked-card';
 import type { FeaturedPlacement } from '@/types/database';
 
 export function FeaturedServicesSection({ placements, loading }: { placements: FeaturedPlacement[]; loading: boolean }) {
@@ -64,7 +65,7 @@ export function FeaturedServicesSection({ placements, loading }: { placements: F
             const cat = categoryMap[svc.category];
             const coverImage = svc.images?.[0];
             return (
-              <div key={p.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
+              <TrackedCard key={p.id} placementType="featured_placement" placementId={p.id} serviceId={svc.id} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
                 <Link href={`/servicios/${svc.id}`}>
                   <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
                     <div className="relative">
@@ -111,7 +112,7 @@ export function FeaturedServicesSection({ placements, loading }: { placements: F
                     </CardContent>
                   </Card>
                 </Link>
-              </div>
+              </TrackedCard>
             );
           })}
         </HorizontalCarousel>
