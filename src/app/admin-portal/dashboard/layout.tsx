@@ -53,7 +53,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
-      <div className="flex-1 p-6 lg:p-8">{children}</div>
+      <div className="flex-1 min-h-screen overflow-y-auto p-6 lg:p-8">{children}</div>
     </div>
   );
 }

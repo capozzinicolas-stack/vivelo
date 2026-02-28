@@ -118,7 +118,7 @@ export function AdminSidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-card min-h-screen">
+      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r lg:bg-card lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
         <div className="flex h-full flex-col">
           <div className="border-b p-4">
             <Link href="/dashboard">
