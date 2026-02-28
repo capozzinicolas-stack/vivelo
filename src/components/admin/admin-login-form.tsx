@@ -10,7 +10,7 @@ import { Loader2, Eye, EyeOff } from 'lucide-react';
 
 export function AdminLoginForm() {
   const router = useRouter();
-  const { signIn } = useAuthContext();
+  const { signIn, signOut } = useAuthContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,12 +23,16 @@ export function AdminLoginForm() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      const profile = await signIn(email, password);
 
-      // Redirect and let the dashboard layout handle role validation
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 100);
+      if (!profile || profile.role !== 'admin') {
+        await signOut();
+        setError('No tienes permisos de administrador');
+        setLoading(false);
+        return;
+      }
+
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesion');
     } finally {

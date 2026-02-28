@@ -14,7 +14,7 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, isMockMode } = useAuth();
+  const { signIn, signOut, isMockMode } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
@@ -25,7 +25,15 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      const profile = await signIn(email, password);
+
+      if (profile?.role === 'admin') {
+        await signOut();
+        setError('Los administradores deben acceder desde admin.solovivelo.com');
+        setLoading(false);
+        return;
+      }
+
       router.push(redirectTo || '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');

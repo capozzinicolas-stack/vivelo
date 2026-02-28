@@ -7,7 +7,7 @@ import { mockUsers } from '@/data/mock-users';
 interface AuthContextType {
   user: Profile | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<Profile | null>;
   signUp: (email: string, password: string, fullName: string, role: UserRole, phone?: string) => Promise<void>;
   signOut: () => Promise<void>;
   switchMockUser: (role: UserRole) => void;
@@ -61,12 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  const signIn = useCallback(async (email: string, _password: string) => {
+  const signIn = useCallback(async (email: string, _password: string): Promise<Profile | null> => {
     if (isMockMode) {
       const mockUser = mockUsers.find(u => u.email === email) || mockUsers[0];
       setUser(mockUser);
       localStorage.setItem('vivelo-mock-role', mockUser.role);
-      return;
+      return mockUser;
     }
 
     const { createClient } = await import('@/lib/supabase/client');
@@ -82,7 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('id', authUser.id)
         .single();
       setUser(profile);
+      return profile;
     }
+    return null;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string, role: UserRole, phone?: string) => {
