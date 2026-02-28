@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 const publicPaths = ['/', '/login', '/register', '/home', '/search', '/services', '/servicios', '/carrito', '/checkout', '/api/stripe/webhook'];
 
@@ -7,6 +8,34 @@ function isPublicPath(pathname: string): boolean {
   return publicPaths.some(path =>
     pathname === path || pathname.startsWith(path + '/')
   );
+}
+
+function updateSessionWithRewrite(request: NextRequest, rewriteUrl: URL) {
+  let response = NextResponse.rewrite(rewriteUrl, { request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.rewrite(rewriteUrl, { request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // This refreshes the session if needed
+  return supabase.auth.getUser().then(() => response);
 }
 
 export async function middleware(request: NextRequest) {
@@ -30,10 +59,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    // Rewrite to /admin-portal/*
+    // Rewrite to /admin-portal/* with Supabase session refresh
     const url = request.nextUrl.clone();
     url.pathname = `/admin-portal${pathname}`;
-    const response = NextResponse.rewrite(url);
+
+    const isMockMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
+
+    if (isMockMode) {
+      const response = NextResponse.rewrite(url);
+      response.headers.set('x-admin-portal', '1');
+      return response;
+    }
+
+    const response = await updateSessionWithRewrite(request, url);
     response.headers.set('x-admin-portal', '1');
     return response;
   }
