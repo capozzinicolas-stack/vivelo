@@ -64,6 +64,12 @@ export default function CheckoutPage() {
     }
   }, [items, clientSecret]);
 
+  // Pre-fill referral code from localStorage
+  useEffect(() => {
+    const storedRef = localStorage.getItem('vivelo-referral-code');
+    if (storedRef) setReferralCode(storedRef);
+  }, []);
+
   // Track begin checkout + load cross-sell
   useEffect(() => {
     if (user && items.length > 0) {

@@ -937,6 +937,7 @@ export async function getReviewsByProvider(providerId: string): Promise<Review[]
     .from('reviews')
     .select('*, client:profiles!client_id(full_name, avatar_url)')
     .in('service_id', serviceIds)
+    .eq('status', 'approved')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -1523,12 +1524,29 @@ export async function getReviewsByService(serviceId: string): Promise<Review[]> 
     .from('reviews')
     .select('*, client:profiles!client_id(*)')
     .eq('service_id', serviceId)
+    .eq('status', 'approved')
     .order('created_at', { ascending: false });
   if (error) {
     console.warn('[getReviewsByService] Query failed:', error.message);
     return [];
   }
   return (data || []) as unknown as Review[];
+}
+
+export async function getReviewByBooking(bookingId: string): Promise<Review | null> {
+  if (isMockMode()) return null;
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .maybeSingle();
+  if (error) {
+    console.warn('[getReviewByBooking] Query failed:', error.message);
+    return null;
+  }
+  return data as unknown as Review | null;
 }
 
 export async function getRelatedServices(categoryIds: string[], excludeIds: string[], limit = 4): Promise<Service[]> {

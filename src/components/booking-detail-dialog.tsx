@@ -11,7 +11,8 @@ import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { updateBookingStatus } from '@/lib/supabase/queries';
 import { calculateRefund } from '@/lib/cancellation';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, Clock, MapPin, Users, Mail, PartyPopper, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { CalendarDays, Clock, MapPin, Users, Mail, PartyPopper, Loader2, ShieldCheck } from 'lucide-react';
 import type { Booking, BookingStatus, CancellationPolicy, CancellationRule } from '@/types/database';
 
 interface BookingDetailDialogProps {
@@ -30,6 +31,8 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
   const [cancelling, setCancelling] = useState(false);
 
   const [policyName, setPolicyName] = useState<string | null>(null);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
 
   // Recalculate refund preview when cancel dialog opens
   useEffect(() => {
@@ -112,6 +115,31 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
       });
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleVerifyCode = async (type: 'start' | 'end') => {
+    if (!verifyCode || verifyCode.length !== 6) {
+      toast({ title: 'Error', description: 'Ingresa un codigo de 6 digitos.', variant: 'destructive' });
+      return;
+    }
+    setVerifyLoading(true);
+    try {
+      const res = await fetch('/api/bookings/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: booking.id, code: verifyCode, type }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al verificar codigo');
+      toast({ title: 'Verificado', description: data.message });
+      onStatusChange?.(booking.id, data.newStatus);
+      setVerifyCode('');
+      onOpenChange(false);
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Codigo incorrecto', variant: 'destructive' });
+    } finally {
+      setVerifyLoading(false);
     }
   };
 
@@ -266,6 +294,72 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
                 <div>
                   <p className="text-sm font-medium mb-1">Notas</p>
                   <p className="text-sm text-muted-foreground">{booking.notes}</p>
+                </div>
+              </>
+            )}
+
+            {/* Verification code: Provider enters start code */}
+            {role === 'provider' && booking.status === 'confirmed' && booking.start_code && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-purple-600" />
+                    <p className="text-sm font-medium">Verificacion de llegada</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Solicita al cliente el codigo de inicio para confirmar tu llegada al evento.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Codigo de 6 digitos"
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      className="font-mono text-center text-lg tracking-widest"
+                    />
+                    <Button
+                      onClick={() => handleVerifyCode('start')}
+                      disabled={verifyLoading || verifyCode.length !== 6}
+                      className="bg-purple-600 hover:bg-purple-700 text-white shrink-0"
+                    >
+                      {verifyLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Verification code: Client enters end code */}
+            {role === 'client' && booking.status === 'in_progress' && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-purple-600" />
+                    <p className="text-sm font-medium">Confirmar servicio completado</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ingresa tu codigo de cierre para confirmar que el servicio se completo correctamente.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Codigo de 6 digitos"
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      className="font-mono text-center text-lg tracking-widest"
+                    />
+                    <Button
+                      onClick={() => handleVerifyCode('end')}
+                      disabled={verifyLoading || verifyCode.length !== 6}
+                      className="bg-purple-600 hover:bg-purple-700 text-white shrink-0"
+                    >
+                      {verifyLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                      Confirmar
+                    </Button>
+                  </div>
                 </div>
               </>
             )}

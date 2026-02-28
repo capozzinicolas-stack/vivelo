@@ -33,7 +33,7 @@ export interface CatalogZone {
   is_active: boolean;
 }
 export type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
-export type BookingStatus = 'pending' | 'confirmed' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
+export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
 export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded';
 export type GoogleSyncStatus = 'active' | 'error' | 'disconnected';
@@ -180,6 +180,12 @@ export interface Booking {
   campaign_id?: string | null;
   discount_amount?: number;
   discount_pct?: number;
+  start_code?: string | null;
+  end_code?: string | null;
+  start_code_used_at?: string | null;
+  end_code_used_at?: string | null;
+  end_code_deadline?: string | null;
+  auto_completed?: boolean;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -255,6 +261,8 @@ export interface AvailabilityCheckResult {
   has_calendar_block: boolean;
 }
 
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
 export interface Review {
   id: string;
   service_id: string;
@@ -262,9 +270,17 @@ export interface Review {
   booking_id: string | null;
   rating: number;
   comment: string | null;
+  status: ReviewStatus;
+  photos: string[];
+  videos: string[];
+  admin_notes: string | null;
+  moderated_at: string | null;
+  moderated_by: string | null;
+  created_by_admin: boolean;
   created_at: string;
   // Joined data
   client?: Profile;
+  service?: Service;
 }
 
 export interface FeaturedPlacement {

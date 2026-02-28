@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookingDetailDialog } from '@/components/booking-detail-dialog';
-import { Loader2, List, FolderOpen, ShoppingCart } from 'lucide-react';
+import { CreateReviewDialog } from '@/components/dashboard/create-review-dialog';
+import { Loader2, List, FolderOpen, ShoppingCart, Star } from 'lucide-react';
 import type { Booking } from '@/types/database';
 
 const statusTabs = ['all', 'pending', 'confirmed', 'completed', 'cancelled'] as const;
@@ -26,6 +27,9 @@ export default function ClienteReservasPage() {
   const [viewMode, setViewMode] = useState<'list' | 'event'>('list');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -85,11 +89,12 @@ export default function ClienteReservasPage() {
                     <TableHead>Invitados</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Total</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 && filteredCartItems.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay reservas</TableCell></TableRow>
                   ) : (
                     <>
                       {filteredCartItems.map((item) => (
@@ -103,6 +108,7 @@ export default function ClienteReservasPage() {
                           <TableCell>{item.guest_count}</TableCell>
                           <TableCell><Badge className="bg-amber-100 text-amber-800 border-amber-300">En carrito</Badge></TableCell>
                           <TableCell className="text-right font-medium">${item.total.toLocaleString()}</TableCell>
+                          <TableCell></TableCell>
                         </TableRow>
                       ))}
                       {filtered.map((b) => (
@@ -117,6 +123,17 @@ export default function ClienteReservasPage() {
                           <TableCell>{b.guest_count}</TableCell>
                           <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
                           <TableCell className="text-right font-medium">${b.total.toLocaleString()}</TableCell>
+                          <TableCell>
+                            {b.status === 'completed' && !reviewedBookingIds.has(b.id) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); setReviewBooking(b); setReviewDialogOpen(true); }}
+                              >
+                                <Star className="h-3.5 w-3.5 mr-1" />Dejar Review
+                              </Button>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </>
@@ -180,6 +197,15 @@ export default function ClienteReservasPage() {
                             <div className="flex items-center gap-2">
                               <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>
                               <span className="font-medium text-sm">${b.total.toLocaleString()}</span>
+                              {b.status === 'completed' && !reviewedBookingIds.has(b.id) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); setReviewBooking(b); setReviewDialogOpen(true); }}
+                                >
+                                  <Star className="h-3 w-3 mr-1" />Review
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -202,6 +228,18 @@ export default function ClienteReservasPage() {
           setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
         }}
       />
+
+      {reviewBooking && (
+        <CreateReviewDialog
+          bookingId={reviewBooking.id}
+          serviceTitle={reviewBooking.service?.title || 'Servicio'}
+          open={reviewDialogOpen}
+          onOpenChange={setReviewDialogOpen}
+          onReviewCreated={() => {
+            setReviewedBookingIds(prev => { const next = new Set(Array.from(prev)); next.add(reviewBooking.id); return next; });
+          }}
+        />
+      )}
     </div>
   );
 }

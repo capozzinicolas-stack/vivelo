@@ -21,6 +21,7 @@ import {
   FileText,
   Bell,
   Store,
+  Star,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -29,6 +30,7 @@ const adminNavItems = [
   { label: 'Proveedores', href: '/dashboard/proveedores', icon: Store },
   { label: 'Servicios', href: '/dashboard/servicios', icon: ShieldCheck },
   { label: 'Reservas', href: '/dashboard/reservas', icon: CalendarCheck },
+  { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
   { label: 'Finanzas', href: '/dashboard/finanzas', icon: DollarSign },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Contenido', href: '/dashboard/contenido', icon: FileText },

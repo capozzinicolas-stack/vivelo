@@ -2,7 +2,8 @@ import type { BookingStatus } from '@/types/database';
 
 const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   pending: ['confirmed', 'cancelled', 'rejected'],
-  confirmed: ['in_review', 'completed', 'cancelled'],
+  confirmed: ['in_progress', 'in_review', 'completed', 'cancelled'],
+  in_progress: ['completed', 'cancelled'],
   in_review: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],

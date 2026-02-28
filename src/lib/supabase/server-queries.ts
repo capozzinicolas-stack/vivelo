@@ -123,6 +123,7 @@ export async function getReviewsByServiceServer(serviceId: string): Promise<Arra
     .from('reviews')
     .select('*, client:profiles!client_id(*)')
     .eq('service_id', serviceId)
+    .eq('status', 'approved')
     .order('created_at', { ascending: false });
   if (error) {
     console.warn('[getReviewsByServiceServer] Query failed:', error.message);

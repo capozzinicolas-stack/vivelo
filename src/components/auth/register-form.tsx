@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/types/database';
@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Store } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Users, Store, Gift } from 'lucide-react';
 import Link from 'next/link';
 
 export function RegisterForm() {
@@ -19,10 +20,23 @@ export function RegisterForm() {
   const [role, setRole] = useState<UserRole>('client');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
   const { signUp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
+
+  // Capture ?ref= param and store in localStorage
+  useEffect(() => {
+    const refParam = searchParams.get('ref');
+    if (refParam) {
+      setReferralCode(refParam);
+      localStorage.setItem('vivelo-referral-code', refParam);
+    } else {
+      const stored = localStorage.getItem('vivelo-referral-code');
+      if (stored) setReferralCode(stored);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +52,22 @@ export function RegisterForm() {
 
     try {
       await signUp(email, password, fullName, role, digitsOnly);
+
+      // Apply referral code after successful signup
+      const storedRef = localStorage.getItem('vivelo-referral-code');
+      if (storedRef) {
+        try {
+          await fetch('/api/referrals/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: storedRef, referredUserId: email }),
+          });
+          localStorage.removeItem('vivelo-referral-code');
+        } catch {
+          // Non-blocking: referral apply failure shouldn't block registration
+        }
+      }
+
       router.push(redirectTo || '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
@@ -57,6 +87,12 @@ export function RegisterForm() {
           {error && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
               {error}
+            </div>
+          )}
+          {referralCode && (
+            <div className="flex items-center gap-2 bg-green-50 text-green-700 text-sm p-3 rounded-md">
+              <Gift className="h-4 w-4" />
+              Codigo de referido activo: <Badge variant="secondary" className="font-mono">{referralCode}</Badge>
             </div>
           )}
           <div className="space-y-2">

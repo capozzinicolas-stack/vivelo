@@ -9,13 +9,14 @@ import type { UserRole } from '@/types/database';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell, Store } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell, Store, Gift } from 'lucide-react';
 
 const navByRole: Record<UserRole, { label: string; href: string; icon: React.ElementType }[]> = {
   client: [
     { label: 'Resumen', href: '/dashboard/cliente', icon: LayoutDashboard },
     { label: 'Mis Reservas', href: '/dashboard/cliente/reservas', icon: CalendarCheck },
     { label: 'Mi Perfil', href: '/dashboard/cliente/perfil', icon: UserCircle },
+    { label: 'Referidos', href: '/dashboard/cliente/referidos', icon: Gift },
   ],
   provider: [
     { label: 'Resumen', href: '/dashboard/proveedor', icon: LayoutDashboard },
@@ -25,6 +26,7 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
     { label: 'Campanas', href: '/dashboard/proveedor/campanas', icon: Megaphone },
     { label: 'Notificaciones', href: '/dashboard/proveedor/notificaciones', icon: Bell },
     { label: 'Mi Perfil', href: '/dashboard/proveedor/perfil', icon: UserCircle },
+    { label: 'Referidos', href: '/dashboard/proveedor/referidos', icon: Gift },
     { label: 'Configuracion', href: '/dashboard/proveedor/configuracion', icon: Settings },
   ],
   admin: [

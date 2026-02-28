@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
 import { updateProfile, updateProviderBanking } from '@/lib/supabase/queries';
 import { uploadProfilePicture, uploadDocument } from '@/lib/supabase/storage';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Camera, Save, Upload, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, Camera, Save, Upload, CheckCircle, XCircle, Clock, AlertTriangle, Copy, Share2, Gift } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import type { BankingStatus } from '@/types/database';
 
 const BANKING_STATUS_CONFIG: Record<BankingStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -28,6 +30,7 @@ function maskClabe(clabe: string): string {
 
 export default function ProveedorPerfilPage() {
   const { user, isMockMode, updateUser } = useAuthContext();
+  const { toast } = useToast();
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -45,6 +48,32 @@ export default function ProveedorPerfilPage() {
   const [error, setError] = useState('');
   const [bankingMessage, setBankingMessage] = useState('');
   const [bankingError, setBankingError] = useState('');
+  const [myReferralCode, setMyReferralCode] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    async function loadReferralCode() {
+      const supabase = createClient();
+      const { data: codes } = await supabase
+        .from('referral_codes')
+        .select('code')
+        .eq('user_id', user!.id)
+        .eq('is_active', true)
+        .limit(1);
+      if (codes && codes.length > 0) {
+        setMyReferralCode(codes[0].code);
+      } else {
+        const code = `VIVELO-${user!.id.slice(0, 6).toUpperCase()}`;
+        const { data: newCode } = await supabase
+          .from('referral_codes')
+          .insert({ user_id: user!.id, code })
+          .select('code')
+          .single();
+        if (newCode) setMyReferralCode(newCode.code);
+      }
+    }
+    loadReferralCode();
+  }, [user]);
 
   if (!user) return null;
 
@@ -295,6 +324,40 @@ export default function ProveedorPerfilPage() {
           )}
         </CardContent>
       </Card>
+
+      {myReferralCode && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-gold" />
+              Tu Codigo de Referido
+            </CardTitle>
+            <CardDescription>Comparte tu codigo y gana recompensas cuando tus referidos reserven.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <Input value={myReferralCode} readOnly className="font-mono font-bold text-center" />
+              <Button variant="outline" size="icon" onClick={() => {
+                navigator.clipboard.writeText(myReferralCode);
+                toast({ title: 'Codigo copiado', description: 'Tu codigo de referido ha sido copiado al portapapeles.' });
+              }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={() => {
+                const shareUrl = `https://solovivelo.com/register?ref=${myReferralCode}`;
+                if (navigator.share) {
+                  navigator.share({ title: 'Vivelo', text: `Usa mi codigo ${myReferralCode} para un descuento!`, url: shareUrl });
+                } else {
+                  navigator.clipboard.writeText(shareUrl);
+                  toast({ title: 'Link copiado', description: 'El enlace de referido ha sido copiado.' });
+                }
+              }}>
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -3,6 +3,14 @@
     {
       "path": "/api/google-calendar/cron-sync",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/send-event-codes",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/auto-complete",
+      "schedule": "0 14 * * *"
     }
   ]
 }
