@@ -32,7 +32,7 @@ export default function AdminUsuariosPage() {
 
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, email, full_name, avatar_url, role, phone, company_name, bio, verified, max_concurrent_services, apply_buffers_to_all, global_buffer_before_minutes, global_buffer_after_minutes, banking_status, default_cancellation_policy_id, created_at, updated_at')
+          .select('id, email, full_name, role, verified, created_at')
           .order('created_at', { ascending: false });
 
         if (error) {
