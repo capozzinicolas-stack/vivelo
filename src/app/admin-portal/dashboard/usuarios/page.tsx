@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,21 +24,34 @@ export default function AdminUsuariosPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetch('/api/admin/users')
-      .then(async res => {
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          console.error('[AdminUsuarios] API error:', res.status, body);
-          throw new Error(body.error || `HTTP ${res.status}`);
+    const loadUsers = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('[AdminUsuarios] Auth user:', user?.id, user?.email);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, avatar_url, role, phone, company_name, bio, verified, max_concurrent_services, apply_buffers_to_all, global_buffer_before_minutes, global_buffer_after_minutes, banking_status, default_cancellation_policy_id, created_at, updated_at')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('[AdminUsuarios] Supabase query error:', error);
+          toast({ title: 'Error al cargar usuarios', description: error.message, variant: 'destructive' });
+          return;
         }
-        return res.json();
-      })
-      .then(setUsers)
-      .catch(err => {
-        console.error('[AdminUsuarios] Error fetching users:', err);
-        toast({ title: 'Error al cargar usuarios', description: err.message, variant: 'destructive' });
-      })
-      .finally(() => setLoading(false));
+
+        console.log('[AdminUsuarios] Loaded profiles:', data?.length);
+        setUsers((data || []) as unknown as Profile[]);
+      } catch (err) {
+        console.error('[AdminUsuarios] Exception:', err);
+        toast({ title: 'Error al cargar usuarios', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
   }, [toast]);
 
   useEffect(() => { setPage(1); }, [tab]);
@@ -47,12 +61,9 @@ export default function AdminUsuariosPage() {
 
   const handleVerify = async (id: string, verified: boolean) => {
     try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, verified }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const supabase = createClient();
+      const { error } = await supabase.from('profiles').update({ verified }).eq('id', id);
+      if (error) throw error;
       setUsers(prev => prev.map(u => u.id === id ? { ...u, verified } : u));
       toast({ title: verified ? 'Usuario verificado' : 'Verificacion removida' });
     } catch {
@@ -62,12 +73,9 @@ export default function AdminUsuariosPage() {
 
   const handleRoleChange = async (id: string, role: UserRole) => {
     try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, role }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const supabase = createClient();
+      const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
+      if (error) throw error;
       setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
       toast({ title: `Rol cambiado a ${role}` });
     } catch {
