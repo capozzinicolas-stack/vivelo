@@ -6,9 +6,11 @@ import {
   getActiveCampaignsWithServicesServer,
   getActiveShowcaseItemsServer,
   getActiveSiteBannersServer,
+  getNewServicesServer,
+  getTopRatedServicesServer,
 } from '@/lib/supabase/server-queries';
 import { HomepageClient } from '@/components/homepage/homepage-client';
-import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner } from '@/types/database';
+import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
 
 export const metadata: Metadata = {
   openGraph: {
@@ -27,15 +29,19 @@ export default async function Home() {
   let campaignsWithServices: (Campaign & { subscriptions: CampaignSubscription[] })[] = [];
   let showcaseItems: ShowcaseItem[] = [];
   let siteBanners: SiteBanner[] = [];
+  let newServices: Service[] = [];
+  let topRatedServices: Service[] = [];
 
   try {
-    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners] = await Promise.all([
+    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners, newServices, topRatedServices] = await Promise.all([
       getFeaturedPlacementsServer('servicios_destacados'),
       getPublishedBlogPostsServer(),
       getActiveFeaturedProvidersServer(),
       getActiveCampaignsWithServicesServer(),
       getActiveShowcaseItemsServer(),
       getActiveSiteBannersServer(),
+      getNewServicesServer(),
+      getTopRatedServicesServer(),
     ]);
   } catch (error) {
     console.error('[Homepage] Error loading data:', error);
@@ -79,6 +85,8 @@ export default async function Home() {
         campaignsWithServices={campaignsWithServices}
         showcaseItems={showcaseItems}
         siteBanners={siteBanners}
+        newServices={newServices}
+        topRatedServices={topRatedServices}
       />
     </>
   );

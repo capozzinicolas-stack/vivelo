@@ -206,3 +206,37 @@ export async function getActiveSiteBannersServer(): Promise<SiteBanner[]> {
   }
   return data || [];
 }
+
+export async function getNewServicesServer(days = 15): Promise<Service[]> {
+  const supabase = createServerSupabaseClient();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, provider:profiles!provider_id(*)')
+    .eq('status', 'active')
+    .gte('created_at', cutoff.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) {
+    console.warn('[getNewServicesServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getTopRatedServicesServer(limit = 20): Promise<Service[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, provider:profiles!provider_id(*)')
+    .eq('status', 'active')
+    .gt('review_count', 0)
+    .order('avg_rating', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[getTopRatedServicesServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}

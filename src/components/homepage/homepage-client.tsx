@@ -7,13 +7,15 @@ import { HomeSearchBar } from '@/components/home-search-bar';
 import { MobileCategoryBar } from '@/components/homepage/mobile-category-bar';
 import { CashbackBanner } from '@/components/homepage/cashback-banner';
 import { FeaturedServicesSection } from '@/components/homepage/featured-services-section';
+import { NewServicesSection } from '@/components/homepage/new-services-section';
 import { SubcategoryShowcaseSection } from '@/components/homepage/subcategory-showcase-section';
 import { CategoriesShowcaseSection } from '@/components/homepage/categories-showcase-section';
 import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
+import { TopRatedSection } from '@/components/homepage/top-rated-section';
 import { CampaignOffersSection } from '@/components/homepage/campaign-offers-section';
 import { useUtmCapture } from '@/hooks/use-utm-capture';
-import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner } from '@/types/database';
+import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
 
 interface HomepageClientProps {
   featuredPlacements: FeaturedPlacement[];
@@ -22,6 +24,8 @@ interface HomepageClientProps {
   campaignsWithServices: (Campaign & { subscriptions: CampaignSubscription[] })[];
   showcaseItems: ShowcaseItem[];
   siteBanners: SiteBanner[];
+  newServices: Service[];
+  topRatedServices: Service[];
 }
 
 export function HomepageClient({
@@ -31,6 +35,8 @@ export function HomepageClient({
   campaignsWithServices,
   showcaseItems,
   siteBanners,
+  newServices,
+  topRatedServices,
 }: HomepageClientProps) {
   useUtmCapture();
 
@@ -59,28 +65,34 @@ export function HomepageClient({
         </div>
       </section>
 
-      {/* Mobile: horizontal category bar */}
+      {/* 3. Mobile: horizontal category bar */}
       <MobileCategoryBar />
 
-      {/* 3. Recomendados (featured services carousel) */}
+      {/* 4. Recomendados (featured services carousel) */}
       <FeaturedServicesSection placements={featuredPlacements} loading={false} />
 
-      {/* 4. Los mejores servicios para tu evento (subcategory showcase) */}
+      {/* 5. Recien Llegados */}
+      <NewServicesSection services={newServices} loading={false} />
+
+      {/* 6. Los mejores servicios para tu evento (subcategory showcase) */}
       <SubcategoryShowcaseSection items={showcaseItems} promoBanner={siteBanners.find(b => b.banner_key === 'showcase_promo') ?? null} />
 
-      {/* 5. Categorias Destacadas */}
+      {/* 7. Categorias Destacadas */}
       <CategoriesShowcaseSection />
 
-      {/* 6. Proveedores Destacados */}
+      {/* 8. Proveedores Destacados */}
       <FeaturedProvidersSection providers={featuredProviders} loading={false} />
 
-      {/* 7. Ofertas de la semana */}
+      {/* 9. Los Mas Recomendados */}
+      <TopRatedSection services={topRatedServices} loading={false} />
+
+      {/* 10. Ofertas de la semana */}
       <CampaignOffersSection campaigns={campaignsWithServices} loading={false} />
 
-      {/* 8. Blog - Todo sobre el mundo de eventos */}
+      {/* 11. Blog - Todo sobre el mundo de eventos */}
       <BlogSection posts={blogPosts} loading={false} />
 
-      {/* 9. CTA Proveedor */}
+      {/* 12. CTA Proveedor */}
       <section className="bg-gradient-to-r from-deep-purple to-indigo-800 text-white py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Eres proveedor de servicios?</h2>
