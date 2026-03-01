@@ -45,8 +45,9 @@ function DetailItem({
   field: CategoryFieldConfig;
   value: unknown;
 }) {
+  const fullWidth = field.type === 'text_long' || field.type === 'matrix_select';
   return (
-    <div className={field.type === 'text_long' ? 'md:col-span-2' : ''}>
+    <div className={fullWidth ? 'md:col-span-2' : ''}>
       <p className="text-sm font-medium text-muted-foreground">{field.label}</p>
       <div className="mt-1">
         <DetailValue field={field} value={value} />
@@ -102,6 +103,44 @@ function DetailValue({
         <p className="text-sm">
           {val.enabled ? `Si (${val.count})` : 'No'}
         </p>
+      );
+    }
+
+    case 'matrix_select': {
+      const matrix = value as Record<string, string> | null;
+      if (!matrix || Object.keys(matrix).length === 0) return null;
+      const columns = field.columns || Object.keys(matrix);
+      const filledCols = columns.filter((col) => matrix[col]);
+      if (filledCols.length === 0) return null;
+      return (
+        <div className="overflow-x-auto border rounded-md">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                  {field.columnLabel || ''}
+                </th>
+                {filledCols.map((col) => (
+                  <th key={col} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="px-3 py-2 text-xs font-medium text-muted-foreground">Platillos</td>
+                {filledCols.map((col) => (
+                  <td key={col} className="px-3 py-2 text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {matrix[col]}
+                    </Badge>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       );
     }
 

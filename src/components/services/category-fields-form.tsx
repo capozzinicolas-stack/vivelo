@@ -144,6 +144,9 @@ function FieldRenderer({
     case 'switch_number':
       return <SwitchNumberField field={field} value={value} onChange={onChange} />;
 
+    case 'matrix_select':
+      return <MatrixSelectField field={field} value={value} onChange={onChange} />;
+
     default:
       return null;
   }
@@ -339,6 +342,71 @@ function SwitchNumberField({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function MatrixSelectField({
+  field,
+  value,
+  onChange,
+}: {
+  field: CategoryFieldConfig;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const columns = field.columns || [];
+  const rows = field.rows || [];
+  const matrix = (value as Record<string, string>) || {};
+
+  const setCell = (col: string, row: string) => {
+    onChange({ ...matrix, [col]: row });
+  };
+
+  return (
+    <div>
+      <Label>{field.label}</Label>
+      <p className="text-xs text-muted-foreground mt-1 mb-2">{field.instruction}</p>
+      <div className="overflow-x-auto border rounded-md">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                {field.columnLabel || ''}
+              </th>
+              {columns.map((col) => (
+                <th key={col} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="px-3 py-2 text-xs font-medium text-muted-foreground">Platillos</td>
+              {columns.map((col) => (
+                <td key={col} className="px-3 py-2">
+                  <Select
+                    value={matrix[col] || ''}
+                    onValueChange={(v) => setCell(col, v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs min-w-[100px]">
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rows.map((row) => (
+                        <SelectItem key={row} value={row}>
+                          {row}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
