@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
+import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import type { ServiceCategory, ServiceSubcategory, ServiceStatus, Extra, CancellationPolicy } from '@/types/database';
 
 const statusOptions: { value: ServiceStatus; label: string }[] = [
@@ -62,6 +63,7 @@ export default function AdminEditarServicioPage() {
   const [newExtraMaxQty, setNewExtraMaxQty] = useState('');
   const [newExtraDependsGuests, setNewExtraDependsGuests] = useState(false);
   const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
+  const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
   const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
 
@@ -101,6 +103,7 @@ export default function AdminEditarServicioPage() {
       setBaseEventHours(s.base_event_hours?.toString() || '');
       setServiceExtras(s.extras || []);
       setCancellationPolicyId(s.cancellation_policy_id || '');
+      setCategoryDetails(s.category_details || {});
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -153,6 +156,7 @@ export default function AdminEditarServicioPage() {
       if (sku) updateData.sku = sku;
       if (!isPerHour && baseEventHours) updateData.base_event_hours = parseFloat(baseEventHours);
       if (cancellationPolicyId) updateData.cancellation_policy_id = cancellationPolicyId;
+      if (Object.keys(categoryDetails).length > 0) updateData.category_details = categoryDetails;
       await updateService(id, updateData);
       await updateServiceStatus(id, status);
       toast({ title: 'Servicio actualizado!' });
@@ -306,6 +310,19 @@ export default function AdminEditarServicioPage() {
             )}
           </CardContent>
         </Card>
+
+        {category && (
+          <Card>
+            <CardHeader><CardTitle>Detalles del Servicio</CardTitle></CardHeader>
+            <CardContent>
+              <CategoryFieldsForm
+                category={category as ServiceCategory}
+                values={categoryDetails}
+                onChange={setCategoryDetails}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader><CardTitle>Tiempos de Preparacion</CardTitle></CardHeader>
