@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/types/database';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 interface AuthGuardProps {
@@ -13,13 +12,12 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children, allowedRoles, fallback }: AuthGuardProps) {
   const { user, loading } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      window.location.href = '/login';
     }
-  }, [user, loading, router]);
+  }, [user, loading]);
 
   if (loading) {
     return fallback || (

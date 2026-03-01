@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/types/database';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,6 @@ export function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
   const { signUp } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
 
@@ -68,7 +67,7 @@ export function RegisterForm() {
         }
       }
 
-      router.push(redirectTo || '/dashboard');
+      window.location.href = redirectTo || '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
     } finally {

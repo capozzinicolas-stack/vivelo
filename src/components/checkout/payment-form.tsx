@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +13,6 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ bookingId, amount }: PaymentFormProps) {
-  const router = useRouter();
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
 
@@ -32,7 +30,7 @@ export function PaymentForm({ bookingId, amount }: PaymentFormProps) {
 
       // Mock: simulate success
       setStatus('success');
-      setTimeout(() => router.push('/dashboard/cliente/reservas'), 2000);
+      setTimeout(() => { window.location.href = '/dashboard/cliente/reservas'; }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al procesar pago');
       setStatus('error');
