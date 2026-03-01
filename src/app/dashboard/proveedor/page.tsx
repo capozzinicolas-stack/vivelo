@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getProviderStats, getReviewsByProvider, getProfileById } from '@/lib/supabase/queries';
+import { getProviderStats, getReviewsByProvider, getServicesByProvider, getCategoryCommissionRates } from '@/lib/supabase/queries';
+import { calculateWeightedAvgCommission } from '@/lib/commission';
 import { COMMISSION_RATE, BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { Package, CalendarCheck, DollarSign, Star, Plus, Loader2 } from 'lucide-react';
 import type { Booking, BookingStatus, Review } from '@/types/database';
@@ -32,9 +33,11 @@ export default function ProveedorDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getProviderStats(user.id), getProfileById(user.id)]).then(([s, profile]) => {
+    Promise.all([getProviderStats(user.id), getServicesByProvider(user.id), getCategoryCommissionRates()]).then(([s, services, categoryRates]) => {
       setStats(s);
-      if (profile?.commission_rate) setCommissionRate(profile.commission_rate);
+      const activeServices = services.filter(svc => svc.status === 'active');
+      const avgRate = calculateWeightedAvgCommission(activeServices, categoryRates);
+      setCommissionRate(avgRate);
     }).finally(() => setLoading(false));
   }, [user]);
 

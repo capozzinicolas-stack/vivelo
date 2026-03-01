@@ -13,7 +13,7 @@ import { getServiceById } from '@/lib/supabase/queries';
 import { ServiceCard } from '@/components/services/service-card';
 import { COMMISSION_RATE } from '@/lib/constants';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
-import { getProviderCommissionRate, calculateCommission } from '@/lib/commission';
+import { getCategoryCommissionRate, calculateCommission } from '@/lib/commission';
 import { useCatalog } from '@/providers/catalog-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -211,9 +211,9 @@ export default function CheckoutPage() {
         bufferAfterMinutes: buffers.bufferAfterMinutes,
       });
 
-      // Get per-provider commission rate (falls back to COMMISSION_RATE)
-      const providerRate = await getProviderCommissionRate(item.service_snapshot.provider_id);
-      let itemCommission = calculateCommission(item.total, providerRate);
+      // Get per-category commission rate (falls back to COMMISSION_RATE)
+      const categoryRate = await getCategoryCommissionRate(item.service_snapshot.category);
+      let itemCommission = calculateCommission(item.total, categoryRate);
 
       // Snapshot the cancellation policy at purchase time
       let cancellation_policy_snapshot: Record<string, unknown> | null = null;
@@ -248,7 +248,7 @@ export default function CheckoutPage() {
 
           // Adjust commission with campaign's commission_reduction_pct
           if (campaign.commission_reduction_pct > 0) {
-            const adjustedRate = Math.max(0, providerRate - (campaign.commission_reduction_pct / 100));
+            const adjustedRate = Math.max(0, categoryRate - (campaign.commission_reduction_pct / 100));
             itemCommission = calculateCommission(bookingTotal, adjustedRate);
           }
         }
@@ -266,7 +266,7 @@ export default function CheckoutPage() {
         base_total: item.base_total,
         extras_total: item.extras_total,
         commission: itemCommission,
-        commission_rate_snapshot: providerRate,
+        commission_rate_snapshot: categoryRate,
         total: bookingTotal,
         selected_extras: item.selected_extras.map(ext => ({
           extra_id: ext.extra_id,

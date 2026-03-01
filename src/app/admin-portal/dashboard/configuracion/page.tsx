@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { COMMISSION_RATE } from '@/lib/constants';
-import { getCancellationPolicies, createCancellationPolicy, updateCancellationPolicy, deleteCancellationPolicy, getProvidersWithCommission } from '@/lib/supabase/queries';
+import { getCancellationPolicies, createCancellationPolicy, updateCancellationPolicy, deleteCancellationPolicy } from '@/lib/supabase/queries';
 import { useCatalog } from '@/providers/catalog-provider';
 import { getIcon, availableIcons } from '@/lib/icon-registry';
 import { useToast } from '@/hooks/use-toast';
@@ -55,8 +55,8 @@ export default function AdminConfiguracionPage() {
   const { toast } = useToast();
   const { categories, subcategories, zones, refresh: refreshCatalog } = useCatalog();
   const [policies, setPolicies] = useState<CancellationPolicy[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [commissionStats, setCommissionStats] = useState<{ avg: number; min: number; max: number; count: number }>({ avg: COMMISSION_RATE, min: COMMISSION_RATE, max: COMMISSION_RATE, count: 0 });
 
   // Cancellation policy dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -81,6 +81,7 @@ export default function AdminConfiguracionPage() {
   const [catSkuPrefix, setCatSkuPrefix] = useState('');
   const [catSortOrder, setCatSortOrder] = useState('0');
   const [catIsActive, setCatIsActive] = useState(true);
+  const [catCommissionRate, setCatCommissionRate] = useState('12');
   const [editingCatSlug, setEditingCatSlug] = useState('');
 
   // Subcategory form
@@ -100,16 +101,8 @@ export default function AdminConfiguracionPage() {
 
   const loadPolicies = useCallback(async () => {
     try {
-      const [data, providers] = await Promise.all([getCancellationPolicies(), getProvidersWithCommission()]);
+      const data = await getCancellationPolicies();
       setPolicies(data);
-      if (providers.length > 0) {
-        const rates = providers.map(p => p.commission_rate ?? COMMISSION_RATE);
-        const totalSvc = providers.reduce((s, p) => s + p.service_count, 0);
-        const weightedAvg = totalSvc > 0
-          ? providers.reduce((s, p) => s + (p.commission_rate ?? COMMISSION_RATE) * p.service_count, 0) / totalSvc
-          : rates.reduce((s, r) => s + r, 0) / rates.length;
-        setCommissionStats({ avg: weightedAvg, min: Math.min(...rates), max: Math.max(...rates), count: providers.length });
-      }
     } catch {
       toast({ title: 'Error cargando configuracion', variant: 'destructive' });
     } finally {
@@ -193,6 +186,7 @@ export default function AdminConfiguracionPage() {
     if (type === 'category') {
       setCatSlug(''); setCatLabel(''); setCatDescription(''); setCatIcon('Tag');
       setCatColor('bg-gray-100 text-gray-600'); setCatSkuPrefix(''); setCatSortOrder('0'); setCatIsActive(true);
+      setCatCommissionRate('12');
     } else if (type === 'subcategory') {
       setSubSlug(''); setSubLabel(''); setSubCategorySlug(categories[0]?.slug || '');
       setSubSortOrder('0'); setSubIsActive(true);
@@ -206,6 +200,7 @@ export default function AdminConfiguracionPage() {
     setEditingCatSlug(cat.slug); setCatSlug(cat.slug); setCatLabel(cat.label);
     setCatDescription(cat.description); setCatIcon(cat.icon); setCatColor(cat.color);
     setCatSkuPrefix(cat.sku_prefix); setCatSortOrder(cat.sort_order.toString()); setCatIsActive(cat.is_active);
+    setCatCommissionRate(((cat.commission_rate ?? 0.12) * 100).toString());
   };
 
   const openEditSubcategory = (sub: CatalogSubcategory) => {
@@ -233,7 +228,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch(`/api/admin/catalog/${editingCatSlug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'category', data: { label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive } }),
+            body: JSON.stringify({ type: 'category', data: { label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100 } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         } else {
@@ -241,7 +236,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch('/api/admin/catalog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'category', data: { slug: catSlug, label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive } }),
+            body: JSON.stringify({ type: 'category', data: { slug: catSlug, label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100 } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         }
@@ -332,29 +327,34 @@ export default function AdminConfiguracionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5" /> Comisiones</CardTitle>
-            <CardDescription>Tasas de comision por proveedor — gestionables desde Proveedores</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Percent className="h-5 w-5" /> Comisiones por Categoria</CardTitle>
+            <CardDescription>Cada categoria tiene su propia tasa de comision — editable en el formulario de categoria</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-              <span className="text-sm font-medium">Promedio ponderado</span>
-              <span className="text-2xl font-bold text-primary">{(commissionStats.avg * 100).toFixed(1)}%</span>
+              <span className="text-sm font-medium">Base (default)</span>
+              <span className="text-2xl font-bold text-primary">{(COMMISSION_RATE * 100).toFixed(0)}%</span>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Minima</p>
-                <p className="text-lg font-semibold">{(commissionStats.min * 100).toFixed(1)}%</p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Base (default)</p>
-                <p className="text-lg font-semibold">{(COMMISSION_RATE * 100).toFixed(0)}%</p>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-xs text-muted-foreground">Maxima</p>
-                <p className="text-lg font-semibold">{(commissionStats.max * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">{commissionStats.count} proveedores activos. Gestiona tasas individuales en <a href="/dashboard/proveedores" className="text-primary underline">Proveedores</a>.</p>
+            {categories.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Comision</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories.map(cat => (
+                    <TableRow key={cat.slug}>
+                      <TableCell className="font-medium">{cat.label}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{((cat.commission_rate ?? 0.12) * 100).toFixed(1)}%</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -384,6 +384,7 @@ export default function AdminConfiguracionPage() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>SKU</TableHead>
+                    <TableHead>Comision</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="w-[120px]">Acciones</TableHead>
                   </TableRow>
@@ -401,6 +402,9 @@ export default function AdminConfiguracionPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs">{cat.slug}</TableCell>
                         <TableCell className="font-mono text-xs">{cat.sku_prefix}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{((cat.commission_rate ?? 0.12) * 100).toFixed(1)}%</Badge>
+                        </TableCell>
                         <TableCell>
                           <Switch checked={cat.is_active} onCheckedChange={() => handleToggleActive('category', cat.slug, cat.is_active)} />
                         </TableCell>
@@ -626,6 +630,11 @@ export default function AdminConfiguracionPage() {
                     <Label>Orden</Label>
                     <Input type="number" value={catSortOrder} onChange={e => setCatSortOrder(e.target.value)} className="mt-1" />
                   </div>
+                </div>
+                <div>
+                  <Label>Comision (%)</Label>
+                  <Input type="number" step="0.1" min="0" max="100" value={catCommissionRate} onChange={e => setCatCommissionRate(e.target.value)} placeholder="12" className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">Tasa de comision para esta categoria (ej: 12 = 12%)</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={catIsActive} onCheckedChange={setCatIsActive} />

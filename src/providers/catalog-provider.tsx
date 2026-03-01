@@ -18,6 +18,7 @@ interface CatalogContextValue {
   getCategoryIcon: (slug: string) => LucideIcon;
   getCategoryLabel: (slug: string) => string;
   getCategoryColor: (slug: string) => string;
+  getCategoryCommissionRate: (slug: string) => number;
   refresh: () => Promise<void>;
 }
 
@@ -50,6 +51,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           sku_prefix: c.value === 'FOOD_DRINKS' ? 'FD' : c.value === 'AUDIO' ? 'AU' : c.value === 'DECORATION' ? 'DE' : c.value === 'PHOTO_VIDEO' ? 'PV' : c.value === 'STAFF' ? 'ST' : 'FU',
           sort_order: i + 1,
           is_active: true,
+          commission_rate: 0.12,
         })));
         setSubcategories(staticCats.flatMap((c) =>
           c.subcategories.map((s, j) => ({
@@ -65,6 +67,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           label: z,
           sort_order: i + 1,
           is_active: true,
+          commission_rate: 0.12,
         })));
       }
     } catch {
@@ -80,6 +83,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
         sku_prefix: c.value === 'FOOD_DRINKS' ? 'FD' : c.value === 'AUDIO' ? 'AU' : c.value === 'DECORATION' ? 'DE' : c.value === 'PHOTO_VIDEO' ? 'PV' : c.value === 'STAFF' ? 'ST' : 'FU',
         sort_order: i + 1,
         is_active: true,
+        commission_rate: 0.12,
       })));
       setSubcategories(staticCats.flatMap((c) =>
         c.subcategories.map((s, j) => ({
@@ -138,6 +142,10 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return categoryMap[slug]?.color || 'bg-gray-100 text-gray-600';
   };
 
+  const getCategoryCommissionRate = (slug: string): number => {
+    return categoryMap[slug]?.commission_rate ?? 0.12;
+  };
+
   const value: CatalogContextValue = {
     categories,
     subcategories,
@@ -151,6 +159,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     getCategoryIcon,
     getCategoryLabel,
     getCategoryColor,
+    getCategoryCommissionRate,
     refresh: fetchCatalog,
   };
 

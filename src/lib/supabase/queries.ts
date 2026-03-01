@@ -741,12 +741,12 @@ export async function updateProfileVerified(id: string, verified: boolean): Prom
 
 // ─── ADMIN: Provider Commission ──────────────────────────────
 
-export async function getProvidersWithCommission(): Promise<(Profile & { service_count: number })[]> {
+export async function getProvidersWithCommission(): Promise<(Profile & { service_count: number; services_by_category: Record<string, number> })[]> {
   if (isMockMode()) {
     const { mockUsers } = await import('@/data/mock-users');
     return mockUsers
       .filter(u => u.role === 'provider')
-      .map(u => ({ ...u, commission_rate: 0.12, service_count: 0 }));
+      .map(u => ({ ...u, commission_rate: 0.12, service_count: 0, services_by_category: {} }));
   }
 
   const supabase = createClient();
@@ -758,18 +758,21 @@ export async function getProvidersWithCommission(): Promise<(Profile & { service
 
   if (error) throw error;
 
-  // Get service counts per provider
+  // Get service counts per provider grouped by category
   const providerIds = (data || []).map(p => p.id);
   const serviceCounts: Record<string, number> = {};
+  const servicesByCategory: Record<string, Record<string, number>> = {};
   if (providerIds.length > 0) {
     const { data: services } = await supabase
       .from('services')
-      .select('provider_id')
+      .select('provider_id, category')
       .in('provider_id', providerIds)
       .eq('status', 'active');
     if (services) {
       for (const s of services) {
         serviceCounts[s.provider_id] = (serviceCounts[s.provider_id] || 0) + 1;
+        if (!servicesByCategory[s.provider_id]) servicesByCategory[s.provider_id] = {};
+        servicesByCategory[s.provider_id][s.category] = (servicesByCategory[s.provider_id][s.category] || 0) + 1;
       }
     }
   }
@@ -777,9 +780,30 @@ export async function getProvidersWithCommission(): Promise<(Profile & { service
   return (data || []).map(p => ({
     ...p,
     service_count: serviceCounts[p.id] || 0,
-  })) as unknown as (Profile & { service_count: number })[];
+    services_by_category: servicesByCategory[p.id] || {},
+  })) as unknown as (Profile & { service_count: number; services_by_category: Record<string, number> })[];
 }
 
+/**
+ * Get commission rates for all categories as a map { slug: rate }.
+ */
+export async function getCategoryCommissionRates(): Promise<Record<string, number>> {
+  if (isMockMode()) {
+    return {};
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_categories')
+    .select('slug, commission_rate');
+
+  if (error || !data) return {};
+  return Object.fromEntries(data.map(c => [c.slug, Number(c.commission_rate)]));
+}
+
+/**
+ * @deprecated Commission is now managed per-category via /api/admin/catalog.
+ */
 export async function updateProviderCommissionRate(providerId: string, rate: number): Promise<void> {
   const res = await fetch('/api/admin/providers/commission', {
     method: 'POST',
@@ -2346,6 +2370,7 @@ export async function getCatalogCategories(): Promise<CatalogCategory[]> {
       sku_prefix: c.value === 'FOOD_DRINKS' ? 'FD' : c.value === 'AUDIO' ? 'AU' : c.value === 'DECORATION' ? 'DE' : c.value === 'PHOTO_VIDEO' ? 'PV' : c.value === 'STAFF' ? 'ST' : 'FU',
       sort_order: i + 1,
       is_active: true,
+      commission_rate: 0.12,
     }));
   }
 

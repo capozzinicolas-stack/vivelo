@@ -16,6 +16,7 @@ export interface CatalogCategory {
   sku_prefix: string;
   sort_order: number;
   is_active: boolean;
+  commission_rate: number;
 }
 
 export interface CatalogSubcategory {

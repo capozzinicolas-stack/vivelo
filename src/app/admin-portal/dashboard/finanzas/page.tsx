@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getAllBookings, getProvidersWithCommission } from '@/lib/supabase/queries';
+import { getAllBookings, getProvidersWithCommission, getCategoryCommissionRates } from '@/lib/supabase/queries';
 import { StatsCard } from '@/components/dashboard/stats-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -67,24 +67,36 @@ function capitalize(s: string): string {
 export default function AdminFinanzasPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [providers, setProviders] = useState<(Profile & { service_count: number })[]>([]);
+  const [categoryRates, setCategoryRates] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('all');
   const [sortKey, setSortKey] = useState<MonthlySortKey>('month');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    Promise.all([getAllBookings(), getProvidersWithCommission()]).then(([b, p]) => {
+    Promise.all([getAllBookings(), getProvidersWithCommission(), getCategoryCommissionRates()]).then(([b, p, rates]) => {
       setBookings(b);
       setProviders(p);
+      setCategoryRates(rates);
     }).finally(() => setLoading(false));
   }, []);
 
-  // Weighted average commission
+  // Weighted average commission based on GMV per category * category rate
   const avgCommission = useMemo(() => {
-    const totalSvc = providers.reduce((sum, p) => sum + p.service_count, 0);
-    if (totalSvc === 0) return COMMISSION_RATE;
-    return providers.reduce((sum, p) => sum + (p.commission_rate ?? COMMISSION_RATE) * p.service_count, 0) / totalSvc;
-  }, [providers]);
+    const confirmed = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed');
+    const catGmv: Record<string, number> = {};
+    let totalGmv = 0;
+    confirmed.forEach(b => {
+      const cat = b.service?.category || 'unknown';
+      catGmv[cat] = (catGmv[cat] || 0) + b.total;
+      totalGmv += b.total;
+    });
+    if (totalGmv === 0) return COMMISSION_RATE;
+    return Object.entries(catGmv).reduce((sum, [cat, gmv]) => {
+      const rate = categoryRates[cat] ?? COMMISSION_RATE;
+      return sum + (rate * gmv / totalGmv);
+    }, 0);
+  }, [bookings, categoryRates]);
 
   // Filter bookings by period (on event_date)
   const periodBookings = useMemo(() => {
@@ -411,6 +423,7 @@ export default function AdminFinanzasPage() {
                     <TableHead>Reservas</TableHead>
                     <TableHead>GMV</TableHead>
                     <TableHead>Comision</TableHead>
+                    <TableHead>Tasa</TableHead>
                     <TableHead>% del GMV</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -423,6 +436,9 @@ export default function AdminFinanzasPage() {
                         <TableCell>{data.bookings}</TableCell>
                         <TableCell>${data.gmv.toLocaleString()}</TableCell>
                         <TableCell>${data.commission.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs">{((categoryRates[cat] ?? COMMISSION_RATE) * 100).toFixed(1)}%</Badge>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
