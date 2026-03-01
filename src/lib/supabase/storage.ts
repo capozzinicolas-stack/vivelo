@@ -6,6 +6,7 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_IMAGE_DIMENSION = 2048; // Max width/height after compression
 
 export type MediaType = 'image' | 'video';
 
@@ -15,10 +16,54 @@ export function getMediaType(file: File): MediaType | null {
   return null;
 }
 
+/** Compress image using Canvas API to fit within MAX_IMAGE_SIZE */
+async function compressImage(file: File): Promise<File> {
+  if (file.size <= MAX_IMAGE_SIZE) return file;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+
+      // Scale down if larger than max dimension
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        const ratio = Math.min(MAX_IMAGE_DIMENSION / width, MAX_IMAGE_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try quality levels until under 5MB
+      const tryQuality = (quality: number) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error('Error al comprimir imagen')); return; }
+            if (blob.size > MAX_IMAGE_SIZE && quality > 0.3) {
+              tryQuality(quality - 0.1);
+            } else {
+              resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+            }
+          },
+          'image/jpeg',
+          quality,
+        );
+      };
+      tryQuality(0.8);
+    };
+    img.onerror = () => reject(new Error('Error al procesar imagen'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export function validateFile(file: File): string | null {
   const mediaType = getMediaType(file);
   if (!mediaType) return 'Tipo de archivo no soportado. Usa JPG, PNG, WebP, MP4, MOV o WebM.';
-  if (mediaType === 'image' && file.size > MAX_IMAGE_SIZE) return 'La imagen no puede exceder 5MB.';
+  // Images are auto-compressed, no size check needed
   if (mediaType === 'video' && file.size > MAX_VIDEO_SIZE) return 'El video no puede exceder 50MB.';
   return null;
 }
@@ -28,10 +73,18 @@ export async function uploadServiceMedia(
   file: File,
 ): Promise<string> {
   const supabase = createClient();
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+  const mediaType = getMediaType(file);
+
+  // Auto-compress images that exceed the limit
+  let fileToUpload = file;
+  if (mediaType === 'image' && file.size > MAX_IMAGE_SIZE) {
+    fileToUpload = await compressImage(file);
+  }
+
+  const ext = mediaType === 'image' && fileToUpload !== file ? 'jpg' : (file.name.split('.').pop()?.toLowerCase() || 'bin');
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error } = await supabase.storage.from(BUCKET).upload(path, fileToUpload, {
     cacheControl: '3600',
     upsert: false,
   });
@@ -61,7 +114,7 @@ const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10MB
 
 export function validateProfileImage(file: File): string | null {
   if (!PROFILE_IMAGE_TYPES.includes(file.type)) return 'Tipo de archivo no soportado. Usa JPG, PNG o WebP.';
-  if (file.size > MAX_PROFILE_IMAGE_SIZE) return 'La imagen no puede exceder 5MB.';
+  // Images are auto-compressed, no size check needed
   return null;
 }
 
@@ -75,11 +128,17 @@ export async function uploadProfilePicture(userId: string, file: File): Promise<
   const validationError = validateProfileImage(file);
   if (validationError) throw new Error(validationError);
 
+  // Auto-compress if needed
+  let fileToUpload = file;
+  if (file.size > MAX_PROFILE_IMAGE_SIZE) {
+    fileToUpload = await compressImage(file);
+  }
+
   const supabase = createClient();
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const ext = fileToUpload !== file ? 'jpg' : (file.name.split('.').pop()?.toLowerCase() || 'jpg');
   const path = `${userId}/avatars/${crypto.randomUUID()}.${ext}`;
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error } = await supabase.storage.from(BUCKET).upload(path, fileToUpload, {
     cacheControl: '3600',
     upsert: false,
   });

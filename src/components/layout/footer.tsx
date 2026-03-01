@@ -5,7 +5,7 @@ const footerSections = [
   {
     title: 'Empresa',
     links: [
-      { label: 'Quienes Somos', href: '/sobre-nosotros' },
+      { label: 'Quienes Somos', href: '#' },
       { label: 'Vende con Vivelo', href: '/register' },
       { label: 'Representacion Vivelo', href: '#' },
     ],
@@ -22,8 +22,8 @@ const footerSections = [
   {
     title: 'Politicas',
     links: [
-      { label: 'Terminos y Condiciones', href: '/terminos' },
-      { label: 'Politicas de Privacidad', href: '/privacidad' },
+      { label: 'Terminos y Condiciones', href: '#' },
+      { label: 'Politicas de Privacidad', href: '#' },
       { label: 'Politicas de Cancelaciones y Reembolso', href: '#' },
     ],
   },

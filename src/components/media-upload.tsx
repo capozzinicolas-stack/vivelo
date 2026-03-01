@@ -191,7 +191,7 @@ export function MediaUpload({
                 Arrastra archivos aqui o haz click para seleccionar
               </p>
               <p className="text-xs text-muted-foreground">
-                JPG, PNG, WebP (max 5MB) · MP4, MOV, WebM (max 50MB)
+                JPG, PNG, WebP (se comprimen automaticamente) · MP4, MOV, WebM (max 50MB)
               </p>
             </div>
           )}
