@@ -22,6 +22,9 @@ export function ServiceGrid({ services, filters, onResetFilters }: ServiceGridPr
       const q = filters.search.toLowerCase();
       if (!s.title.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
     }
+    if (filters.tags && filters.tags.length > 0) {
+      if (!s.tags || !s.tags.some(t => filters.tags.includes(t))) return false;
+    }
     return true;
   });
 

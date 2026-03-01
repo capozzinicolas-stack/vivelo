@@ -426,6 +426,64 @@ export async function getServicesByProvider(providerId: string): Promise<Service
   return (fallback || []).map(s => ({ ...s, extras: [] }));
 }
 
+// ─── SERVICE TAGS ───────────────────────────────────────────
+
+export async function getServiceTags(serviceId: string): Promise<string[]> {
+  if (isMockMode()) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_tag_assignments')
+    .select('tag_slug')
+    .eq('service_id', serviceId);
+  if (error) {
+    console.warn('[getServiceTags] Query failed:', error.message);
+    return [];
+  }
+  return (data || []).map(r => r.tag_slug);
+}
+
+export async function setServiceTags(serviceId: string, tagSlugs: string[]): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  // Delete existing assignments
+  const { error: delError } = await supabase
+    .from('service_tag_assignments')
+    .delete()
+    .eq('service_id', serviceId);
+  if (delError) {
+    console.warn('[setServiceTags] Delete failed:', delError.message);
+  }
+  // Insert new assignments
+  if (tagSlugs.length > 0) {
+    const { error: insError } = await supabase
+      .from('service_tag_assignments')
+      .insert(tagSlugs.map(slug => ({ service_id: serviceId, tag_slug: slug })));
+    if (insError) {
+      console.warn('[setServiceTags] Insert failed:', insError.message);
+    }
+  }
+}
+
+export async function enrichServicesWithTags(services: Service[]): Promise<Service[]> {
+  if (isMockMode() || services.length === 0) return services;
+  const supabase = createClient();
+  const serviceIds = services.map(s => s.id);
+  const { data, error } = await supabase
+    .from('service_tag_assignments')
+    .select('service_id, tag_slug')
+    .in('service_id', serviceIds);
+  if (error) {
+    console.warn('[enrichServicesWithTags] Query failed:', error.message);
+    return services;
+  }
+  const tagMap: Record<string, string[]> = {};
+  for (const row of data || []) {
+    if (!tagMap[row.service_id]) tagMap[row.service_id] = [];
+    tagMap[row.service_id].push(row.tag_slug);
+  }
+  return services.map(s => ({ ...s, tags: tagMap[s.id] || [] }));
+}
+
 // ─── BOOKINGS ───────────────────────────────────────────────
 
 export async function createBooking(booking: {

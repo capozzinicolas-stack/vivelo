@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getServices, getFeaturedPlacements } from '@/lib/supabase/queries';
+import { getServices, getFeaturedPlacements, enrichServicesWithTags } from '@/lib/supabase/queries';
 import { ServiceFilters, defaultFilters, type Filters } from '@/components/services/service-filters';
 import { ServiceGrid } from '@/components/services/service-grid';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,11 @@ function ServiciosContent() {
     Promise.all([
       getServices(),
       getFeaturedPlacements('servicios_destacados'),
-    ]).then(([svcs, placements]) => {
-      setServices(svcs);
+    ]).then(async ([svcs, placements]) => {
+      const enriched = await enrichServicesWithTags(svcs);
+      setServices(enriched);
       const featuredIds = new Set(placements.map(p => p.service_id));
-      setSponsoredServices(svcs.filter(s => featuredIds.has(s.id)));
+      setSponsoredServices(enriched.filter(s => featuredIds.has(s.id)));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -64,22 +65,39 @@ function ServiciosContent() {
           </div>
 
           <div className="flex-1">
-            {sponsoredServices.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px]">Patrocinado</Badge>
-                  Servicios destacados
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-                  {sponsoredServices.slice(0, 3).map(s => (
-                    <div key={s.id} className="relative">
-                      <ServiceCard service={s} />
-                      <Badge className="absolute top-2 right-2 bg-gold text-deep-purple border-0 text-[10px]">Patrocinado</Badge>
-                    </div>
-                  ))}
+            {(() => {
+              const filteredSponsored = sponsoredServices.filter(s => {
+                if (s.status !== 'active') return false;
+                if (filters.category && s.category !== filters.category) return false;
+                if (filters.subcategory && s.subcategory !== filters.subcategory) return false;
+                if (filters.zone && !s.zones.includes(filters.zone)) return false;
+                if (s.base_price > filters.priceRange[1]) return false;
+                if (filters.search) {
+                  const q = filters.search.toLowerCase();
+                  if (!s.title.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
+                }
+                if (filters.tags && filters.tags.length > 0) {
+                  if (!s.tags || !s.tags.some(t => filters.tags.includes(t))) return false;
+                }
+                return true;
+              });
+              return filteredSponsored.length > 0 ? (
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">Patrocinado</Badge>
+                    Servicios destacados
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+                    {filteredSponsored.slice(0, 3).map(s => (
+                      <div key={s.id} className="relative">
+                        <ServiceCard service={s} />
+                        <Badge className="absolute top-2 right-2 bg-gold text-deep-purple border-0 text-[10px]">Patrocinado</Badge>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null;
+            })()}
             <ServiceGrid services={services} filters={filters} onResetFilters={() => setFilters(defaultFilters)} />
           </div>
         </div>

@@ -108,6 +108,21 @@ export const UpdateZoneSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
+export const CreateTagSchema = z.object({
+  slug: z.string().min(1, 'slug es requerido').regex(/^[a-z0-9-]+$/, 'slug debe ser kebab-case'),
+  category_slug: z.string().min(1, 'category_slug es requerido'),
+  label: z.string().min(1, 'label es requerido'),
+  sort_order: z.number().int().default(0),
+  is_active: z.boolean().default(true),
+});
+
+export const UpdateTagSchema = z.object({
+  label: z.string().min(1).optional(),
+  category_slug: z.string().min(1).optional(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

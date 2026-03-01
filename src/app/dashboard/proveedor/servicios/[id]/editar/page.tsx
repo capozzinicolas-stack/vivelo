@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies } from '@/lib/supabase/queries';
+import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies, getServiceTags, setServiceTags } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -26,7 +26,7 @@ export default function EditarServicioPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const { categories, getSubcategoriesByCategory, zones, getCategoryBySlug } = useCatalog();
+  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug } = useCatalog();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +57,7 @@ export default function EditarServicioPage() {
   const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
   const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
@@ -69,8 +70,10 @@ export default function EditarServicioPage() {
     Promise.all([
       getServiceById(id),
       getCancellationPolicies(),
-    ]).then(([s, policies]) => {
+      getServiceTags(id),
+    ]).then(([s, policies, tagSlugs]) => {
       setCancellationPolicies(policies);
+      setSelectedTags(tagSlugs);
       if (!s) return;
       setTitle(s.title);
       setDescription(s.description);
@@ -148,6 +151,7 @@ export default function EditarServicioPage() {
       if (Object.keys(categoryDetails).length > 0) updateData.category_details = categoryDetails;
       if (cancellationPolicyId) updateData.cancellation_policy_id = cancellationPolicyId;
       await updateService(id, updateData);
+      await setServiceTags(id, selectedTags);
       toast({ title: 'Servicio actualizado!' });
       router.push('/dashboard/proveedor/servicios');
     } catch (err: unknown) {
@@ -227,7 +231,7 @@ export default function EditarServicioPage() {
             <div><Label>Titulo *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" /></div>
             <div><Label>Descripcion</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1" rows={4} /></div>
             <div><Label>Categoria *</Label>
-              <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(''); }}>
+              <Select value={category} onValueChange={(v) => { setCategory(v); setSubcategory(''); setSelectedTags([]); }}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>{categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}</SelectContent>
               </Select>
@@ -240,6 +244,25 @@ export default function EditarServicioPage() {
                     {availableSubcategories.filter(s => s.is_active).map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {category && getTagsByCategory(category).length > 0 && (
+              <div>
+                <Label>Etiquetas</Label>
+                <p className="text-xs text-muted-foreground mb-2">Selecciona las etiquetas que describen tu servicio</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {getTagsByCategory(category).map(tag => (
+                    <label key={tag.slug} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedTags.includes(tag.slug)}
+                        onCheckedChange={(checked) => {
+                          setSelectedTags(prev => checked ? [...prev, tag.slug] : prev.filter(t => t !== tag.slug));
+                        }}
+                      />
+                      <span className="text-sm">{tag.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
             {sku && (

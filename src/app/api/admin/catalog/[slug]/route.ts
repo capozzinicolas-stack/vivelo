@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole, isAuthError } from '@/lib/auth/api-auth';
-import { UpdateCategorySchema, UpdateSubcategorySchema, UpdateZoneSchema } from '@/lib/validations/api-schemas';
+import { UpdateCategorySchema, UpdateSubcategorySchema, UpdateZoneSchema, UpdateTagSchema } from '@/lib/validations/api-schemas';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 export async function PUT(
@@ -61,7 +61,20 @@ export async function PUT(
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: 'type debe ser category, subcategory o zone' }, { status: 400 });
+    if (type === 'tag') {
+      const result = UpdateTagSchema.safeParse(data);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error.issues.map(i => i.message).join(', ') }, { status: 400 });
+      }
+      const { error } = await supabaseAdmin
+        .from('service_tags')
+        .update(result.data)
+        .eq('slug', slug);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'type debe ser category, subcategory, zone o tag' }, { status: 400 });
   } catch (error) {
     console.error('[Catalog PUT] Error:', error);
     return NextResponse.json({ error: 'Error actualizando item del catalogo' }, { status: 500 });
@@ -104,6 +117,17 @@ export async function DELETE(
           { status: 409 }
         );
       }
+      // Also check tags
+      const { count: tagCount } = await supabaseAdmin
+        .from('service_tags')
+        .select('*', { count: 'exact', head: true })
+        .eq('category_slug', slug);
+      if (tagCount && tagCount > 0) {
+        return NextResponse.json(
+          { error: `No se puede eliminar: ${tagCount} etiqueta(s) pertenecen a esta categoria. Eliminalas primero.`, count: tagCount },
+          { status: 409 }
+        );
+      }
       const { error } = await supabaseAdmin.from('service_categories').delete().eq('slug', slug);
       if (error) throw error;
       return NextResponse.json({ success: true });
@@ -143,7 +167,24 @@ export async function DELETE(
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: 'type query param debe ser category, subcategory o zone' }, { status: 400 });
+    if (type === 'tag') {
+      // Check for active assignments
+      const { count } = await supabaseAdmin
+        .from('service_tag_assignments')
+        .select('*', { count: 'exact', head: true })
+        .eq('tag_slug', slug);
+      if (count && count > 0) {
+        return NextResponse.json(
+          { error: `No se puede eliminar: ${count} servicio(s) usan esta etiqueta`, count },
+          { status: 409 }
+        );
+      }
+      const { error } = await supabaseAdmin.from('service_tags').delete().eq('slug', slug);
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'type query param debe ser category, subcategory, zone o tag' }, { status: 400 });
   } catch (error) {
     console.error('[Catalog DELETE] Error:', error);
     return NextResponse.json({ error: 'Error eliminando item del catalogo' }, { status: 500 });

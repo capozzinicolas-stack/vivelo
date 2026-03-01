@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from 'react';
-import type { CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
+import type { CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag } from '@/types/database';
 import type { LucideIcon } from 'lucide-react';
 import { getIcon } from '@/lib/icon-registry';
 
@@ -9,11 +9,13 @@ interface CatalogContextValue {
   categories: CatalogCategory[];
   subcategories: CatalogSubcategory[];
   zones: CatalogZone[];
+  tags: CatalogTag[];
   loading: boolean;
   categoryMap: Record<string, CatalogCategory>;
   subcategoryMap: Record<string, CatalogSubcategory & { parentCategory: string }>;
   getCategoryBySlug: (slug: string) => CatalogCategory | undefined;
   getSubcategoriesByCategory: (categorySlug: string) => CatalogSubcategory[];
+  getTagsByCategory: (categorySlug: string) => CatalogTag[];
   getZoneLabel: (slug: string) => string;
   getCategoryIcon: (slug: string) => LucideIcon;
   getCategoryLabel: (slug: string) => string;
@@ -28,6 +30,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [subcategories, setSubcategories] = useState<CatalogSubcategory[]>([]);
   const [zones, setZones] = useState<CatalogZone[]>([]);
+  const [tags, setTags] = useState<CatalogTag[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCatalog = async () => {
@@ -38,6 +41,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
         setCategories(data.categories || []);
         setSubcategories(data.subcategories || []);
         setZones(data.zones || []);
+        setTags(data.tags || []);
       } else {
         // Fallback to static data if API fails
         const { categories: staticCats } = await import('@/data/categories');
@@ -124,6 +128,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const getSubcategoriesByCategory = (categorySlug: string) =>
     subcategories.filter(s => s.category_slug === categorySlug && s.is_active);
 
+  const getTagsByCategory = (categorySlug: string) =>
+    tags.filter(t => t.category_slug === categorySlug && t.is_active);
+
   const getZoneLabel = (slug: string) => {
     const zone = zones.find(z => z.slug === slug || z.label === slug);
     return zone?.label || slug;
@@ -150,11 +157,13 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     categories,
     subcategories,
     zones,
+    tags,
     loading,
     categoryMap,
     subcategoryMap,
     getCategoryBySlug,
     getSubcategoriesByCategory,
+    getTagsByCategory,
     getZoneLabel,
     getCategoryIcon,
     getCategoryLabel,

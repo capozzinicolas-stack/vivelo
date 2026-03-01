@@ -1,26 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole, isAuthError } from '@/lib/auth/api-auth';
-import { CreateCategorySchema, CreateSubcategorySchema, CreateZoneSchema } from '@/lib/validations/api-schemas';
+import { CreateCategorySchema, CreateSubcategorySchema, CreateZoneSchema, CreateTagSchema } from '@/lib/validations/api-schemas';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 export async function GET() {
   try {
     const supabaseAdmin = createAdminSupabaseClient();
 
-    const [categoriesRes, subcategoriesRes, zonesRes] = await Promise.all([
+    const [categoriesRes, subcategoriesRes, zonesRes, tagsRes] = await Promise.all([
       supabaseAdmin.from('service_categories').select('*').order('sort_order'),
       supabaseAdmin.from('service_subcategories').select('*').order('sort_order'),
       supabaseAdmin.from('service_zones').select('*').order('sort_order'),
+      supabaseAdmin.from('service_tags').select('*').order('sort_order'),
     ]);
 
     if (categoriesRes.error) throw categoriesRes.error;
     if (subcategoriesRes.error) throw subcategoriesRes.error;
     if (zonesRes.error) throw zonesRes.error;
+    // Tags table may not exist yet if migration not applied
+    if (tagsRes.error) console.warn('[Catalog GET] Tags query failed:', tagsRes.error.message);
 
     return NextResponse.json({
       categories: categoriesRes.data,
       subcategories: subcategoriesRes.data,
       zones: zonesRes.data,
+      tags: tagsRes.data || [],
     });
   } catch (error) {
     console.error('[Catalog GET] Error:', error);
@@ -83,7 +87,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, slug: result.data.slug });
     }
 
-    return NextResponse.json({ error: 'type debe ser category, subcategory o zone' }, { status: 400 });
+    if (type === 'tag') {
+      const result = CreateTagSchema.safeParse(data);
+      if (!result.success) {
+        return NextResponse.json({ error: result.error.issues.map(i => i.message).join(', ') }, { status: 400 });
+      }
+      const { error } = await supabaseAdmin.from('service_tags').insert(result.data);
+      if (error) {
+        if (error.code === '23505') return NextResponse.json({ error: 'Ya existe una etiqueta con ese slug' }, { status: 409 });
+        if (error.code === '23503') return NextResponse.json({ error: 'La categoria padre no existe' }, { status: 400 });
+        throw error;
+      }
+      return NextResponse.json({ success: true, slug: result.data.slug });
+    }
+
+    return NextResponse.json({ error: 'type debe ser category, subcategory, zone o tag' }, { status: 400 });
   } catch (error) {
     console.error('[Catalog POST] Error:', error);
     return NextResponse.json({ error: 'Error creando item del catalogo' }, { status: 500 });

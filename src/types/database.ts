@@ -33,6 +33,14 @@ export interface CatalogZone {
   sort_order: number;
   is_active: boolean;
 }
+
+export interface CatalogTag {
+  slug: string;
+  category_slug: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+}
 export type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
@@ -113,6 +121,7 @@ export interface Service {
   updated_at: string;
   cancellation_policy_id?: string | null;
   category_details?: Record<string, unknown>;
+  tags?: string[];
   // Joined data
   provider?: Profile;
   extras?: Extra[];

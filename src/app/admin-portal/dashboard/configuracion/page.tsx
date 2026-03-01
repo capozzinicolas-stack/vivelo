@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Percent, MapPin, Tag, FileText, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
-import type { CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
+import type { CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag } from '@/types/database';
 
 const COLOR_PRESETS = [
   { value: 'bg-orange-100 text-orange-600', label: 'Naranja' },
@@ -53,7 +53,7 @@ interface RuleInput {
 
 export default function AdminConfiguracionPage() {
   const { toast } = useToast();
-  const { categories, subcategories, zones, refresh: refreshCatalog } = useCatalog();
+  const { categories, subcategories, zones, tags, refresh: refreshCatalog } = useCatalog();
   const [policies, setPolicies] = useState<CancellationPolicy[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -68,9 +68,9 @@ export default function AdminConfiguracionPage() {
   const [deleteTarget, setDeleteTarget] = useState<CancellationPolicy | null>(null);
 
   // Catalog dialogs
-  const [catalogDialog, setCatalogDialog] = useState<{ type: 'category' | 'subcategory' | 'zone'; editing: boolean } | null>(null);
+  const [catalogDialog, setCatalogDialog] = useState<{ type: 'category' | 'subcategory' | 'zone' | 'tag'; editing: boolean } | null>(null);
   const [catalogSaving, setCatalogSaving] = useState(false);
-  const [deleteItem, setDeleteItem] = useState<{ type: 'category' | 'subcategory' | 'zone'; slug: string; label: string } | null>(null);
+  const [deleteItem, setDeleteItem] = useState<{ type: 'category' | 'subcategory' | 'zone' | 'tag'; slug: string; label: string } | null>(null);
 
   // Category form
   const [catSlug, setCatSlug] = useState('');
@@ -98,6 +98,15 @@ export default function AdminConfiguracionPage() {
   const [zoneSortOrder, setZoneSortOrder] = useState('0');
   const [zoneIsActive, setZoneIsActive] = useState(true);
   const [editingZoneSlug, setEditingZoneSlug] = useState('');
+
+  // Tag form
+  const [tagSlug, setTagSlug] = useState('');
+  const [tagLabel, setTagLabel] = useState('');
+  const [tagCategorySlug, setTagCategorySlug] = useState('');
+  const [tagSortOrder, setTagSortOrder] = useState('0');
+  const [tagIsActive, setTagIsActive] = useState(true);
+  const [editingTagSlug, setEditingTagSlug] = useState('');
+  const [tagFilterCategory, setTagFilterCategory] = useState('');
 
   const loadPolicies = useCallback(async () => {
     try {
@@ -181,7 +190,7 @@ export default function AdminConfiguracionPage() {
 
   // ─── Catalog CRUD handlers ────────────────────────────────
 
-  const openCreateCatalog = (type: 'category' | 'subcategory' | 'zone') => {
+  const openCreateCatalog = (type: 'category' | 'subcategory' | 'zone' | 'tag') => {
     setCatalogDialog({ type, editing: false });
     if (type === 'category') {
       setCatSlug(''); setCatLabel(''); setCatDescription(''); setCatIcon('Tag');
@@ -190,8 +199,11 @@ export default function AdminConfiguracionPage() {
     } else if (type === 'subcategory') {
       setSubSlug(''); setSubLabel(''); setSubCategorySlug(categories[0]?.slug || '');
       setSubSortOrder('0'); setSubIsActive(true);
-    } else {
+    } else if (type === 'zone') {
       setZoneSlug(''); setZoneLabel(''); setZoneSortOrder('0'); setZoneIsActive(true);
+    } else {
+      setTagSlug(''); setTagLabel(''); setTagCategorySlug(categories[0]?.slug || '');
+      setTagSortOrder('0'); setTagIsActive(true);
     }
   };
 
@@ -213,6 +225,12 @@ export default function AdminConfiguracionPage() {
     setCatalogDialog({ type: 'zone', editing: true });
     setEditingZoneSlug(zone.slug); setZoneSlug(zone.slug); setZoneLabel(zone.label);
     setZoneSortOrder(zone.sort_order.toString()); setZoneIsActive(zone.is_active);
+  };
+
+  const openEditTag = (tag: CatalogTag) => {
+    setCatalogDialog({ type: 'tag', editing: true });
+    setEditingTagSlug(tag.slug); setTagSlug(tag.slug); setTagLabel(tag.label);
+    setTagCategorySlug(tag.category_slug); setTagSortOrder(tag.sort_order.toString()); setTagIsActive(tag.is_active);
   };
 
   const handleSaveCatalog = async () => {
@@ -260,7 +278,7 @@ export default function AdminConfiguracionPage() {
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         }
-      } else {
+      } else if (type === 'zone') {
         if (!zoneLabel.trim()) { toast({ title: 'Label es requerido', variant: 'destructive' }); setCatalogSaving(false); return; }
         if (editing) {
           const res = await fetch(`/api/admin/catalog/${editingZoneSlug}`, {
@@ -275,6 +293,26 @@ export default function AdminConfiguracionPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'zone', data: { slug: zoneSlug, label: zoneLabel, sort_order: parseInt(zoneSortOrder) || 0, is_active: zoneIsActive } }),
+          });
+          if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+        }
+      } else if (type === 'tag') {
+        if (!tagLabel.trim() || !tagCategorySlug) {
+          toast({ title: 'Label y categoria son requeridos', variant: 'destructive' }); setCatalogSaving(false); return;
+        }
+        if (editing) {
+          const res = await fetch(`/api/admin/catalog/${editingTagSlug}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'tag', data: { label: tagLabel, category_slug: tagCategorySlug, sort_order: parseInt(tagSortOrder) || 0, is_active: tagIsActive } }),
+          });
+          if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+        } else {
+          if (!tagSlug.trim()) { toast({ title: 'Slug es requerido', variant: 'destructive' }); setCatalogSaving(false); return; }
+          const res = await fetch('/api/admin/catalog', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'tag', data: { slug: tagSlug, label: tagLabel, category_slug: tagCategorySlug, sort_order: parseInt(tagSortOrder) || 0, is_active: tagIsActive } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         }
@@ -304,7 +342,7 @@ export default function AdminConfiguracionPage() {
     }
   };
 
-  const handleToggleActive = async (type: 'category' | 'subcategory' | 'zone', slug: string, currentActive: boolean) => {
+  const handleToggleActive = async (type: 'category' | 'subcategory' | 'zone' | 'tag', slug: string, currentActive: boolean) => {
     try {
       const res = await fetch(`/api/admin/catalog/${slug}`, {
         method: 'PUT',
@@ -371,6 +409,7 @@ export default function AdminConfiguracionPage() {
               <TabsTrigger value="categories">Categorias ({categories.length})</TabsTrigger>
               <TabsTrigger value="subcategories">Subcategorias ({subcategories.length})</TabsTrigger>
               <TabsTrigger value="zones">Zonas ({zones.length})</TabsTrigger>
+              <TabsTrigger value="tags">Etiquetas ({tags.length})</TabsTrigger>
             </TabsList>
 
             {/* Categories Tab */}
@@ -502,6 +541,60 @@ export default function AdminConfiguracionPage() {
                 </TableBody>
               </Table>
             </TabsContent>
+
+            {/* Tags Tab */}
+            <TabsContent value="tags">
+              <div className="flex items-center justify-between mb-4 gap-4">
+                <Select value={tagFilterCategory} onValueChange={setTagFilterCategory}>
+                  <SelectTrigger className="w-[240px]"><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todas las categorias</SelectItem>
+                    {categories.map(c => (
+                      <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => openCreateCatalog('tag')} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar Etiqueta</Button>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Etiqueta</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Orden</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="w-[120px]">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tags
+                    .filter(t => !tagFilterCategory || tagFilterCategory === 'ALL' || t.category_slug === tagFilterCategory)
+                    .map(tag => {
+                      const parentCat = categories.find(c => c.slug === tag.category_slug);
+                      return (
+                        <TableRow key={tag.slug}>
+                          <TableCell className="font-medium">{tag.label}</TableCell>
+                          <TableCell className="font-mono text-xs">{tag.slug}</TableCell>
+                          <TableCell>
+                            {parentCat && <Badge variant="outline" className="text-xs">{parentCat.label}</Badge>}
+                          </TableCell>
+                          <TableCell>{tag.sort_order}</TableCell>
+                          <TableCell>
+                            <Switch checked={tag.is_active} onCheckedChange={() => handleToggleActive('tag', tag.slug, tag.is_active)} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openEditTag(tag)}><Pencil className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => setDeleteItem({ type: 'tag', slug: tag.slug, label: tag.label })}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
@@ -562,7 +655,7 @@ export default function AdminConfiguracionPage() {
           <DialogHeader>
             <DialogTitle>
               {catalogDialog?.editing ? 'Editar' : 'Crear'}{' '}
-              {catalogDialog?.type === 'category' ? 'Categoria' : catalogDialog?.type === 'subcategory' ? 'Subcategoria' : 'Zona'}
+              {catalogDialog?.type === 'category' ? 'Categoria' : catalogDialog?.type === 'subcategory' ? 'Subcategoria' : catalogDialog?.type === 'tag' ? 'Etiqueta' : 'Zona'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -696,6 +789,41 @@ export default function AdminConfiguracionPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={zoneIsActive} onCheckedChange={setZoneIsActive} />
+                  <Label>Activa</Label>
+                </div>
+              </>
+            )}
+
+            {catalogDialog?.type === 'tag' && (
+              <>
+                {!catalogDialog.editing && (
+                  <div>
+                    <Label>Slug *</Label>
+                    <Input value={tagSlug} onChange={e => setTagSlug(e.target.value.toLowerCase())} placeholder="Ej: mexicana" className="mt-1 font-mono" />
+                    <p className="text-xs text-muted-foreground mt-1">kebab-case, no editable despues</p>
+                  </div>
+                )}
+                <div>
+                  <Label>Nombre *</Label>
+                  <Input value={tagLabel} onChange={e => setTagLabel(e.target.value)} placeholder="Ej: Mexicana" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Categoria *</Label>
+                  <Select value={tagCategorySlug} onValueChange={setTagCategorySlug}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {activeCategories.map(c => (
+                        <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Orden</Label>
+                  <Input type="number" value={tagSortOrder} onChange={e => setTagSortOrder(e.target.value)} className="mt-1" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={tagIsActive} onCheckedChange={setTagIsActive} />
                   <Label>Activa</Label>
                 </div>
               </>

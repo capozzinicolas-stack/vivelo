@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { createService, getCancellationPolicies } from '@/lib/supabase/queries';
+import { createService, getCancellationPolicies, setServiceTags } from '@/lib/supabase/queries';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -26,7 +26,7 @@ export default function NuevoServicioPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const { categories, getSubcategoriesByCategory, zones, getCategoryBySlug } = useCatalog();
+  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug } = useCatalog();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -48,6 +48,7 @@ export default function NuevoServicioPage() {
   const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
   const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function NuevoServicioPage() {
   const handleCategoryChange = (val: string) => {
     setCategory(val);
     setSubcategory('');
+    setSelectedTags([]);
     setCategoryDetails({});
     const catInfo = getCategoryBySlug(val);
     const newSku = generateServiceSku(catInfo?.sku_prefix || 'XX');
@@ -120,7 +122,7 @@ export default function NuevoServicioPage() {
 
     setSubmitting(true);
     try {
-      await createService(
+      const created = await createService(
         {
           provider_id: user.id,
           title,
@@ -153,6 +155,9 @@ export default function NuevoServicioPage() {
           depends_on_hours: e.depends_on_hours,
         }))
       );
+      if (selectedTags.length > 0 && created?.id) {
+        await setServiceTags(created.id, selectedTags);
+      }
       toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
       router.push('/dashboard/proveedor/servicios');
     } catch (err: unknown) {
@@ -187,6 +192,25 @@ export default function NuevoServicioPage() {
                     {availableSubcategories.filter(s => s.is_active).map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {category && getTagsByCategory(category).length > 0 && (
+              <div>
+                <Label>Etiquetas</Label>
+                <p className="text-xs text-muted-foreground mb-2">Selecciona las etiquetas que describen tu servicio</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {getTagsByCategory(category).map(tag => (
+                    <label key={tag.slug} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedTags.includes(tag.slug)}
+                        onCheckedChange={(checked) => {
+                          setSelectedTags(prev => checked ? [...prev, tag.slug] : prev.filter(t => t !== tag.slug));
+                        }}
+                      />
+                      <span className="text-sm">{tag.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
             {sku && (

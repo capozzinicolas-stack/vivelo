@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useCatalog } from '@/providers/catalog-provider';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Search, X } from 'lucide-react';
 
 export interface Filters {
@@ -14,6 +15,7 @@ export interface Filters {
   zone: string;
   priceRange: [number, number];
   search: string;
+  tags: string[];
 }
 
 interface ServiceFiltersProps {
@@ -21,10 +23,10 @@ interface ServiceFiltersProps {
   onFiltersChange: (filters: Filters) => void;
 }
 
-export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '' };
+export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '', tags: [] };
 
 export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
-  const { categories, zones, getSubcategoriesByCategory } = useCatalog();
+  const { categories, zones, getSubcategoriesByCategory, getTagsByCategory } = useCatalog();
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
 
   const availableSubcategories = filters.category
@@ -43,7 +45,7 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
 
       <div>
         <Label className="text-sm font-medium mb-2 block">Categoria</Label>
-        <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v, subcategory: '' })}>
+        <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v, subcategory: '', tags: [] })}>
           <SelectTrigger><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todas las categorias</SelectItem>
@@ -62,6 +64,28 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
               {availableSubcategories.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {filters.category && getTagsByCategory(filters.category).length > 0 && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Etiquetas</Label>
+          <div className="space-y-2">
+            {getTagsByCategory(filters.category).map(tag => (
+              <label key={tag.slug} className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={filters.tags.includes(tag.slug)}
+                  onCheckedChange={(checked) => {
+                    const newTags = checked
+                      ? [...filters.tags, tag.slug]
+                      : filters.tags.filter(t => t !== tag.slug);
+                    update({ tags: newTags });
+                  }}
+                />
+                <span className="text-sm">{tag.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
