@@ -49,6 +49,7 @@ export default function RootLayout({
 }>) {
   const headersList = headers();
   const isAdminPortal = headersList.get('x-admin-portal') === '1';
+  const isDashboard = headersList.get('x-dashboard') === '1';
 
   const gaId = process.env.NEXT_PUBLIC_GA_ID;
   const metaPixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
@@ -73,7 +74,7 @@ export default function RootLayout({
         )}
         <AuthProvider>
           <CatalogProvider>
-            {isAdminPortal ? (
+            {(isAdminPortal || isDashboard) ? (
               <>
                 {children}
                 <Toaster />

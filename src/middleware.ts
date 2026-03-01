@@ -98,13 +98,26 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Check for mock auth mode
+  const isMockMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
+
+  // Dashboard routes: set header to suppress public chrome (navbar/footer)
+  if (pathname.startsWith('/dashboard')) {
+    if (isMockMode) {
+      const response = NextResponse.next();
+      response.headers.set('x-dashboard', '1');
+      return response;
+    }
+    const { updateSession } = await import('@/lib/supabase/middleware');
+    const response = await updateSession(request);
+    response.headers.set('x-dashboard', '1');
+    return response;
+  }
+
   // Allow public paths
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
-
-  // Check for mock auth mode
-  const isMockMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
 
   if (isMockMode) {
     // In mock mode, allow all routes
