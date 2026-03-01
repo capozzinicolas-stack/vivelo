@@ -13,7 +13,7 @@ export async function getServiceByIdServer(id: string): Promise<Service | null> 
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from('services')
-    .select('*, extras(*), provider:profiles!provider_id(*)')
+    .select('*, extras(*), provider:profiles!provider_id(*), cancellation_policy:cancellation_policies(*)')
     .eq('id', id)
     .single();
   if (!error) return data;

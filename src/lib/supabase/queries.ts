@@ -76,15 +76,19 @@ export async function getServiceById(id: string): Promise<Service | null> {
   if (isMockMode()) {
     const { mockServices } = await import('@/data/mock-services');
     const { mockUsers } = await import('@/data/mock-users');
+    const { mockCancellationPolicies } = await import('@/data/mock-cancellation-policies');
     const s = mockServices.find(s => s.id === id);
     if (!s) return null;
-    return { ...s, provider: mockUsers.find(u => u.id === s.provider_id) || undefined };
+    const cancellation_policy = s.cancellation_policy_id
+      ? mockCancellationPolicies.find(p => p.id === s.cancellation_policy_id) || undefined
+      : undefined;
+    return { ...s, provider: mockUsers.find(u => u.id === s.provider_id) || undefined, cancellation_policy };
   }
 
   const supabase = createClient();
   const { data, error } = await supabase
     .from('services')
-    .select('*, extras(*), provider:profiles!provider_id(*)')
+    .select('*, extras(*), provider:profiles!provider_id(*), cancellation_policy:cancellation_policies(*)')
     .eq('id', id)
     .single();
   if (!error) return data;

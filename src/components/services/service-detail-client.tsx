@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ExtrasSelector, type SelectedExtraItem } from '@/components/services/extras-selector';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { CategoryDetailsDisplay } from '@/components/services/category-details-display';
+import { CancellationPolicyDisplay } from '@/components/services/cancellation-policy-display';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -348,6 +349,13 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           <>
             <Separator />
             <CategoryDetailsDisplay category={service.category} details={service.category_details} />
+          </>
+        )}
+
+        {service.cancellation_policy && (
+          <>
+            <Separator />
+            <CancellationPolicyDisplay policy={service.cancellation_policy} />
           </>
         )}
 
