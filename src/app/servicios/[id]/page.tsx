@@ -5,6 +5,7 @@ import { getServiceByIdServer, getProfileByIdServer, getServiceBookingCountServe
 import { ServiceDetailClient } from '@/components/services/service-detail-client';
 import { ServiceFaq } from '@/components/services/service-faq';
 import { ServiceReviews } from '@/components/services/service-reviews';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -103,6 +104,10 @@ export default async function ServiceDetailPage({ params }: Props) {
         provider={provider}
         bookingCount={bookingCount}
       />
+
+      <div className="mt-10">
+        <PromoBanner bannerKey="service_detail_banner" variant="card" />
+      </div>
 
       {reviews.length > 0 && (
         <div className="mt-12">

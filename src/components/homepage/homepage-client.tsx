@@ -14,6 +14,7 @@ import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
 import { TopRatedSection } from '@/components/homepage/top-rated-section';
 import { CampaignOffersSection } from '@/components/homepage/campaign-offers-section';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import { useUtmCapture } from '@/hooks/use-utm-capture';
 import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
 
@@ -64,6 +65,9 @@ export function HomepageClient({
           <HomeSearchBar />
         </div>
       </section>
+
+      {/* 2b. Hero Promo Banner */}
+      <PromoBanner banner={siteBanners.find(b => b.banner_key === 'hero_promo_banner')} variant="full" />
 
       {/* 3. Mobile: horizontal category bar */}
       <MobileCategoryBar />

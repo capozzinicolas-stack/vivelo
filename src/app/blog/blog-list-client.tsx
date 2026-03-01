@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Video, Mic, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import type { BlogPost } from '@/types/database';
 import { getPublishedBlogPosts } from '@/lib/supabase/queries';
 
@@ -59,32 +60,46 @@ export function BlogListClient() {
           <p className="text-lg">Aun no hay publicaciones.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {posts.map(post => {
-            const MediaIcon = mediaTypeIcons[post.media_type] || FileText;
-            return (
-              <Link key={post.id} href={`/blog/${post.slug}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
-                  <div className="bg-gradient-to-br from-violet-100 to-indigo-100 h-40 flex items-center justify-center">
-                    <MediaIcon className="h-12 w-12 text-violet-400" />
-                  </div>
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{mediaTypeLabels[post.media_type]}</Badge>
-                      {post.publish_date && (
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(post.publish_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </span>
-                      )}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {posts.map((post, index) => {
+              const MediaIcon = mediaTypeIcons[post.media_type] || FileText;
+              return (
+                <React.Fragment key={post.id}>
+                  {index === 3 && (
+                    <div className="col-span-full">
+                      <PromoBanner bannerKey="blog_inline_banner" variant="inline" />
                     </div>
-                    <h2 className="text-lg font-semibold line-clamp-2">{post.title}</h2>
-                    {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>}
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                  )}
+                  <Link href={`/blog/${post.slug}`}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
+                      <div className="bg-gradient-to-br from-violet-100 to-indigo-100 h-40 flex items-center justify-center">
+                        <MediaIcon className="h-12 w-12 text-violet-400" />
+                      </div>
+                      <CardContent className="p-5 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{mediaTypeLabels[post.media_type]}</Badge>
+                          {post.publish_date && (
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(post.publish_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="text-lg font-semibold line-clamp-2">{post.title}</h2>
+                        {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </React.Fragment>
+              );
+            })}
+          </div>
+          {posts.length <= 3 && (
+            <div className="mt-6">
+              <PromoBanner bannerKey="blog_inline_banner" variant="inline" />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

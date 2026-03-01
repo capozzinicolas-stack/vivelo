@@ -108,4 +108,10 @@ export const GRADIENT_OPTIONS: { value: string; label: string }[] = [
 export const BANNER_KEY_LABELS: Record<string, string> = {
   showcase_promo: 'Tarjeta Promo Showcase',
   cashback_banner: 'Banner Cashback',
+  hero_promo_banner: 'Banner Promo Hero (Homepage)',
+  services_top_banner: 'Banner Superior Servicios',
+  service_detail_banner: 'Banner Detalle de Servicio',
+  blog_inline_banner: 'Banner Inline Blog',
+  cart_upsell_banner: 'Banner Upsell Carrito',
+  post_purchase_banner: 'Banner Post-Compra',
 };

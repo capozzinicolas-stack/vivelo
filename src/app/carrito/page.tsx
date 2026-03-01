@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -246,8 +247,8 @@ export default function CarritoPage() {
           ))}
         </div>
 
-        {/* Order summary */}
-        <div className="lg:col-span-1">
+        {/* Order summary + upsell */}
+        <div className="lg:col-span-1 space-y-4">
           <Card className="sticky top-24">
             <CardContent className="p-6 space-y-4">
               <h2 className="font-semibold text-lg">Resumen del pedido</h2>
@@ -277,6 +278,7 @@ export default function CarritoPage() {
               )}
             </CardContent>
           </Card>
+          <PromoBanner bannerKey="cart_upsell_banner" variant="card" />
         </div>
       </div>
     </div>

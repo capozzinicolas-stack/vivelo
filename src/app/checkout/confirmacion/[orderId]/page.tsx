@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import { CheckCircle, Loader2, Calendar, ArrowRight } from 'lucide-react';
 import type { Order } from '@/types/database';
 
@@ -92,6 +93,10 @@ export default function ConfirmacionPage() {
           </CardContent>
         </Card>
       )}
+
+      <div className="mb-8">
+        <PromoBanner bannerKey="post_purchase_banner" variant="card" />
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Button asChild size="lg">

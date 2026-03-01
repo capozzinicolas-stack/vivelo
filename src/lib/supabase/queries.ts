@@ -2111,6 +2111,33 @@ export async function updateSiteBanner(id: string, updates: Partial<SiteBanner>)
   if (error) throw new Error(`Error actualizando banner: ${error.message}`);
 }
 
+export async function createSiteBanner(banner: Omit<SiteBanner, 'id' | 'created_at' | 'updated_at'>): Promise<SiteBanner> {
+  if (isMockMode()) {
+    const newBanner: SiteBanner = { ...banner, id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+    return newBanner;
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('site_banners')
+    .insert(banner)
+    .select()
+    .single();
+  if (error) throw new Error(`Error creando banner: ${error.message}`);
+  return data;
+}
+
+export async function deleteSiteBanner(id: string): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('site_banners')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(`Error eliminando banner: ${error.message}`);
+}
+
 // ============================================================
 // Orders
 // ============================================================

@@ -23,7 +23,7 @@ import {
   getCampaigns, createCampaign, updateCampaignStatus,
   getAllServices, createNotification,
   getAllShowcaseItems, createShowcaseItem, updateShowcaseItem, deleteShowcaseItem,
-  getAllSiteBanners, updateSiteBanner,
+  getAllSiteBanners, updateSiteBanner, createSiteBanner, deleteSiteBanner,
 } from '@/lib/supabase/queries';
 
 export default function AdminMarketingPage() {
@@ -264,22 +264,54 @@ export default function AdminMarketingPage() {
   }
 
   // Banner handlers
+  const [bBannerKey, setBBannerKey] = useState('');
+
+  function resetBannerForm() {
+    setBTitle(''); setBSubtitle(''); setBButtonText(''); setBButtonLink(''); setBGradient(''); setBIsActive(true); setBBannerKey('');
+    setEditingBannerId(null);
+  }
+
   function openEditBanner(banner: SiteBanner) {
-    setBTitle(banner.title); setBSubtitle(banner.subtitle ?? ''); setBButtonText(banner.button_text ?? ''); setBButtonLink(banner.button_link ?? ''); setBGradient(banner.gradient ?? ''); setBIsActive(banner.is_active);
+    setBTitle(banner.title); setBSubtitle(banner.subtitle ?? ''); setBButtonText(banner.button_text ?? ''); setBButtonLink(banner.button_link ?? ''); setBGradient(banner.gradient ?? ''); setBIsActive(banner.is_active); setBBannerKey(banner.banner_key);
     setEditingBannerId(banner.id);
     setBannerDialogOpen(true);
   }
 
   async function handleSaveBanner() {
-    if (!editingBannerId) return;
+    if (editingBannerId) {
+      try {
+        await updateSiteBanner(editingBannerId, { title: bTitle, subtitle: bSubtitle || null, button_text: bButtonText || null, button_link: bButtonLink || null, gradient: bGradient || null, is_active: bIsActive });
+        setBannerDialogOpen(false);
+        resetBannerForm();
+        await loadData();
+        toast({ title: 'Banner actualizado' });
+      } catch {
+        toast({ title: 'Error', description: 'No se pudo actualizar el banner.', variant: 'destructive' });
+      }
+    } else {
+      if (!bBannerKey || !bTitle) {
+        toast({ title: 'Campos incompletos', description: 'Clave y titulo son requeridos.', variant: 'destructive' });
+        return;
+      }
+      try {
+        await createSiteBanner({ banner_key: bBannerKey, title: bTitle, subtitle: bSubtitle || null, button_text: bButtonText || null, button_link: bButtonLink || null, gradient: bGradient || null, image_url: null, is_active: bIsActive });
+        setBannerDialogOpen(false);
+        resetBannerForm();
+        await loadData();
+        toast({ title: 'Banner creado' });
+      } catch (err) {
+        toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo crear el banner.', variant: 'destructive' });
+      }
+    }
+  }
+
+  async function handleDeleteBanner(id: string) {
     try {
-      await updateSiteBanner(editingBannerId, { title: bTitle, subtitle: bSubtitle || null, button_text: bButtonText || null, button_link: bButtonLink || null, gradient: bGradient || null, is_active: bIsActive });
-      setBannerDialogOpen(false);
-      setEditingBannerId(null);
+      await deleteSiteBanner(id);
       await loadData();
-      toast({ title: 'Banner actualizado' });
+      toast({ title: 'Banner eliminado' });
     } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar el banner.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'No se pudo eliminar el banner.', variant: 'destructive' });
     }
   }
 
@@ -518,33 +550,75 @@ export default function AdminMarketingPage() {
         <TabsContent value="banners" className="space-y-6">
           {/* Site Banners Section */}
           <Card>
-            <CardHeader><CardTitle>Banners del Sitio</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Banners del Sitio</CardTitle>
+              <Button size="sm" onClick={() => { resetBannerForm(); setBannerDialogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-1" />Crear Banner
+              </Button>
+            </CardHeader>
+            <CardContent>
               {siteBanners.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No hay banners configurados</p>
-              ) : siteBanners.map(banner => (
-                <div key={banner.id} className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <p className="font-medium">{BANNER_KEY_LABELS[banner.banner_key] || banner.banner_key}</p>
-                    <p className="text-sm text-muted-foreground">{banner.title}</p>
-                    {banner.subtitle && <p className="text-xs text-muted-foreground">{banner.subtitle}</p>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={banner.is_active ? 'default' : 'secondary'}>{banner.is_active ? 'Activo' : 'Inactivo'}</Badge>
-                    <Button variant="outline" size="sm" onClick={() => openEditBanner(banner)}>
-                      <Pencil className="h-3 w-3 mr-1" />Editar
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ubicacion</TableHead>
+                      <TableHead>Titulo</TableHead>
+                      <TableHead>Preview</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {siteBanners.map(banner => (
+                      <TableRow key={banner.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{BANNER_KEY_LABELS[banner.banner_key] || banner.banner_key}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{banner.banner_key}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm">{banner.title}</p>
+                          {banner.subtitle && <p className="text-xs text-muted-foreground truncate max-w-[200px]">{banner.subtitle}</p>}
+                        </TableCell>
+                        <TableCell>
+                          {banner.gradient && <div className={`w-16 h-8 rounded bg-gradient-to-r ${banner.gradient}`} />}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={banner.is_active ? 'default' : 'secondary'}>{banner.is_active ? 'Activo' : 'Inactivo'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => openEditBanner(banner)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(banner.id)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 
-          {/* Banner Edit Dialog */}
-          <Dialog open={bannerDialogOpen} onOpenChange={setBannerDialogOpen}>
+          {/* Banner Create/Edit Dialog */}
+          <Dialog open={bannerDialogOpen} onOpenChange={(open) => { setBannerDialogOpen(open); if (!open) resetBannerForm(); }}>
             <DialogContent>
-              <DialogHeader><DialogTitle>Editar Banner</DialogTitle></DialogHeader>
-              <div className="space-y-4">
+              <DialogHeader><DialogTitle>{editingBannerId ? 'Editar Banner' : 'Nuevo Banner'}</DialogTitle></DialogHeader>
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                {!editingBannerId && (
+                  <div>
+                    <Label>Clave unica (banner_key)</Label>
+                    <Input value={bBannerKey} onChange={e => setBBannerKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))} placeholder="Ej: mi_banner_custom" className="font-mono" />
+                    <p className="text-xs text-muted-foreground mt-1">Identificador unico del banner. Solo letras minusculas, numeros y guion bajo.</p>
+                  </div>
+                )}
                 <div>
                   <Label>Titulo</Label>
                   <Input value={bTitle} onChange={e => setBTitle(e.target.value)} />
@@ -555,7 +629,7 @@ export default function AdminMarketingPage() {
                 </div>
                 <div>
                   <Label>Texto del boton</Label>
-                  <Input value={bButtonText} onChange={e => setBButtonText(e.target.value)} placeholder="Ej: Todos los servicios" />
+                  <Input value={bButtonText} onChange={e => setBButtonText(e.target.value)} placeholder="Ej: Ver ofertas" />
                 </div>
                 <div>
                   <Label>Link del boton</Label>
@@ -567,16 +641,26 @@ export default function AdminMarketingPage() {
                     <SelectTrigger><SelectValue placeholder="Sin gradiente" /></SelectTrigger>
                     <SelectContent>
                       {GRADIENT_OPTIONS.map(g => (
-                        <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        <SelectItem key={g.value} value={g.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded bg-gradient-to-br ${g.value}`} />
+                            {g.label}
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+                {bGradient && (
+                  <div className={`h-12 rounded-lg bg-gradient-to-r ${bGradient} flex items-center justify-center text-white text-sm font-medium`}>
+                    Vista previa
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Switch checked={bIsActive} onCheckedChange={setBIsActive} />
                   <Label>Activo</Label>
                 </div>
-                <Button onClick={handleSaveBanner} className="w-full">Guardar</Button>
+                <Button onClick={handleSaveBanner} className="w-full">{editingBannerId ? 'Guardar Cambios' : 'Crear Banner'}</Button>
               </div>
             </DialogContent>
           </Dialog>

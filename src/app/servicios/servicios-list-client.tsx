@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/co
 import { SlidersHorizontal, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ServiceCard } from '@/components/services/service-card';
+import { PromoBanner } from '@/components/marketing/promo-banner';
 import type { Service } from '@/types/database';
 
 function ServiciosContent() {
@@ -39,6 +40,8 @@ function ServiciosContent() {
         <h1 className="text-3xl font-bold">Servicios para Eventos</h1>
         <p className="text-muted-foreground mt-2">Encuentra el servicio perfecto para tu evento en México</p>
       </div>
+
+      <PromoBanner bannerKey="services_top_banner" variant="inline" className="mb-6" />
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
