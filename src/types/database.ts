@@ -23,6 +23,7 @@ export interface CatalogSubcategory {
   slug: string;
   category_slug: string;
   label: string;
+  icon: string;
   sort_order: number;
   is_active: boolean;
 }

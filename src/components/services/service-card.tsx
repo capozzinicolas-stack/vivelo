@@ -8,7 +8,7 @@ import { useCatalog } from '@/providers/catalog-provider';
 import type { Service } from '@/types/database';
 
 export function ServiceCard({ service }: { service: Service }) {
-  const { categoryMap, subcategoryMap, getCategoryIcon } = useCatalog();
+  const { categoryMap, subcategoryMap, getCategoryIcon, getSubcategoryIcon } = useCatalog();
   const cat = categoryMap[service.category];
   const CatIcon = getCategoryIcon(service.category);
   const visibleZones = service.zones.slice(0, 2);
@@ -34,7 +34,7 @@ export function ServiceCard({ service }: { service: Service }) {
           <div className="flex flex-wrap gap-1.5">
             {cat && <Badge className={cat.color} variant="secondary">{cat.label}</Badge>}
             {service.subcategory && subcategoryMap[service.subcategory] && (
-              <Badge variant="outline" className="text-xs">{subcategoryMap[service.subcategory].label}</Badge>
+              <Badge variant="outline" className="text-xs">{(() => { const SubIcon = getSubcategoryIcon(service.subcategory); return <SubIcon className="h-3 w-3 mr-1" />; })()}{subcategoryMap[service.subcategory].label}</Badge>
             )}
           </div>
           <h3 className="font-semibold text-lg leading-tight line-clamp-2 group-hover:text-primary transition-colors">{service.title}</h3>

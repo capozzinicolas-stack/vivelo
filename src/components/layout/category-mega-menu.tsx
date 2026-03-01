@@ -11,7 +11,7 @@ interface CategoryMegaMenuProps {
 }
 
 export function CategoryMegaMenu({ category, onClose }: CategoryMegaMenuProps) {
-  const { getSubcategoriesByCategory } = useCatalog();
+  const { getSubcategoriesByCategory, getSubcategoryIcon } = useCatalog();
   const subcategories = getSubcategoriesByCategory(category.slug);
   const Icon = getIcon(category.icon);
 
@@ -39,16 +39,20 @@ export function CategoryMegaMenu({ category, onClose }: CategoryMegaMenuProps) {
           >
             Ver todos
           </Link>
-          {subcategories.map((sub) => (
-            <Link
-              key={sub.slug}
-              href={`/servicios?categoria=${category.slug}&subcategoria=${sub.slug}`}
-              onClick={onClose}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
-            >
-              {sub.label}
-            </Link>
-          ))}
+          {subcategories.map((sub) => {
+            const SubIcon = getSubcategoryIcon(sub.slug);
+            return (
+              <Link
+                key={sub.slug}
+                href={`/servicios?categoria=${category.slug}&subcategoria=${sub.slug}`}
+                onClick={onClose}
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <SubIcon className="h-4 w-4 text-muted-foreground" />
+                {sub.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

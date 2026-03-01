@@ -87,6 +87,7 @@ export default function AdminConfiguracionPage() {
   // Subcategory form
   const [subSlug, setSubSlug] = useState('');
   const [subLabel, setSubLabel] = useState('');
+  const [subIcon, setSubIcon] = useState('Tag');
   const [subCategorySlug, setSubCategorySlug] = useState('');
   const [subSortOrder, setSubSortOrder] = useState('0');
   const [subIsActive, setSubIsActive] = useState(true);
@@ -197,7 +198,7 @@ export default function AdminConfiguracionPage() {
       setCatColor('bg-gray-100 text-gray-600'); setCatSkuPrefix(''); setCatSortOrder('0'); setCatIsActive(true);
       setCatCommissionRate('12');
     } else if (type === 'subcategory') {
-      setSubSlug(''); setSubLabel(''); setSubCategorySlug(categories[0]?.slug || '');
+      setSubSlug(''); setSubLabel(''); setSubIcon('Tag'); setSubCategorySlug(categories[0]?.slug || '');
       setSubSortOrder('0'); setSubIsActive(true);
     } else if (type === 'zone') {
       setZoneSlug(''); setZoneLabel(''); setZoneSortOrder('0'); setZoneIsActive(true);
@@ -218,7 +219,8 @@ export default function AdminConfiguracionPage() {
   const openEditSubcategory = (sub: CatalogSubcategory) => {
     setCatalogDialog({ type: 'subcategory', editing: true });
     setEditingSubSlug(sub.slug); setSubSlug(sub.slug); setSubLabel(sub.label);
-    setSubCategorySlug(sub.category_slug); setSubSortOrder(sub.sort_order.toString()); setSubIsActive(sub.is_active);
+    setSubIcon(sub.icon || 'Tag'); setSubCategorySlug(sub.category_slug);
+    setSubSortOrder(sub.sort_order.toString()); setSubIsActive(sub.is_active);
   };
 
   const openEditZone = (zone: CatalogZone) => {
@@ -266,7 +268,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch(`/api/admin/catalog/${editingSubSlug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'subcategory', data: { label: subLabel, category_slug: subCategorySlug, sort_order: parseInt(subSortOrder) || 0, is_active: subIsActive } }),
+            body: JSON.stringify({ type: 'subcategory', data: { label: subLabel, icon: subIcon, category_slug: subCategorySlug, sort_order: parseInt(subSortOrder) || 0, is_active: subIsActive } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         } else {
@@ -274,7 +276,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch('/api/admin/catalog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'subcategory', data: { slug: subSlug, label: subLabel, category_slug: subCategorySlug, sort_order: parseInt(subSortOrder) || 0, is_active: subIsActive } }),
+            body: JSON.stringify({ type: 'subcategory', data: { slug: subSlug, label: subLabel, icon: subIcon, category_slug: subCategorySlug, sort_order: parseInt(subSortOrder) || 0, is_active: subIsActive } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         }
@@ -478,9 +480,15 @@ export default function AdminConfiguracionPage() {
                 <TableBody>
                   {subcategories.map(sub => {
                     const parentCat = categories.find(c => c.slug === sub.category_slug);
+                    const SubIcon = getIcon(sub.icon || 'Tag');
                     return (
                       <TableRow key={sub.slug}>
-                        <TableCell className="font-medium">{sub.label}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <SubIcon className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{sub.label}</span>
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{sub.slug}</TableCell>
                         <TableCell>
                           {parentCat && <Badge variant="outline" className="text-xs">{parentCat.label}</Badge>}
@@ -747,6 +755,24 @@ export default function AdminConfiguracionPage() {
                 <div>
                   <Label>Nombre *</Label>
                   <Input value={subLabel} onChange={e => setSubLabel(e.target.value)} placeholder="Ej: Taquiza" className="mt-1" />
+                </div>
+                <div>
+                  <Label>Icono</Label>
+                  <Select value={subIcon} onValueChange={setSubIcon}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableIcons.map(name => {
+                        const Ico = getIcon(name);
+                        return (
+                          <SelectItem key={name} value={name}>
+                            <div className="flex items-center gap-2"><Ico className="h-4 w-4" />{name}</div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Categoria padre *</Label>

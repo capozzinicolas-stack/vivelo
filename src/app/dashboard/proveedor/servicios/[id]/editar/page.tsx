@@ -26,7 +26,7 @@ export default function EditarServicioPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug } = useCatalog();
+  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug, getSubcategoryIcon } = useCatalog();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -241,7 +241,10 @@ export default function EditarServicioPage() {
                 <Select value={subcategory} onValueChange={setSubcategory}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Seleccionar subcategoria" /></SelectTrigger>
                   <SelectContent>
-                    {availableSubcategories.filter(s => s.is_active).map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
+                    {availableSubcategories.filter(s => s.is_active).map((s) => {
+                      const SubIcon = getSubcategoryIcon(s.slug);
+                      return <SelectItem key={s.slug} value={s.slug}><span className="flex items-center gap-2"><SubIcon className="h-4 w-4" />{s.label}</span></SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
               </div>

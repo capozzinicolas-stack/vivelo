@@ -18,6 +18,7 @@ interface CatalogContextValue {
   getTagsByCategory: (categorySlug: string) => CatalogTag[];
   getZoneLabel: (slug: string) => string;
   getCategoryIcon: (slug: string) => LucideIcon;
+  getSubcategoryIcon: (slug: string) => LucideIcon;
   getCategoryLabel: (slug: string) => string;
   getCategoryColor: (slug: string) => string;
   getCategoryCommissionRate: (slug: string) => number;
@@ -62,6 +63,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
             slug: s.value,
             category_slug: c.value,
             label: s.label,
+            icon: 'Tag',
             sort_order: j + 1,
             is_active: true,
           }))
@@ -94,6 +96,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           slug: s.value,
           category_slug: c.value,
           label: s.label,
+          icon: 'Tag',
           sort_order: j + 1,
           is_active: true,
         }))
@@ -141,6 +144,11 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return getIcon(cat?.icon || 'Tag');
   };
 
+  const getSubcategoryIcon = (slug: string): LucideIcon => {
+    const sub = subcategoryMap[slug];
+    return getIcon(sub?.icon || 'Tag');
+  };
+
   const getCategoryLabel = (slug: string): string => {
     return categoryMap[slug]?.label || slug;
   };
@@ -166,6 +174,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     getTagsByCategory,
     getZoneLabel,
     getCategoryIcon,
+    getSubcategoryIcon,
     getCategoryLabel,
     getCategoryColor,
     getCategoryCommissionRate,

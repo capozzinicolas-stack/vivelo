@@ -24,7 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertTriangle, Star, MapPin, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Tag, Timer, DollarSign } from 'lucide-react';
+import { AlertTriangle, Star, MapPin, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Timer, DollarSign } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -50,7 +50,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const { user } = useAuthContext();
   const { items, addItem } = useCart();
   const { toast } = useToast();
-  const { categoryMap, subcategoryMap, getCategoryIcon } = useCatalog();
+  const { categoryMap, subcategoryMap, getCategoryIcon, getSubcategoryIcon } = useCatalog();
 
   const [date, setDate] = useState<Date>();
   const [startTime, setStartTime] = useState('10:00');
@@ -260,7 +260,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           <div className="flex items-center gap-3 flex-wrap">
             {cat && <Badge className={cat.color}>{cat.label}</Badge>}
             {service.subcategory && subcategoryMap[service.subcategory] && (
-              <Badge variant="secondary">{subcategoryMap[service.subcategory].label}</Badge>
+              <Badge variant="secondary">{(() => { const SubIcon = getSubcategoryIcon(service.subcategory); return <SubIcon className="h-3.5 w-3.5 mr-1" />; })()}{subcategoryMap[service.subcategory].label}</Badge>
             )}
             <div className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /><span className="font-medium">{service.avg_rating}</span><span className="text-muted-foreground">({service.review_count} resenas)</span></div>
             <div className="flex items-center gap-1 text-muted-foreground"><ShoppingCart className="h-3.5 w-3.5" /><span className="text-sm">{bookingCount} contratacion{bookingCount !== 1 ? 'es' : ''}</span></div>
@@ -324,7 +324,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
             )}
             {service.subcategory && subcategoryMap[service.subcategory] && (
               <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                <Tag className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                {(() => { const SubIcon = getSubcategoryIcon(service.subcategory); return <SubIcon className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />; })()}
                 <div>
                   <p className="text-sm font-medium">Tipo</p>
                   <p className="text-sm text-muted-foreground">{subcategoryMap[service.subcategory].label}</p>

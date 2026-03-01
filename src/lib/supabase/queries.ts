@@ -2449,6 +2449,7 @@ export async function getCatalogSubcategories(): Promise<CatalogSubcategory[]> {
         slug: s.value,
         category_slug: c.value,
         label: s.label,
+        icon: 'Tag',
         sort_order: i + 1,
         is_active: true,
       }))

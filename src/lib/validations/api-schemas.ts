@@ -84,6 +84,7 @@ export const CreateSubcategorySchema = z.object({
   slug: z.string().min(1, 'slug es requerido').regex(/^[A-Z0-9_]+$/, 'slug debe ser UPPER_SNAKE_CASE'),
   category_slug: z.string().min(1, 'category_slug es requerido'),
   label: z.string().min(1, 'label es requerido'),
+  icon: z.string().default('Tag'),
   sort_order: z.number().int().default(0),
   is_active: z.boolean().default(true),
 });
@@ -91,6 +92,7 @@ export const CreateSubcategorySchema = z.object({
 export const UpdateSubcategorySchema = z.object({
   category_slug: z.string().min(1).optional(),
   label: z.string().min(1).optional(),
+  icon: z.string().optional(),
   sort_order: z.number().int().optional(),
   is_active: z.boolean().optional(),
 });

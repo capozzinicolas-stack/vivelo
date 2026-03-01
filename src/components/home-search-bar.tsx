@@ -14,7 +14,7 @@ import { Search, CalendarIcon, Users, MapPin } from 'lucide-react';
 
 export function HomeSearchBar() {
   const router = useRouter();
-  const { categories, zones, getSubcategoriesByCategory } = useCatalog();
+  const { categories, zones, getSubcategoriesByCategory, getSubcategoryIcon } = useCatalog();
   const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
   const [date, setDate] = useState<Date | undefined>();
@@ -69,9 +69,10 @@ export function HomeSearchBar() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todas</SelectItem>
-                {availableSubcategories.map((s) => (
-                  <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
-                ))}
+                {availableSubcategories.map((s) => {
+                  const SubIcon = getSubcategoryIcon(s.slug);
+                  return <SelectItem key={s.slug} value={s.slug}><span className="flex items-center gap-2"><SubIcon className="h-4 w-4" />{s.label}</span></SelectItem>;
+                })}
               </SelectContent>
             </Select>
           </div>

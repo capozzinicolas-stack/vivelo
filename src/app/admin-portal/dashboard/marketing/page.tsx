@@ -27,7 +27,7 @@ import {
 } from '@/lib/supabase/queries';
 
 export default function AdminMarketingPage() {
-  const { categories, getSubcategoriesByCategory } = useCatalog();
+  const { categories, getSubcategoriesByCategory, getSubcategoryIcon } = useCatalog();
   const { toast } = useToast();
   const [placements, setPlacements] = useState<FeaturedPlacement[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -747,9 +747,10 @@ export default function AdminMarketingPage() {
                   <Select value={sSubcategory} onValueChange={setSSubcategory} disabled={!sParentCategory}>
                     <SelectTrigger><SelectValue placeholder={sParentCategory ? 'Seleccionar subcategoria' : 'Primero selecciona categoria'} /></SelectTrigger>
                     <SelectContent>
-                      {availableSubcategories.filter(sc => sc.is_active).map(sc => (
-                        <SelectItem key={sc.slug} value={sc.slug}>{sc.label}</SelectItem>
-                      ))}
+                      {availableSubcategories.filter(sc => sc.is_active).map(sc => {
+                        const SubIcon = getSubcategoryIcon(sc.slug);
+                        return <SelectItem key={sc.slug} value={sc.slug}><span className="flex items-center gap-2"><SubIcon className="h-4 w-4" />{sc.label}</span></SelectItem>;
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

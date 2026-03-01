@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
+import { useCatalog } from '@/providers/catalog-provider';
 import type { ShowcaseItem, SiteBanner } from '@/types/database';
 
 interface ShowcaseSubcategory {
@@ -30,6 +31,7 @@ interface SubcategoryShowcaseSectionProps {
 }
 
 export function SubcategoryShowcaseSection({ items, promoBanner }: SubcategoryShowcaseSectionProps) {
+  const { getSubcategoryIcon } = useCatalog();
   const showcaseData: ShowcaseSubcategory[] = (items && items.length > 0)
     ? items.map(i => ({
         value: i.subcategory,
@@ -85,7 +87,7 @@ export function SubcategoryShowcaseSection({ items, promoBanner }: SubcategorySh
                   <Link href={`/servicios?categoria=${sub.parentCategory}&subcategoria=${sub.value}`}>
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
                       <div className={`h-28 md:h-52 bg-gradient-to-br ${sub.color} flex items-center justify-center`}>
-                        <span className="text-white/30 text-4xl md:text-6xl font-bold">{sub.label[0]}</span>
+                        {(() => { const SubIcon = getSubcategoryIcon(sub.value); return <SubIcon className="h-10 w-10 md:h-16 md:w-16 text-white/40" />; })()}
                       </div>
                       <CardContent className="p-2 md:p-4 space-y-1 md:space-y-2">
                         <h3 className="font-bold text-sm md:text-lg">{sub.label}</h3>

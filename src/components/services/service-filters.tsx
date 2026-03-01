@@ -26,7 +26,7 @@ interface ServiceFiltersProps {
 export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '', tags: [] };
 
 export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
-  const { categories, zones, getSubcategoriesByCategory, getTagsByCategory } = useCatalog();
+  const { categories, zones, getSubcategoriesByCategory, getTagsByCategory, getSubcategoryIcon } = useCatalog();
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
 
   const availableSubcategories = filters.category
@@ -61,7 +61,10 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
             <SelectTrigger><SelectValue placeholder="Todas las subcategorias" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Todas las subcategorias</SelectItem>
-              {availableSubcategories.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>)}
+              {availableSubcategories.map((s) => {
+                const SubIcon = getSubcategoryIcon(s.slug);
+                return <SelectItem key={s.slug} value={s.slug}><span className="flex items-center gap-2"><SubIcon className="h-4 w-4" />{s.label}</span></SelectItem>;
+              })}
             </SelectContent>
           </Select>
         </div>
