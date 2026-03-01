@@ -133,9 +133,10 @@ export default function ProveedorConfiguracionPage() {
                 <Input
                   type="number"
                   min={0}
-                  step={15}
+                  step={1}
                   value={globalBufferBefore}
                   onChange={(e) => setGlobalBufferBefore(e.target.value)}
+                  placeholder="Ej: 60"
                   className="mt-1"
                 />
               </div>
@@ -144,9 +145,10 @@ export default function ProveedorConfiguracionPage() {
                 <Input
                   type="number"
                   min={0}
-                  step={15}
+                  step={1}
                   value={globalBufferAfter}
                   onChange={(e) => setGlobalBufferAfter(e.target.value)}
+                  placeholder="Ej: 30"
                   className="mt-1"
                 />
               </div>

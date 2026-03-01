@@ -321,8 +321,8 @@ export default function EditarServicioPage() {
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">Tiempo adicional antes y despues del evento para montaje y desmontaje.</p>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Minutos antes</Label><Input type="number" min="0" step="15" value={bufferBeforeMinutes} onChange={(e) => setBufferBeforeMinutes(e.target.value)} className="mt-1" /></div>
-              <div><Label>Minutos despues</Label><Input type="number" min="0" step="15" value={bufferAfterMinutes} onChange={(e) => setBufferAfterMinutes(e.target.value)} className="mt-1" /></div>
+              <div><Label>Minutos antes</Label><Input type="number" min="0" step="1" value={bufferBeforeMinutes} onChange={(e) => setBufferBeforeMinutes(e.target.value)} placeholder="Ej: 60" className="mt-1" /></div>
+              <div><Label>Minutos despues</Label><Input type="number" min="0" step="1" value={bufferAfterMinutes} onChange={(e) => setBufferAfterMinutes(e.target.value)} placeholder="Ej: 30" className="mt-1" /></div>
             </div>
           </CardContent>
         </Card>
