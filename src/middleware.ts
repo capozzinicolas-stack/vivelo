@@ -38,6 +38,40 @@ function updateSessionWithRewrite(request: NextRequest, rewriteUrl: URL) {
   return supabase.auth.getUser().then(() => response);
 }
 
+function updateSessionWithHeader(request: NextRequest, headerName: string, headerValue: string) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(headerName, headerValue);
+
+  let response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  return supabase.auth.getUser().then(() => response);
+}
+
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   const isAdminDomain = hostname.startsWith('admin.');
@@ -101,14 +135,14 @@ export async function middleware(request: NextRequest) {
   // Check for mock auth mode
   const isMockMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
 
-  // Dashboard routes: set request header to suppress public chrome (navbar/footer)
+  // Dashboard routes: set header to suppress public chrome (navbar/footer)
   if (pathname.startsWith('/dashboard')) {
-    request.headers.set('x-dashboard', '1');
     if (isMockMode) {
-      return NextResponse.next({ request });
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set('x-dashboard', '1');
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
-    const { updateSession } = await import('@/lib/supabase/middleware');
-    return updateSession(request);
+    return updateSessionWithHeader(request, 'x-dashboard', '1');
   }
 
   // Allow public paths
