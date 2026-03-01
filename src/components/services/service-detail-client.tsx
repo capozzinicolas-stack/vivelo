@@ -84,10 +84,10 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
 
   // When guests or hours change, adjust selected extras that depend on them
   const extras = service.extras || [];
-  const isPerPerson = service.price_unit === 'por persona';
   const isPerHour = service.price_unit === 'por hora';
   const isPerEvento = service.price_unit === 'por evento';
-  const hasBaseEventHours = isPerEvento && service.base_event_hours;
+  const isPerUnit = !isPerHour && !isPerEvento; // por persona, por mesa, por mesero, etc.
+  const hasBaseEventHours = service.base_event_hours && (isPerEvento || isPerUnit);
 
   useEffect(() => {
     const svcExtras = service.extras || [];
@@ -99,7 +99,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
         return { ...sel, quantity: Math.max(minQty, Math.min(extra.max_quantity, sel.quantity)) };
       }
       if (extra.depends_on_hours) {
-        const hrs = service.base_event_hours && service.price_unit === 'por evento'
+        const hrs = service.base_event_hours && !isPerHour
           ? service.base_event_hours
           : calcHours(startTime, endTime);
         const minQty = Math.max(1, Math.ceil(hrs));
@@ -116,7 +116,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
       return;
     }
 
-    const actualEnd = (service.price_unit === 'por evento' && service.base_event_hours)
+    const actualEnd = (service.base_event_hours && !isPerHour)
       ? (() => {
           const [h, m] = startTime.split(':').map(Number);
           const totalMin = h * 60 + m + (service.base_event_hours! * 60);
@@ -178,7 +178,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const eventHours = hasBaseEventHours ? service.base_event_hours! : calcHours(startTime, computedEndTime);
 
   let baseTotal = service.base_price;
-  if (isPerPerson) baseTotal = service.base_price * guests;
+  if (isPerUnit) baseTotal = service.base_price * guests;
   if (isPerHour) baseTotal = service.base_price * eventHours;
 
   const extrasTotal = selectedExtras.reduce((sum, sel) => {
@@ -239,12 +239,12 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const handleExploreSimilar = () => {
     const params = new URLSearchParams();
     if (service.category) params.set('categoria', service.category);
-    if (service.zones.length > 0) params.set('zona', service.zones[0]);
+    if (service.zones?.length > 0) params.set('zona', service.zones[0]);
     if (date) params.set('fecha', format(date, 'yyyy-MM-dd'));
     router.push(`/servicios?${params.toString()}`);
   };
 
-  const pricingLabel = isPerPerson ? 'por persona' : isPerHour ? 'por hora' : 'precio fijo';
+  const pricingLabel = isPerEvento ? 'precio fijo' : service.price_unit;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -310,8 +310,8 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
             <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
               <Users className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium">Capacidad</p>
-                <p className="text-sm text-muted-foreground">{service.min_guests} - {service.max_guests.toLocaleString()} invitados</p>
+                <p className="text-sm font-medium">{isPerUnit && service.price_unit !== 'por persona' ? 'Cantidad' : 'Capacidad'}</p>
+                <p className="text-sm text-muted-foreground">{service.min_guests} - {service.max_guests.toLocaleString()} {isPerUnit ? service.price_unit.replace('por ', '') + 's' : 'invitados'}</p>
               </div>
             </div>
             {isPerHour && (
@@ -336,7 +336,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
               <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium">Cobertura</p>
-                <p className="text-sm text-muted-foreground">{service.zones.join(', ')}</p>
+                <p className="text-sm text-muted-foreground">{(service.zones || []).join(', ') || 'Sin cobertura definida'}</p>
               </div>
             </div>
           </div>
@@ -433,13 +433,13 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
                     </div>
                     <p className="text-xs text-muted-foreground -mt-2">
                       Duracion: {eventHours} hora{eventHours !== 1 ? 's' : ''}
-                      {(isPerHour || isPerPerson) && ` · Min: ${service.min_hours || 1}h | Max: ${service.max_hours || 12}h`}
+                      {isPerHour && ` · Min: ${service.min_hours || 1}h | Max: ${service.max_hours || 12}h`}
                     </p>
                   </>
                 )}
 
                 <div>
-                  <Label className="flex items-center gap-1"><Users className="h-3 w-3" /> Invitados *</Label>
+                  <Label className="flex items-center gap-1"><Users className="h-3 w-3" /> {isPerUnit && service.price_unit !== 'por persona' ? 'Cantidad' : 'Invitados'} *</Label>
                   <Input type="number" min={service.min_guests} max={service.max_guests} value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="mt-1" />
                   <p className="text-xs text-muted-foreground mt-1">Min: {service.min_guests} | Max: {service.max_guests}</p>
                 </div>
@@ -485,9 +485,9 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>
-                      {isPerPerson && `$${service.base_price.toLocaleString()} x ${guests} personas`}
+                      {isPerUnit && `$${service.base_price.toLocaleString()} x ${guests} ${service.price_unit.replace('por ', '')}`}
                       {isPerHour && `$${service.base_price.toLocaleString()} x ${eventHours}h`}
-                      {!isPerPerson && !isPerHour && 'Servicio'}
+                      {isPerEvento && 'Servicio'}
                     </span>
                     <span>${baseTotal.toLocaleString()}</span>
                   </div>

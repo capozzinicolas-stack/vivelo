@@ -37,9 +37,10 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
   const [editGuests, setEditGuests] = useState(item.guest_count);
 
   const cat = categoryMap[item.service_snapshot.category];
-  const isPerPerson = item.service_snapshot.price_unit === 'por persona';
   const isPerHour = item.service_snapshot.price_unit === 'por hora';
-  const hasBaseEventHours = item.service_snapshot.price_unit === 'por evento' && item.service_snapshot.base_event_hours;
+  const isPerEvento = item.service_snapshot.price_unit === 'por evento';
+  const isPerUnit = !isPerHour && !isPerEvento;
+  const hasBaseEventHours = item.service_snapshot.base_event_hours && !isPerHour;
 
   const handleSaveEdit = () => {
     if (!editDate) return;
@@ -57,7 +58,7 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
     const eventHours = hasBaseEventHours ? item.service_snapshot.base_event_hours! : calcHours(editStartTime, actualEndTime);
 
     let baseTotal = item.service_snapshot.base_price;
-    if (isPerPerson) baseTotal = item.service_snapshot.base_price * editGuests;
+    if (isPerUnit) baseTotal = item.service_snapshot.base_price * editGuests;
     if (isPerHour) baseTotal = item.service_snapshot.base_price * eventHours;
 
     // Recalculate extras total (keep same extras, just recalc subtotals if needed)

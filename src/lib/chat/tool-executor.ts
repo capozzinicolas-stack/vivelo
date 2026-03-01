@@ -176,14 +176,12 @@ async function calculatePrice(input: Record<string, unknown>): Promise<ToolResul
     case 'por evento':
       baseTotal = service.base_price;
       break;
-    case 'por persona':
-      baseTotal = service.base_price * (guestCount || service.min_guests);
-      break;
     case 'por hora':
       baseTotal = service.base_price * (hours || service.min_hours);
       break;
     default:
-      baseTotal = service.base_price;
+      // por persona, por mesa, por mesero, etc. — per-unit pricing
+      baseTotal = service.base_price * (guestCount || service.min_guests);
   }
 
   return {

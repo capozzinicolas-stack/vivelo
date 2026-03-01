@@ -10,11 +10,11 @@ function generateFaqItems(service: Service, providerName: string) {
 
   items.push({
     question: `¿Cuanto cuesta ${service.title}?`,
-    answer: service.price_unit === 'por persona'
-      ? `El precio base es de $${service.base_price.toLocaleString()} MXN por persona. El total depende del numero de invitados (${service.min_guests}-${service.max_guests}).`
-      : service.price_unit === 'por hora'
-        ? `El precio base es de $${service.base_price.toLocaleString()} MXN por hora. Minimo ${service.min_hours || 1} horas.`
-        : `El precio es de $${service.base_price.toLocaleString()} MXN por evento${service.base_event_hours ? ` (incluye ${service.base_event_hours} horas)` : ''}.`,
+    answer: service.price_unit === 'por hora'
+      ? `El precio base es de $${service.base_price.toLocaleString()} MXN por hora. Minimo ${service.min_hours || 1} horas.`
+      : service.price_unit === 'por evento'
+        ? `El precio es de $${service.base_price.toLocaleString()} MXN por evento${service.base_event_hours ? ` (incluye ${service.base_event_hours} horas)` : ''}.`
+        : `El precio base es de $${service.base_price.toLocaleString()} MXN ${service.price_unit}. El total depende de la cantidad (${service.min_guests}-${service.max_guests}).`,
   });
 
   items.push({
@@ -22,7 +22,7 @@ function generateFaqItems(service: Service, providerName: string) {
     answer: service.description.slice(0, 200) + (service.description.length > 200 ? '...' : ''),
   });
 
-  if (service.zones.length > 0) {
+  if (service.zones?.length > 0) {
     items.push({
       question: `¿En que zonas esta disponible ${service.title}?`,
       answer: `Este servicio cubre las siguientes zonas: ${service.zones.join(', ')}.`,
