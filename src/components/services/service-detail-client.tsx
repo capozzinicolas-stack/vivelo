@@ -359,12 +359,6 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           </>
         )}
 
-        {extras.length > 0 && (
-          <>
-            <Separator />
-            <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} guests={guests} eventHours={eventHours} />
-          </>
-        )}
       </div>
 
       <div className="lg:col-span-1">
@@ -479,6 +473,10 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
                   </Popover>
                   <p className="text-xs text-muted-foreground mt-1">Agrupa tus reservas bajo un mismo evento</p>
                 </div>
+
+                {extras.length > 0 && (
+                  <ExtrasSelector extras={extras} selectedExtras={selectedExtras} onSelectionChange={setSelectedExtras} guests={guests} eventHours={eventHours} />
+                )}
 
                 <Separator />
 
