@@ -40,7 +40,7 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
   const isPerHour = item.service_snapshot.price_unit === 'por hora';
   const isPerEvento = item.service_snapshot.price_unit === 'por evento';
   const isPerUnit = !isPerHour && !isPerEvento;
-  const hasBaseEventHours = isPerEvento && !!item.service_snapshot.base_event_hours;
+  const hasBaseEventHours = !!item.service_snapshot.base_event_hours && !isPerHour;
 
   const handleSaveEdit = () => {
     if (!editDate) return;
