@@ -242,47 +242,67 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
             {/* Price breakdown */}
             <div>
               <p className="text-sm font-medium mb-2">Desglose de precio</p>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Precio base</span>
-                  <span>${booking.base_total.toLocaleString()}</span>
-                </div>
-                {booking.extras_total > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Extras</span>
-                    <span>${booking.extras_total.toLocaleString()}</span>
+              {(() => {
+                const isCancelledWithRefund = booking.status === 'cancelled' && (booking.refund_amount ?? 0) > 0;
+                const effectiveTotal = isCancelledWithRefund ? booking.total - (booking.refund_amount ?? 0) : booking.total;
+                return (
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Precio base</span>
+                      <span>${booking.base_total.toLocaleString()}</span>
+                    </div>
+                    {booking.extras_total > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Extras</span>
+                        <span>${booking.extras_total.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <Separator />
+                    {isCancelledWithRefund ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total original</span>
+                          <span className="line-through text-muted-foreground">${booking.total.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-orange-600">
+                          <span>Reembolso ({booking.refund_percent}%)</span>
+                          <span>-${(booking.refund_amount ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-base">
+                          <span>Total efectivo</span>
+                          <span>${effectiveTotal.toLocaleString()}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between font-bold text-base">
+                        <span>Total cliente</span>
+                        <span>${booking.total.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {role === 'provider' && booking.commission > 0 && (
+                      <>
+                        <div className="flex justify-between text-red-500">
+                          <span>Comision Vivelo{booking.commission_rate_snapshot ? ` (${(booking.commission_rate_snapshot * 100).toFixed(1)}%)` : ''}</span>
+                          <span>-${booking.commission.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-base text-green-600">
+                          <span>Tu pago neto</span>
+                          <span>${(effectiveTotal - booking.commission).toLocaleString()}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
-                <Separator />
-                <div className="flex justify-between font-bold text-base">
-                  <span>Total cliente</span>
-                  <span>${booking.total.toLocaleString()}</span>
-                </div>
-                {role === 'provider' && booking.commission > 0 && (
-                  <>
-                    <div className="flex justify-between text-red-500">
-                      <span>Comision Vivelo{booking.commission_rate_snapshot ? ` (${(booking.commission_rate_snapshot * 100).toFixed(1)}%)` : ''}</span>
-                      <span>-${booking.commission.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-base text-green-600">
-                      <span>Tu pago neto</span>
-                      <span>${(booking.total - booking.commission).toLocaleString()}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+                );
+              })()}
             </div>
 
-            {/* Refund info (if already cancelled) */}
-            {booking.status === 'cancelled' && (booking.refund_amount ?? 0) > 0 && (
+            {/* Refund info (if cancelled with zero refund — policy applied but no money back) */}
+            {booking.status === 'cancelled' && booking.refund_amount === 0 && booking.refund_percent != null && (
               <>
                 <Separator />
                 <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                  <p className="font-medium mb-1">Reembolso procesado</p>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Monto reembolsado ({booking.refund_percent}%)</span>
-                    <span className="font-medium">${(booking.refund_amount ?? 0).toLocaleString()} MXN</span>
-                  </div>
+                  <p className="font-medium mb-1">Cancelada sin reembolso</p>
+                  <p className="text-muted-foreground">La politica de cancelacion no otorgo reembolso para esta reserva.</p>
                 </div>
               </>
             )}

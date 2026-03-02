@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (validation.error !== null) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const { bookingId, cancelledBy } = validation.data!
+    const { bookingId } = validation.data!
 
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
     const isMock = process.env.NODE_ENV === 'development' && (!secretKey || secretKey === 'sk_test_placeholder');
@@ -117,20 +117,56 @@ export async function POST(request: NextRequest) {
       }
 
       // 5. Process Stripe refund if applicable
-      const stripePI = booking.stripe_payment_intent_id as string | null;
+      // stripe_payment_intent_id lives on the order, not the booking
+      let stripePI: string | null = null;
+      if (!isMockDb) {
+        // Primary: fetch from orders table via order_id
+        if (booking.order_id) {
+          const orderClient = createAdminSupabaseClient();
+          const { data: order } = await orderClient
+            .from('orders')
+            .select('stripe_payment_intent_id')
+            .eq('id', booking.order_id as string)
+            .single();
+          stripePI = order?.stripe_payment_intent_id || null;
+        }
+        // Fallback: legacy bookings may have stripe_payment_intent_id directly
+        if (!stripePI && booking.stripe_payment_intent_id) {
+          stripePI = booking.stripe_payment_intent_id as string;
+          console.log(`[Cancel] Using legacy booking.stripe_payment_intent_id: ${stripePI}`);
+        }
+      }
 
       if (refund_amount > 0 && stripePI && !isMock) {
-        const stripe = new Stripe(secretKey!);
-        const refund = await stripe.refunds.create({
-          payment_intent: stripePI,
-          amount: Math.round(refund_amount * 100), // centavos MXN
-        });
-        stripeRefundId = refund.id;
-        console.log(`[Cancel] Stripe refund created: ${refund.id}, amount: ${refund_amount} MXN`);
+        try {
+          const stripe = new Stripe(secretKey!);
+          const refund = await stripe.refunds.create({
+            payment_intent: stripePI,
+            amount: Math.round(refund_amount * 100), // centavos MXN
+          });
+          stripeRefundId = refund.id;
+          console.log(`[Cancel] Stripe refund created: ${refund.id}, amount: ${refund_amount} MXN`);
+        } catch (stripeError) {
+          console.error(`[Cancel] Stripe refund FAILED for PI ${stripePI}:`, stripeError);
+          return NextResponse.json(
+            { error: 'Error procesando el reembolso en Stripe. Contacta a soporte.' },
+            { status: 502 },
+          );
+        }
+      } else if (refund_amount > 0 && !stripePI && !isMock) {
+        console.warn(`[Cancel] Refund of ${refund_amount} MXN calculated but no Stripe PaymentIntent found. booking.order_id=${booking.order_id ?? 'null'}`);
       } else if (isMock && refund_amount > 0) {
         console.log(`[Cancel Mock] Simulated refund: ${refund_amount} MXN (${refund_percent}%)`);
       }
     } // end if (!isPending)
+
+    // 5b. Recalculate commission on retained amount
+    let newCommission: number | undefined;
+    if (!isPending && refund_amount > 0) {
+      const retainedAmount = (booking.total as number) - refund_amount;
+      const commissionRate = (booking.commission_rate_snapshot as number) || 0.12;
+      newCommission = Math.round(retainedAmount * commissionRate * 100) / 100;
+    }
 
     // 6. Build the policy snapshot to store (if not already present)
     const policySnapshot = snapshot || (policy ? {
@@ -146,9 +182,10 @@ export async function POST(request: NextRequest) {
         .update({
           status: 'cancelled',
           cancelled_at: new Date().toISOString(),
-          cancelled_by: cancelledBy,
+          cancelled_by: userId,
           refund_amount,
           refund_percent,
+          ...(newCommission !== undefined && { commission: newCommission }),
           cancellation_policy_snapshot: policySnapshot,
           updated_at: new Date().toISOString(),
         })

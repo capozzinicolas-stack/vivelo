@@ -568,6 +568,7 @@ export async function createBooking(booking: {
     notes: booking.notes,
     event_name: booking.event_name ?? null,
     status: 'pending' as BookingStatus,
+    ...(booking.order_id ? { order_id: booking.order_id } : {}),
   };
 
   // Try full insert first (with Phase 2 columns)

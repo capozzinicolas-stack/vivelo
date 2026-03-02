@@ -122,7 +122,9 @@ export default function ClienteReservasPage() {
                           <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                           <TableCell>{b.guest_count}</TableCell>
                           <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
-                          <TableCell className="text-right font-medium">${b.total.toLocaleString()}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            ${(b.status === 'cancelled' && b.refund_amount ? b.total - b.refund_amount : b.total).toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             {b.status === 'completed' && !reviewedBookingIds.has(b.id) && (
                               <Button
@@ -196,7 +198,9 @@ export default function ClienteReservasPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>
-                              <span className="font-medium text-sm">${b.total.toLocaleString()}</span>
+                              <span className="font-medium text-sm">
+                                ${(b.status === 'cancelled' && b.refund_amount ? b.total - b.refund_amount : b.total).toLocaleString()}
+                              </span>
                               {b.status === 'completed' && !reviewedBookingIds.has(b.id) && (
                                 <Button
                                   variant="outline"

@@ -68,9 +68,16 @@ export default function ProveedorReservasPage() {
                     <TableCell>{b.client?.full_name || 'Cliente'}</TableCell>
                     <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell>{b.guest_count}</TableCell>
-                    <TableCell className="text-muted-foreground">${b.total.toLocaleString()}</TableCell>
-                    <TableCell className="text-red-500">-${b.commission.toLocaleString()}</TableCell>
-                    <TableCell className="font-medium text-green-600">${(b.total - b.commission).toLocaleString()}</TableCell>
+                    {(() => {
+                      const eff = b.status === 'cancelled' && b.refund_amount ? b.total - b.refund_amount : b.total;
+                      return (
+                        <>
+                          <TableCell className="text-muted-foreground">${eff.toLocaleString()}</TableCell>
+                          <TableCell className="text-red-500">-${b.commission.toLocaleString()}</TableCell>
+                          <TableCell className="font-medium text-green-600">${(eff - b.commission).toLocaleString()}</TableCell>
+                        </>
+                      );
+                    })()}
                     <TableCell><Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge></TableCell>
                   </TableRow>
                 ))}

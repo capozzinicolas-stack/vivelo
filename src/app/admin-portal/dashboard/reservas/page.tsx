@@ -101,7 +101,8 @@ export default function AdminReservasPage() {
 
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const totalIngresos = filtered.reduce((s, b) => s + b.total, 0);
+  const getEffective = (b: Booking) => b.status === 'cancelled' && b.refund_amount ? b.total - b.refund_amount : b.total;
+  const totalIngresos = filtered.reduce((s, b) => s + getEffective(b), 0);
   const totalComisiones = filtered.reduce((s, b) => s + b.commission, 0);
   const ticketPromedio = filtered.length > 0 ? Math.round(totalIngresos / filtered.length) : 0;
 
@@ -274,7 +275,7 @@ export default function AdminReservasPage() {
                     <TableCell className="hidden md:table-cell">{b.provider?.full_name || 'Proveedor'}</TableCell>
                     <TableCell>{new Date(b.event_date).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell className="hidden md:table-cell">{b.guest_count}</TableCell>
-                    <TableCell className="font-medium">${b.total.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">${getEffective(b).toLocaleString()}</TableCell>
                     <TableCell className="hidden md:table-cell">${b.commission.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge className={BOOKING_STATUS_COLORS[b.status]}>{BOOKING_STATUS_LABELS[b.status]}</Badge>
