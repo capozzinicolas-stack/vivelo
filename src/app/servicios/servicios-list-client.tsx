@@ -15,13 +15,23 @@ import type { Service } from '@/types/database';
 
 function ServiciosContent() {
   const searchParams = useSearchParams();
-  const initialCat = searchParams.get('categoria') || '';
-  const initialSubcat = searchParams.get('subcategoria') || '';
-  const initialZone = searchParams.get('zona') || '';
-  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: initialCat, subcategory: initialSubcat, zone: initialZone });
+  const paramCat = searchParams.get('categoria') || '';
+  const paramSubcat = searchParams.get('subcategoria') || '';
+  const paramZone = searchParams.get('zona') || '';
+  const [filters, setFilters] = useState<Filters>({ ...defaultFilters, category: paramCat, subcategory: paramSubcat, zone: paramZone });
   const [services, setServices] = useState<Service[]>([]);
   const [sponsoredServices, setSponsoredServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sync filters when URL search params change (e.g. clicking a different category in the navbar)
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      category: paramCat,
+      subcategory: paramSubcat,
+      zone: paramZone,
+    }));
+  }, [paramCat, paramSubcat, paramZone]);
 
   useEffect(() => {
     Promise.all([

@@ -87,7 +87,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const isPerHour = service.price_unit === 'por hora';
   const isPerEvento = service.price_unit === 'por evento';
   const isPerUnit = !isPerHour && !isPerEvento; // por persona, por mesa, por mesero, etc.
-  const hasBaseEventHours = service.base_event_hours && (isPerEvento || isPerUnit);
+  const hasBaseEventHours = isPerEvento && !!service.base_event_hours;
 
   useEffect(() => {
     const svcExtras = service.extras || [];
@@ -99,7 +99,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
         return { ...sel, quantity: Math.max(minQty, Math.min(extra.max_quantity, sel.quantity)) };
       }
       if (extra.depends_on_hours) {
-        const hrs = service.base_event_hours && !isPerHour
+        const hrs = isPerEvento && service.base_event_hours
           ? service.base_event_hours
           : calcHours(startTime, endTime);
         const minQty = Math.max(1, Math.ceil(hrs));
@@ -116,29 +116,34 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
       return;
     }
 
-    const actualEnd = (service.base_event_hours && !isPerHour)
-      ? (() => {
-          const [h, m] = startTime.split(':').map(Number);
-          const totalMin = h * 60 + m + (service.base_event_hours! * 60);
-          const eh = Math.floor(totalMin / 60);
-          const em = Math.round(totalMin % 60);
-          return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
-        })()
-      : endTime;
-
-    if (actualEnd <= startTime) return;
-
     setAvailabilityStatus(prev => ({ ...prev, checking: true }));
 
     const eventDate = format(date, 'yyyy-MM-dd');
     const buffers = resolveBuffers(service, provider ?? undefined);
-    const effective = calculateEffectiveTimes({
-      eventDate,
-      startTime,
-      endTime: actualEnd,
-      bufferBeforeMinutes: buffers.bufferBeforeMinutes,
-      bufferAfterMinutes: buffers.bufferAfterMinutes,
-    });
+
+    // When base_event_hours is set, use Date math to correctly handle durations
+    // that may span past midnight (e.g. 8h event starting at 18:00 = ends 02:00 next day).
+    // String-based time like "26:00" would create an invalid Date.
+    let effective: { effective_start: string; effective_end: string };
+    if (isPerEvento && service.base_event_hours) {
+      const startDate = new Date(`${eventDate}T${startTime}:00`);
+      const endDate = new Date(startDate.getTime() + service.base_event_hours * 60 * 60 * 1000);
+      const effectiveStart = new Date(startDate.getTime() - buffers.bufferBeforeMinutes * 60 * 1000);
+      const effectiveEnd = new Date(endDate.getTime() + buffers.bufferAfterMinutes * 60 * 1000);
+      effective = {
+        effective_start: effectiveStart.toISOString(),
+        effective_end: effectiveEnd.toISOString(),
+      };
+    } else {
+      if (endTime <= startTime) return;
+      effective = calculateEffectiveTimes({
+        eventDate,
+        startTime,
+        endTime,
+        bufferBeforeMinutes: buffers.bufferBeforeMinutes,
+        bufferAfterMinutes: buffers.bufferAfterMinutes,
+      });
+    }
 
     const controller = new AbortController();
 
@@ -169,11 +174,17 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
     ? (() => {
         const [h, m] = startTime.split(':').map(Number);
         const totalMin = h * 60 + m + (service.base_event_hours! * 60);
-        const eh = Math.floor(totalMin / 60);
+        const eh = Math.floor(totalMin / 60) % 24;
         const em = Math.round(totalMin % 60);
         return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
       })()
     : endTime;
+
+  const eventSpansMidnight = hasBaseEventHours && (() => {
+    const [h, m] = startTime.split(':').map(Number);
+    const totalMin = h * 60 + m + (service.base_event_hours! * 60);
+    return Math.floor(totalMin / 60) >= 24;
+  })();
 
   const eventHours = hasBaseEventHours ? service.base_event_hours! : calcHours(startTime, computedEndTime);
 
@@ -400,7 +411,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Este servicio dura {service.base_event_hours} horas (termina a las {computedEndTime})
+                      Este servicio dura {service.base_event_hours} horas (termina a las {computedEndTime}{eventSpansMidnight ? ' del dia siguiente' : ''})
                     </p>
                   </div>
                 ) : (
