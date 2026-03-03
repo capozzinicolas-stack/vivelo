@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart, type CartItem } from '@/providers/cart-provider';
@@ -35,6 +35,14 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
   const [editStartTime, setEditStartTime] = useState(item.start_time);
   const [editEndTime, setEditEndTime] = useState(item.end_time);
   const [editGuests, setEditGuests] = useState(item.guest_count);
+
+  // Reset endTime when startTime moves past it
+  useEffect(() => {
+    if (editEndTime <= editStartTime) {
+      const next = TIME_SLOTS.find(t => t.value > editStartTime);
+      if (next) setEditEndTime(next.value);
+    }
+  }, [editStartTime]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cat = categoryMap[item.service_snapshot.category];
   const isPerHour = item.service_snapshot.price_unit === 'por hora';

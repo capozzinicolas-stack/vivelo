@@ -57,6 +57,15 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('14:00');
   const [guests, setGuests] = useState(service.min_guests);
+
+  // Bug fix: reset endTime when startTime moves past it (stale state)
+  useEffect(() => {
+    if (endTime <= startTime) {
+      // Pick the next available slot after startTime
+      const next = TIME_SLOTS.find(t => t.value > startTime);
+      if (next) setEndTime(next.value);
+    }
+  }, [startTime]); // eslint-disable-line react-hooks/exhaustive-deps
   const [selectedExtras, setSelectedExtras] = useState<SelectedExtraItem[]>([]);
   const [notes, setNotes] = useState('');
   const [eventName, setEventName] = useState('');
@@ -208,7 +217,9 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const handleAddToCart = () => {
     if (!date) { toast({ title: 'Selecciona una fecha', variant: 'destructive' }); return; }
     const actualEndTime = hasBaseEventHours ? computedEndTime : endTime;
-    if (actualEndTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
+    // For midnight-spanning events (hasBaseEventHours + late start), the computed
+    // end time wraps via %24 and is legitimately "before" start as a string.
+    if (!eventSpansMidnight && actualEndTime <= startTime) { toast({ title: 'La hora de fin debe ser despues de la hora de inicio', variant: 'destructive' }); return; }
     if (isPerHour && eventHours < (service.min_hours || 1)) { toast({ title: `Minimo ${service.min_hours} horas para este servicio`, variant: 'destructive' }); return; }
     if (isPerHour && eventHours > (service.max_hours || 12)) { toast({ title: `Maximo ${service.max_hours} horas para este servicio`, variant: 'destructive' }); return; }
 
