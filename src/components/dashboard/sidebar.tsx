@@ -10,7 +10,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell, Store, Gift, Home } from 'lucide-react';
+import { LayoutDashboard, CalendarCheck, CalendarDays, Package, Users, ShieldCheck, Menu, LogOut, DollarSign, Settings, UserCircle, Megaphone, FileText, Bell, Store, Gift, Home, FolderOpen } from 'lucide-react';
 
 function getInitials(name: string): string {
   return name
@@ -30,6 +30,7 @@ const dashboardHome: Record<UserRole, string> = {
 const navByRole: Record<UserRole, { label: string; href: string; icon: React.ElementType }[]> = {
   client: [
     { label: 'Resumen', href: '/dashboard/cliente', icon: LayoutDashboard },
+    { label: 'Mis Eventos', href: '/dashboard/cliente/eventos', icon: FolderOpen },
     { label: 'Mis Reservas', href: '/dashboard/cliente/reservas', icon: CalendarCheck },
     { label: 'Mi Perfil', href: '/dashboard/cliente/perfil', icon: UserCircle },
     { label: 'Referidos', href: '/dashboard/cliente/referidos', icon: Gift },
