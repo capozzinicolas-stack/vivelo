@@ -140,6 +140,7 @@ export interface Extra {
   sku: string | null;
   depends_on_guests: boolean;
   depends_on_hours: boolean;
+  image: string | null;
   created_at: string;
 }
 

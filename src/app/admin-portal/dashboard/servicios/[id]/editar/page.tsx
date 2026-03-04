@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { getServiceById, updateService, updateServiceStatus, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies } from '@/lib/supabase/queries';
+import { uploadServiceMedia, deleteServiceMedia, validateFile, getMediaType } from '@/lib/supabase/storage';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -17,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, ImagePlus, X } from 'lucide-react';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
 import type { ServiceCategory, ServiceSubcategory, ServiceStatus, Extra, CancellationPolicy } from '@/types/database';
 
@@ -63,6 +64,9 @@ export default function AdminEditarServicioPage() {
   const [newExtraMaxQty, setNewExtraMaxQty] = useState('');
   const [newExtraDependsGuests, setNewExtraDependsGuests] = useState(false);
   const [newExtraDependsHours, setNewExtraDependsHours] = useState(false);
+  const [newExtraDescription, setNewExtraDescription] = useState('');
+  const [newExtraImage, setNewExtraImage] = useState('');
+  const [uploadingExtraImage, setUploadingExtraImage] = useState<string | null>(null);
   const [categoryDetails, setCategoryDetails] = useState<Record<string, unknown>>({});
   const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
@@ -170,6 +174,52 @@ export default function AdminEditarServicioPage() {
     }
   };
 
+  const handleExtraImageUpload = async (extraId: string, file: File) => {
+    const validationError = validateFile(file);
+    if (validationError || getMediaType(file) !== 'image') {
+      toast({ title: 'Solo se permiten imagenes (JPG, PNG, WebP)', variant: 'destructive' });
+      return;
+    }
+    setUploadingExtraImage(extraId);
+    try {
+      const userId = serviceExtras[0]?.service_id || id;
+      const url = await uploadServiceMedia(userId, file);
+      await updateExtraQuery(extraId, { image: url });
+      setServiceExtras(serviceExtras.map(e => e.id === extraId ? { ...e, image: url } : e));
+    } catch {
+      toast({ title: 'Error subiendo imagen', variant: 'destructive' });
+    } finally {
+      setUploadingExtraImage(null);
+    }
+  };
+
+  const handleRemoveExtraImage = async (extraId: string, imageUrl: string) => {
+    try { await deleteServiceMedia(imageUrl); } catch { /* continue */ }
+    try {
+      await updateExtraQuery(extraId, { image: '' });
+      setServiceExtras(serviceExtras.map(e => e.id === extraId ? { ...e, image: null } : e));
+    } catch {
+      toast({ title: 'Error al eliminar imagen', variant: 'destructive' });
+    }
+  };
+
+  const handleNewExtraImageUpload = async (file: File) => {
+    const validationError = validateFile(file);
+    if (validationError || getMediaType(file) !== 'image') {
+      toast({ title: 'Solo se permiten imagenes (JPG, PNG, WebP)', variant: 'destructive' });
+      return;
+    }
+    setUploadingExtraImage('new');
+    try {
+      const url = await uploadServiceMedia(id, file);
+      setNewExtraImage(url);
+    } catch {
+      toast({ title: 'Error subiendo imagen', variant: 'destructive' });
+    } finally {
+      setUploadingExtraImage(null);
+    }
+  };
+
   const handleAddExtra = async () => {
     if (!newExtraName || !newExtraPrice) {
       toast({ title: 'Completa nombre y precio del extra', variant: 'destructive' });
@@ -184,12 +234,14 @@ export default function AdminEditarServicioPage() {
       const created = await createExtra({
         service_id: id,
         name: newExtraName,
+        description: newExtraDescription || undefined,
         price: parseFloat(newExtraPrice),
         price_type: newExtraPriceType,
         max_quantity: parseInt(newExtraMaxQty),
         sku: extraSku,
         depends_on_guests: newExtraDependsGuests,
         depends_on_hours: newExtraDependsHours,
+        image: newExtraImage || undefined,
       });
       setServiceExtras([...serviceExtras, created]);
       setNewExtraName('');
@@ -198,6 +250,8 @@ export default function AdminEditarServicioPage() {
       setNewExtraMaxQty('');
       setNewExtraDependsGuests(false);
       setNewExtraDependsHours(false);
+      setNewExtraDescription('');
+      setNewExtraImage('');
       toast({ title: 'Extra agregado!' });
     } catch {
       toast({ title: 'Error al agregar extra', variant: 'destructive' });
@@ -427,9 +481,19 @@ export default function AdminEditarServicioPage() {
           {serviceExtras.map((extra) => (
             <div key={extra.id} className="space-y-2 p-3 border rounded-lg">
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-medium">{extra.name}</span>
-                  {extra.sku && <span className="text-xs text-muted-foreground ml-2 font-mono">{extra.sku}</span>}
+                <div className="flex items-center gap-3">
+                  {extra.image && (
+                    <div className="relative w-12 h-12 rounded overflow-hidden border shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={extra.image} alt={extra.name} className="w-full h-full object-cover" />
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-0 right-0 h-4 w-4" onClick={() => handleRemoveExtraImage(extra.id, extra.image!)}><X className="h-2.5 w-2.5" /></Button>
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium">{extra.name}</span>
+                    {extra.sku && <span className="text-xs text-muted-foreground ml-2 font-mono">{extra.sku}</span>}
+                    {extra.description && <p className="text-xs text-muted-foreground">{extra.description}</p>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">${extra.price}</span>
@@ -440,6 +504,13 @@ export default function AdminEditarServicioPage() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteExtra(extra.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
               </div>
+              {!extra.image && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {uploadingExtraImage === extra.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                  <span>{uploadingExtraImage === extra.id ? 'Subiendo...' : 'Agregar foto'}</span>
+                  <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files?.[0]) handleExtraImageUpload(extra.id, e.target.files[0]); e.target.value = ''; }} disabled={uploadingExtraImage === extra.id} />
+                </label>
+              )}
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Elige la siguiente opcion solo en caso de que tu extra este atado a la cantidad contratada del servicio principal.</p>
                 <div className="flex flex-wrap gap-4">
@@ -459,6 +530,10 @@ export default function AdminEditarServicioPage() {
           <div className="border-t pt-4 space-y-3">
             <p className="text-sm font-medium">Agregar nuevo extra</p>
             <Input placeholder="Nombre" value={newExtraName} onChange={(e) => setNewExtraName(e.target.value)} />
+            <div className="relative">
+              <Input placeholder="Descripcion breve (opcional)" value={newExtraDescription} onChange={(e) => { if (e.target.value.length <= 150) setNewExtraDescription(e.target.value); }} />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{newExtraDescription.length}/150</span>
+            </div>
             <div className="grid grid-cols-3 gap-2">
               <Input type="number" placeholder="Precio" value={newExtraPrice} onChange={(e) => setNewExtraPrice(e.target.value)} />
               <Select value={newExtraPriceType} onValueChange={(v: 'fixed' | 'per_person' | 'per_hour') => setNewExtraPriceType(v)}>
@@ -470,6 +545,22 @@ export default function AdminEditarServicioPage() {
                 </SelectContent>
               </Select>
               <Input type="number" placeholder="Max cant. *" value={newExtraMaxQty} onChange={(e) => setNewExtraMaxQty(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Foto del extra (opcional)</Label>
+              {newExtraImage ? (
+                <div className="relative mt-1 w-24 h-24 rounded-lg overflow-hidden border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={newExtraImage} alt="Extra" className="w-full h-full object-cover" />
+                  <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={async () => { try { await deleteServiceMedia(newExtraImage); } catch { /* continue */ } setNewExtraImage(''); }}><X className="h-3 w-3" /></Button>
+                </div>
+              ) : (
+                <label className="mt-1 flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  {uploadingExtraImage === 'new' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  <span>{uploadingExtraImage === 'new' ? 'Subiendo...' : 'Agregar foto'}</span>
+                  <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files?.[0]) handleNewExtraImageUpload(e.target.files[0]); e.target.value = ''; }} disabled={uploadingExtraImage === 'new'} />
+                </label>
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Elige la siguiente opcion solo en caso de que tu extra este atado a la cantidad contratada del servicio principal.</p>

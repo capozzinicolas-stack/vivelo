@@ -138,7 +138,7 @@ export async function createService(
     category_details?: Record<string, unknown>;
     cancellation_policy_id?: string | null;
   },
-  extras: { name: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number; sku?: string; depends_on_guests?: boolean; depends_on_hours?: boolean }[]
+  extras: { name: string; description?: string; price: number; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: number; sku?: string; depends_on_guests?: boolean; depends_on_hours?: boolean; image?: string }[]
 ): Promise<Service> {
   if (isMockMode()) {
     const newService: Service = {
@@ -171,7 +171,8 @@ export async function createService(
         sku: e.sku ?? null,
         depends_on_guests: e.depends_on_guests ?? false,
         depends_on_hours: e.depends_on_hours ?? false,
-        description: null,
+        description: e.description ?? null,
+        image: e.image ?? null,
         created_at: new Date().toISOString(),
       })),
     };
@@ -230,6 +231,7 @@ export async function createService(
     const extrasData = extras.map(e => ({
       service_id: svc.id,
       name: e.name,
+      description: e.description || null,
       price: e.price,
       price_type: e.price_type,
       max_quantity: e.max_quantity,
@@ -250,6 +252,7 @@ export async function createService(
         if (e.sku) phase2Extra.sku = e.sku;
         if (e.depends_on_guests) phase2Extra.depends_on_guests = true;
         if (e.depends_on_hours) phase2Extra.depends_on_hours = true;
+        if (e.image) phase2Extra.image = e.image;
         if (Object.keys(phase2Extra).length > 0) {
           await supabase.from('extras').update(phase2Extra).eq('service_id', svc.id).eq('name', e.name);
         }
@@ -1195,21 +1198,24 @@ export async function updateMaxConcurrentServices(profileId: string, maxConcurre
 export async function createExtra(extra: {
   service_id: string;
   name: string;
+  description?: string;
   price: number;
   price_type: 'fixed' | 'per_person' | 'per_hour';
   max_quantity: number;
   sku?: string;
   depends_on_guests?: boolean;
   depends_on_hours?: boolean;
+  image?: string;
 }): Promise<Extra> {
   if (isMockMode()) {
     return {
       id: crypto.randomUUID(),
       ...extra,
-      description: null,
+      description: extra.description ?? null,
       sku: extra.sku ?? null,
       depends_on_guests: extra.depends_on_guests ?? false,
       depends_on_hours: extra.depends_on_hours ?? false,
+      image: extra.image ?? null,
       created_at: new Date().toISOString(),
     };
   }
@@ -1226,12 +1232,14 @@ export async function createExtra(extra: {
 
 export async function updateExtra(id: string, updates: {
   name?: string;
+  description?: string;
   price?: number;
   price_type?: 'fixed' | 'per_person' | 'per_hour';
   max_quantity?: number;
   sku?: string;
   depends_on_guests?: boolean;
   depends_on_hours?: boolean;
+  image?: string;
 }): Promise<void> {
   if (isMockMode()) return;
 

@@ -67,6 +67,9 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange, gues
           <div key={extra.id} className={`rounded-lg border p-4 transition-colors ${checked ? 'border-primary bg-primary/5' : ''}`}>
             <div className="flex items-start gap-3">
               <Checkbox checked={checked} onCheckedChange={() => toggle(extra)} className="mt-0.5" />
+              {extra.image && (
+                <img src={extra.image} alt={extra.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+              )}
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-wrap">

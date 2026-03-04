@@ -509,7 +509,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Modulo | Estado | Notas |
 |--------|--------|-------|
 | Alta de servicios (proveedor) | ✅ Terminado | CRUD completo con extras, precios, categorias |
-| Extras por servicio | ✅ Terminado | Logica de min/max, depends_on_guests/hours |
+| Extras por servicio | ✅ Terminado | Logica de min/max, depends_on_guests/hours, imagen y descripcion (150 chars) |
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |
 | Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage |
 | Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
@@ -593,6 +593,33 @@ La pagina de reservas (`/dashboard/cliente/reservas`) tiene un toggle "Por Event
 
 ---
 
+## Extras — Imagen y Descripcion
+
+### Campos del Extra
+
+Cada extra de un servicio puede tener opcionalmente:
+- **`description`** (TEXT, max 150 chars): Breve descripcion del extra. Columna existia en DB desde migracion `00003` pero no se exponia en formularios. Ahora visible en formularios de proveedor, admin y selector del cliente.
+- **`image`** (TEXT, nullable): URL de imagen subida a Supabase Storage bucket `service-media`. Agregada en migracion `00044_extras_image.sql`.
+
+### Archivos Modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/migrations/00044_extras_image.sql` | Agrega columna `image TEXT` a tabla `extras` |
+| `src/types/database.ts` | `Extra` interface incluye `image: string \| null` |
+| `src/lib/supabase/queries.ts` | `createService`, `createExtra`, `updateExtra` aceptan `description?` e `image?` |
+| `src/app/dashboard/proveedor/servicios/nuevo/page.tsx` | Formulario de extras con campo descripcion (150 chars) + upload de imagen |
+| `src/app/dashboard/proveedor/servicios/[id]/editar/page.tsx` | Edicion de extras con descripcion + imagen (upload/remove) |
+| `src/app/admin-portal/dashboard/servicios/[id]/editar/page.tsx` | Mismo que proveedor editar |
+| `src/components/services/extras-selector.tsx` | Muestra imagen del extra al cliente junto al checkbox |
+| `src/data/mock-services.ts` | Mock extras incluyen `image: null` |
+
+### Upload de Imagen
+
+Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `service-media` con path `{serviceId}/{timestamp}_{filename}`. La imagen se muestra como thumbnail de 64x64px con opcion de eliminar.
+
+---
+
 ## Seguridad — Hallazgos de Auditoria
 
 ### Problemas Identificados
@@ -616,3 +643,12 @@ La pagina de reservas (`/dashboard/cliente/reservas`) tiene un toggle "Por Event
 - ✅ Service-role key solo en servidor, nunca expuesta al cliente
 - ✅ Cancelacion multi-party (client/provider/admin) con validacion de ownership
 - ✅ Snapshots financieros inmutables en bookings
+
+## Regla de Git
+Al terminar cada ticket, haz commit con el formato:
+feat(module): descripción corta
+
+Ejemplos:
+feat(auth): implement register and login endpoints
+feat(contacts): add CRUD with pagination and filters
+feat(campaigns): add execution engine with Retell integration

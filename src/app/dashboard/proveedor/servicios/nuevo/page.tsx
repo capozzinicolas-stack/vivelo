@@ -6,6 +6,7 @@ import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
 import { createService, getCancellationPolicies, setServiceTags } from '@/lib/supabase/queries';
+import { uploadServiceMedia, deleteServiceMedia, validateFile, getMediaType } from '@/lib/supabase/storage';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
 import { MediaUpload } from '@/components/media-upload';
@@ -17,10 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, ImagePlus, X } from 'lucide-react';
 import type { ServiceCategory, ServiceSubcategory, CancellationPolicy } from '@/types/database';
 
-interface ExtraInput { name: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; sku: string; depends_on_guests: boolean; depends_on_hours: boolean; }
+interface ExtraInput { name: string; description: string; price: string; price_type: 'fixed' | 'per_person' | 'per_hour'; max_quantity: string; sku: string; depends_on_guests: boolean; depends_on_hours: boolean; image: string; }
 
 export default function NuevoServicioPage() {
   const router = useRouter();
@@ -50,6 +51,7 @@ export default function NuevoServicioPage() {
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingExtraImage, setUploadingExtraImage] = useState<number | null>(null);
 
   useEffect(() => {
     getCancellationPolicies().then(policies => {
@@ -86,13 +88,39 @@ export default function NuevoServicioPage() {
 
   const addExtra = () => {
     const newSku = sku ? generateExtraSku(sku, extras.length) : '';
-    setExtras([...extras, { name: '', price: '', price_type: 'fixed', max_quantity: '', sku: newSku, depends_on_guests: false, depends_on_hours: false }]);
+    setExtras([...extras, { name: '', description: '', price: '', price_type: 'fixed', max_quantity: '', sku: newSku, depends_on_guests: false, depends_on_hours: false, image: '' }]);
   };
   const removeExtra = (i: number) => setExtras(extras.filter((_, idx) => idx !== i));
   const updateExtra = (i: number, field: keyof ExtraInput, value: string | boolean) => {
     const updated = [...extras];
     updated[i] = { ...updated[i], [field]: value };
     setExtras(updated);
+  };
+
+  const handleExtraImageUpload = async (index: number, file: File) => {
+    if (!user) return;
+    const validationError = validateFile(file);
+    if (validationError || getMediaType(file) !== 'image') {
+      toast({ title: 'Solo se permiten imagenes (JPG, PNG, WebP)', variant: 'destructive' });
+      return;
+    }
+    setUploadingExtraImage(index);
+    try {
+      const url = await uploadServiceMedia(user.id, file);
+      updateExtra(index, 'image', url);
+    } catch {
+      toast({ title: 'Error subiendo imagen', variant: 'destructive' });
+    } finally {
+      setUploadingExtraImage(null);
+    }
+  };
+
+  const handleRemoveExtraImage = async (index: number) => {
+    const imageUrl = extras[index].image;
+    if (imageUrl) {
+      try { await deleteServiceMedia(imageUrl); } catch { /* continue */ }
+    }
+    updateExtra(index, 'image', '');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,12 +175,14 @@ export default function NuevoServicioPage() {
         },
         extras.filter(e => e.name && e.price).map(e => ({
           name: e.name,
+          description: e.description || undefined,
           price: parseFloat(e.price),
           price_type: e.price_type,
           max_quantity: parseInt(e.max_quantity),
           sku: e.sku || undefined,
           depends_on_guests: e.depends_on_guests,
           depends_on_hours: e.depends_on_hours,
+          image: e.image || undefined,
         }))
       );
       if (selectedTags.length > 0 && created?.id) {
@@ -367,6 +397,10 @@ export default function NuevoServicioPage() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => removeExtra(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
                 <Input placeholder="Nombre" value={ex.name} onChange={(e) => updateExtra(i, 'name', e.target.value)} />
+                <div className="relative">
+                  <Input placeholder="Descripcion breve (opcional)" value={ex.description} onChange={(e) => { if (e.target.value.length <= 150) updateExtra(i, 'description', e.target.value); }} />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{ex.description.length}/150</span>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   <Input type="number" placeholder="Precio" value={ex.price} onChange={(e) => updateExtra(i, 'price', e.target.value)} />
                   <Select value={ex.price_type} onValueChange={(v) => updateExtra(i, 'price_type', v)}>
@@ -378,6 +412,22 @@ export default function NuevoServicioPage() {
                     </SelectContent>
                   </Select>
                   <Input type="number" placeholder="Max cant. *" value={ex.max_quantity} onChange={(e) => updateExtra(i, 'max_quantity', e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Foto del extra (opcional)</Label>
+                  {ex.image ? (
+                    <div className="relative mt-1 w-24 h-24 rounded-lg overflow-hidden border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ex.image} alt="Extra" className="w-full h-full object-cover" />
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={() => handleRemoveExtraImage(i)}><X className="h-3 w-3" /></Button>
+                    </div>
+                  ) : (
+                    <label className="mt-1 flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {uploadingExtraImage === i ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                      <span>{uploadingExtraImage === i ? 'Subiendo...' : 'Agregar foto'}</span>
+                      <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files?.[0]) handleExtraImageUpload(i, e.target.files[0]); e.target.value = ''; }} disabled={uploadingExtraImage === i} />
+                    </label>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">Elige la siguiente opcion solo en caso de que tu extra este atado a la cantidad contratada del servicio principal.</p>
