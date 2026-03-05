@@ -95,16 +95,12 @@ Todas las tablas tienen RLS habilitado. Politicas clave:
 | `por evento` | `base_price` | $1,000 fijo |
 | `por persona` | `base_price × guest_count` | $200 × 50 = $10,000 |
 | `por hora` | `base_price × event_hours` | $500 × 4h = $2,000 |
-| `por mesa` | `base_price × guest_count`* | $300 × 5 = $1,500 |
-| `por mesero` | `base_price × guest_count`* | $250 × 10 = $2,500 |
-
-*`guest_count` se usa como "cantidad" para mesa/mesero (el label cambia en UI).
 
 **Clasificacion en codigo** (`service-detail-client.tsx:96-98`):
 ```
 isPerHour  = price_unit === 'por hora'
 isPerEvento = price_unit === 'por evento'
-isPerUnit  = !isPerHour && !isPerEvento  // cubre persona, mesa, mesero
+isPerUnit  = !isPerHour && !isPerEvento  // por persona
 ```
 
 ### Horas del Evento

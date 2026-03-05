@@ -14,8 +14,6 @@ export const PRICE_UNITS = [
   { value: 'por evento', label: 'Precio fijo (por evento)' },
   { value: 'por persona', label: 'Por persona' },
   { value: 'por hora', label: 'Por hora' },
-  { value: 'por mesa', label: 'Por mesa' },
-  { value: 'por mesero', label: 'Por mesero' },
 ] as const;
 
 export const TIME_SLOTS = Array.from({ length: 33 }, (_, i) => {

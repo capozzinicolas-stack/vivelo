@@ -180,7 +180,7 @@ async function calculatePrice(input: Record<string, unknown>): Promise<ToolResul
       baseTotal = service.base_price * (hours || service.min_hours);
       break;
     default:
-      // por persona, por mesa, por mesero, etc. — per-unit pricing
+      // por persona — per-unit pricing
       baseTotal = service.base_price * (guestCount || service.min_guests);
   }
 

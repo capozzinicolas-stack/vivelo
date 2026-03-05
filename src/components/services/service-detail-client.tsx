@@ -95,7 +95,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
   const extras = service.extras || [];
   const isPerHour = service.price_unit === 'por hora';
   const isPerEvento = service.price_unit === 'por evento';
-  const isPerUnit = !isPerHour && !isPerEvento; // por persona, por mesa, por mesero, etc.
+  const isPerUnit = !isPerHour && !isPerEvento; // por persona
   const hasBaseEventHours = !!service.base_event_hours && (isPerEvento || isPerUnit);
 
   useEffect(() => {
