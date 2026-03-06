@@ -46,7 +46,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       } else {
         // Fallback to static data if API fails
         const { categories: staticCats } = await import('@/data/categories');
-        const { ZONES } = await import('@/lib/constants');
+        const { VIVELO_ZONES } = await import('@/lib/constants');
         setCategories(staticCats.map((c, i) => ({
           slug: c.value,
           label: c.label,
@@ -68,18 +68,17 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
             is_active: true,
           }))
         ));
-        setZones(ZONES.map((z, i) => ({
-          slug: z.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-          label: z,
+        setZones(VIVELO_ZONES.map((z, i) => ({
+          slug: z.slug,
+          label: z.label,
           sort_order: i + 1,
           is_active: true,
-          commission_rate: 0.12,
         })));
       }
     } catch {
       // Fallback to static data
       const { categories: staticCats } = await import('@/data/categories');
-      const { ZONES } = await import('@/lib/constants');
+      const { VIVELO_ZONES } = await import('@/lib/constants');
       setCategories(staticCats.map((c, i) => ({
         slug: c.value,
         label: c.label,
@@ -101,9 +100,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
           is_active: true,
         }))
       ));
-      setZones(ZONES.map((z, i) => ({
-        slug: z.toLowerCase().replace(/\s+/g, '-').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-        label: z,
+      setZones(VIVELO_ZONES.map((z, i) => ({
+        slug: z.slug,
+        label: z.label,
         sort_order: i + 1,
         is_active: true,
       })));

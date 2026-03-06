@@ -22,6 +22,7 @@ export interface CartItemServiceSnapshot {
   image: string | null;
   min_guests: number;
   max_guests: number;
+  zones: string[];
 }
 
 export interface CartItem {
@@ -40,6 +41,7 @@ export interface CartItem {
   notes: string | null;
   event_name: string | null;
   event_address: string | null;
+  event_zone: string | null;
   added_at: string;
   // Campaign discount fields (optional)
   campaign_id?: string;

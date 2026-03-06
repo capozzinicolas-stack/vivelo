@@ -1,14 +1,19 @@
 export const COMMISSION_RATE = 0.12;
 
-export const ZONES = [
-  'Ciudad de México',
-  'Estado de México',
-  'Puebla',
-  'Toluca',
-  'Cuernavaca',
-  'Querétaro',
-  'Pachuca',
+export const VIVELO_ZONES = [
+  { slug: 'ciudad-de-mexico', label: 'Ciudad de México' },
+  { slug: 'estado-de-mexico', label: 'Estado de México' },
+  { slug: 'toluca', label: 'Toluca' },
+  { slug: 'puebla', label: 'Puebla' },
+  { slug: 'hidalgo', label: 'Hidalgo' },
+  { slug: 'queretaro', label: 'Querétaro' },
+  { slug: 'guanajuato', label: 'Guanajuato' },
+  { slug: 'tlaxcala', label: 'Tlaxcala' },
+  { slug: 'morelos', label: 'Morelos' },
 ] as const;
+
+/** @deprecated Use VIVELO_ZONES instead */
+export const ZONES = VIVELO_ZONES.map(z => z.label);
 
 export const PRICE_UNITS = [
   { value: 'por evento', label: 'Precio fijo (por evento)' },

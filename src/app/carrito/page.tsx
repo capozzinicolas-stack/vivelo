@@ -17,7 +17,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PromoBanner } from '@/components/marketing/promo-banner';
-import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin } from 'lucide-react';
+import { AddressAutocomplete } from '@/components/address-autocomplete';
+import { serviceCoversZone, type ViveloZoneSlug } from '@/lib/zone-mapping';
+import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
@@ -184,12 +186,20 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
             {showAddressInput && (
               <div className="mt-3">
                 <Label className="text-xs flex items-center gap-1"><MapPin className="h-3 w-3" /> Direccion del servicio *</Label>
-                <Input
-                  placeholder="Ej: Av. Reforma 500, CDMX"
-                  value={item.event_address || ''}
-                  onChange={(e) => onUpdate({ event_address: e.target.value || null })}
-                  className="mt-1 h-8 text-xs"
-                />
+                <div className="mt-1">
+                  <AddressAutocomplete
+                    value={item.event_address || ''}
+                    zone={item.event_zone || null}
+                    onChange={(result) => onUpdate({ event_address: result.address || null, event_zone: result.zone || null })}
+                    inputClassName="h-8 text-xs"
+                  />
+                </div>
+                {item.event_zone && !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug) && (
+                  <div className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                    <AlertTriangle className="h-3 w-3" />
+                    Este servicio no cubre esta zona
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -262,15 +272,33 @@ export default function CarritoPage() {
                 </div>
                 <div className="mb-3">
                   <Label className="text-xs flex items-center gap-1"><MapPin className="h-3 w-3" /> Direccion del evento *</Label>
-                  <Input
-                    placeholder="Ej: Av. Reforma 500, CDMX"
-                    value={eventAddress}
-                    onChange={(e) => {
-                      const addr = e.target.value || null;
-                      eventItems.forEach(item => updateItem(item.id, { event_address: addr }));
-                    }}
-                    className="mt-1 h-8 text-sm"
-                  />
+                  <div className="mt-1">
+                    <AddressAutocomplete
+                      value={eventAddress}
+                      zone={eventItems[0]?.event_zone || null}
+                      onChange={(result) => {
+                        eventItems.forEach(item => updateItem(item.id, {
+                          event_address: result.address || null,
+                          event_zone: result.zone || null,
+                        }));
+                      }}
+                      inputClassName="h-8 text-sm"
+                    />
+                  </div>
+                  {eventItems[0]?.event_zone && eventItems.some(item =>
+                    !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug)
+                  ) && (
+                    <div className="mt-2 space-y-1">
+                      {eventItems.filter(item =>
+                        !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug)
+                      ).map(item => (
+                        <div key={item.id} className="flex items-center gap-1 text-xs text-destructive">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          &ldquo;{item.service_snapshot.title}&rdquo; no cubre esta zona
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {eventItems.map(item => (
@@ -330,7 +358,16 @@ export default function CarritoPage() {
                 </p>
               )}
 
-              <Button className="w-full" size="lg" onClick={handleCheckout} disabled={items.some(i => !i.event_address?.trim())}>
+              {items.some(i => i.event_zone && !serviceCoversZone(i.service_snapshot.zones || [], i.event_zone as ViveloZoneSlug)) && (
+                <p className="text-xs text-destructive text-center">
+                  Uno o mas servicios no cubren la zona seleccionada.
+                </p>
+              )}
+
+              <Button className="w-full" size="lg" onClick={handleCheckout} disabled={
+                items.some(i => !i.event_address?.trim()) ||
+                items.some(i => i.event_zone && !serviceCoversZone(i.service_snapshot.zones || [], i.event_zone as ViveloZoneSlug))
+              }>
                 Proceder al Checkout
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

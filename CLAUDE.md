@@ -4,7 +4,7 @@ Guia completa para trabajar con el codigo de Vivelo. Este archivo documenta toda
 
 ## Descripcion del Proyecto
 
-Vivelo es un marketplace mexicano de servicios para eventos que conecta clientes con proveedores (catering, audio, decoracion, foto/video, staff, mobiliario) en 7 zonas. Stack: Next.js 14 App Router, Supabase (auth + DB + storage), Stripe (pagos en MXN), Google Calendar (sync del proveedor), Anthropic Claude (asistente Vivi). Desplegado en Vercel: `solovivelo.com` (consumidor) y `admin.solovivelo.com` (admin).
+Vivelo es un marketplace mexicano de servicios para eventos que conecta clientes con proveedores (catering, audio, decoracion, foto/video, staff, mobiliario) en 9 zonas. Stack: Next.js 14 App Router, Supabase (auth + DB + storage), Stripe (pagos en MXN), Google Calendar (sync del proveedor), Anthropic Claude (asistente Vivi). Desplegado en Vercel: `solovivelo.com` (consumidor) y `admin.solovivelo.com` (admin).
 
 ## Comandos
 
@@ -507,7 +507,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Alta de servicios (proveedor) | ✅ Terminado | CRUD completo con extras, precios, categorias |
 | Extras por servicio | ✅ Terminado | Logica de min/max, depends_on_guests/hours, imagen y descripcion (150 chars) |
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |
-| Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion obligatoria |
+| Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion con Google Places + validacion de zona |
+| Zonas geograficas | ✅ Terminado | 9 zonas, Google Places Autocomplete, fallback manual, validacion de cobertura en carrito |
 | Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
@@ -613,6 +614,50 @@ Cada extra de un servicio puede tener opcionalmente:
 ### Upload de Imagen
 
 Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `service-media` con path `{serviceId}/{timestamp}_{filename}`. La imagen se muestra como thumbnail de 64x64px con opcion de eliminar.
+
+---
+
+## Zonas Geograficas
+
+### 9 Zonas
+
+| Slug | Label | Mapping Google |
+|------|-------|----------------|
+| `ciudad-de-mexico` | Ciudad de México | state = "Ciudad de México" / "DF" |
+| `estado-de-mexico` | Estado de México | state = "México" y no Toluca metro |
+| `toluca` | Toluca | state = "México" y locality en Toluca metro |
+| `puebla` | Puebla | state = "Puebla" |
+| `hidalgo` | Hidalgo | state = "Hidalgo" |
+| `queretaro` | Querétaro | state = "Querétaro" |
+| `guanajuato` | Guanajuato | state = "Guanajuato" |
+| `tlaxcala` | Tlaxcala | state = "Tlaxcala" |
+| `morelos` | Morelos | state = "Morelos" |
+
+### Almacenamiento dual
+
+- Tabla `service_zones`: slugs como PK (`ciudad-de-mexico`)
+- Columna `services.zones`: array de **labels** (`"Ciudad de México"`)
+- `CartItem.event_zone`: slug desde `mapPlaceToZone()`
+- Comparacion: `serviceCoversZone()` normaliza label↔slug para comparar
+
+### Google Places Autocomplete
+
+- **API Key**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (restriccion a `mx`)
+- **Componente**: `src/components/address-autocomplete.tsx`
+- **Mapping**: `src/lib/zone-mapping.ts` — `mapPlaceToZone(PlaceComponents) → ViveloZoneSlug | null`
+- **Fallback**: Si la API no esta configurada o falla, muestra Input + Select manual de zona
+- **Validacion en carrito**: `serviceCoversZone(service.zones, eventZone)` — bloquea checkout si hay conflicto
+
+### Archivos clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/lib/zone-mapping.ts` | Tipos, mapping Google→zona, `serviceCoversZone()` |
+| `src/lib/constants.ts` | `VIVELO_ZONES` (9 zonas con slug+label) |
+| `src/components/address-autocomplete.tsx` | Componente de direccion con Places API |
+| `supabase/migrations/00100_update_zones.sql` | Migracion de 7→9 zonas + rename en services |
+| `src/providers/cart-provider.tsx` | `CartItemServiceSnapshot.zones`, `CartItem.event_zone` |
+| `src/app/carrito/page.tsx` | Validacion visual + bloqueo de checkout por zona |
 
 ---
 

@@ -237,6 +237,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
         image: service.images?.[0] ?? null,
         min_guests: service.min_guests,
         max_guests: service.max_guests,
+        zones: service.zones ?? [],
       },
       event_date: format(date, 'yyyy-MM-dd'),
       start_time: startTime,
@@ -253,6 +254,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
       notes: notes || null,
       event_name: eventName || null,
       event_address: null,
+      event_zone: null,
       added_at: new Date().toISOString(),
     });
 
