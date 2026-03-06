@@ -1,10 +1,8 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { mapPlaceToZone, getZoneLabel, ZONE_LABELS, type AddressResult, type ViveloZoneSlug } from '@/lib/zone-mapping';
 import { VIVELO_ZONES } from '@/lib/constants';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { MapPin } from 'lucide-react';
@@ -20,6 +18,29 @@ interface AddressAutocompleteProps {
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
+let googleLoaded = false;
+let googleLoadPromise: Promise<void> | null = null;
+
+function loadGooglePlaces(): Promise<void> {
+  if (googleLoaded) return Promise.resolve();
+  if (googleLoadPromise) return googleLoadPromise;
+
+  googleLoadPromise = new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') { reject(); return; }
+    if (window.google?.maps?.places) { googleLoaded = true; resolve(); return; }
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places&language=es`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => { googleLoaded = true; resolve(); };
+    script.onerror = () => { googleLoadPromise = null; reject(); };
+    document.head.appendChild(script);
+  });
+
+  return googleLoadPromise;
+}
+
 export function AddressAutocomplete({
   value = '',
   zone = null,
@@ -30,29 +51,23 @@ export function AddressAutocomplete({
 }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(!API_KEY);
+  const [showManualZone, setShowManualZone] = useState(false);
   const [localValue, setLocalValue] = useState(value);
-  const [selectedFromDropdown, setSelectedFromDropdown] = useState(false);
-  const optionsSet = useRef(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   // Sync external value
+  useEffect(() => { setLocalValue(value); }, [value]);
+
+  // Load Google Places and attach to input after mount
   useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+    if (!mounted || !API_KEY || !inputRef.current || autocompleteRef.current) return;
 
-  // Initialize Google Places Autocomplete
-  useEffect(() => {
-    if (!API_KEY || fallbackMode) return;
+    let cancelled = false;
 
-    let mounted = true;
-
-    if (!optionsSet.current) {
-      setOptions({ key: API_KEY, v: 'weekly' });
-      optionsSet.current = true;
-    }
-
-    importLibrary('places').then(() => {
-      if (!mounted || !inputRef.current) return;
+    loadGooglePlaces().then(() => {
+      if (cancelled || !inputRef.current || autocompleteRef.current) return;
 
       const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
         componentRestrictions: { country: 'mx' },
@@ -78,36 +93,49 @@ export function AddressAutocomplete({
           administrative_area_level_2: muni,
         });
 
-        const result: AddressResult = {
-          address: place.formatted_address || '',
+        const addr = place.formatted_address || '';
+        setLocalValue(addr);
+        setShowManualZone(false);
+        onChange({
+          address: addr,
           zone: zoneSlug,
           zoneLabel: getZoneLabel(zoneSlug),
           lat: place.geometry?.location?.lat() ?? null,
           lng: place.geometry?.location?.lng() ?? null,
-        };
-
-        setLocalValue(result.address);
-        setSelectedFromDropdown(true);
-        onChange(result);
+        });
       });
 
       autocompleteRef.current = autocomplete;
     }).catch(() => {
-      if (mounted) setFallbackMode(true);
+      if (!cancelled) setShowManualZone(true);
     });
 
-    return () => { mounted = false; };
-  }, [fallbackMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { cancelled = true; };
+  }, [mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // If user types but doesn't select from dropdown, switch to fallback on blur
-  const handleBlur = useCallback(() => {
-    if (!selectedFromDropdown && localValue && localValue !== value) {
-      setFallbackMode(true);
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const addr = e.target.value;
+    setLocalValue(addr);
+    // If no Google or user is typing freely, propagate address without zone
+    if (!autocompleteRef.current || showManualZone) {
+      onChange({
+        address: addr,
+        zone: (zone as ViveloZoneSlug) || null,
+        zoneLabel: zone ? (ZONE_LABELS[zone as ViveloZoneSlug] || null) : null,
+        lat: null,
+        lng: null,
+      });
     }
-  }, [selectedFromDropdown, localValue, value]);
+  }, [showManualZone, zone, onChange]);
 
-  // Fallback: manual zone select
-  const handleFallbackZoneChange = useCallback((slug: string) => {
+  const handleBlur = useCallback(() => {
+    // If user typed but Google autocomplete never initialized or they didn't pick a suggestion
+    if (!autocompleteRef.current && localValue && !zone) {
+      setShowManualZone(true);
+    }
+  }, [localValue, zone]);
+
+  const handleManualZoneChange = useCallback((slug: string) => {
     const zoneSlug = slug as ViveloZoneSlug;
     onChange({
       address: localValue,
@@ -118,45 +146,26 @@ export function AddressAutocomplete({
     });
   }, [localValue, onChange]);
 
-  const handleFallbackAddressChange = useCallback((addr: string) => {
-    setLocalValue(addr);
-    onChange({
-      address: addr,
-      zone: (zone as ViveloZoneSlug) || null,
-      zoneLabel: zone ? (ZONE_LABELS[zone as ViveloZoneSlug] || null) : null,
-      lat: null,
-      lng: null,
-    });
-  }, [zone, onChange]);
-
   const zoneLabel = zone ? (ZONE_LABELS[zone as ViveloZoneSlug] || zone) : null;
 
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="relative">
-        <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        {fallbackMode ? (
-          <Input
-            placeholder={placeholder}
-            value={localValue}
-            onChange={(e) => handleFallbackAddressChange(e.target.value)}
-            className={`pl-8 ${inputClassName}`}
-          />
-        ) : (
-          <Input
-            ref={inputRef}
-            placeholder={placeholder}
-            defaultValue={localValue}
-            onBlur={handleBlur}
-            onChange={() => setSelectedFromDropdown(false)}
-            className={`pl-8 ${inputClassName}`}
-          />
-        )}
+        <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground z-10" />
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          value={localValue}
+          onChange={handleInputChange}
+          onBlur={handleBlur}
+          className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pl-8 ${inputClassName}`}
+        />
       </div>
 
-      {fallbackMode && (
+      {(showManualZone || (!API_KEY && mounted)) && (
         <div className="flex items-center gap-2">
-          <Select value={zone || ''} onValueChange={handleFallbackZoneChange}>
+          <Select value={zone || ''} onValueChange={handleManualZoneChange}>
             <SelectTrigger className="h-7 text-xs flex-1">
               <SelectValue placeholder="Selecciona tu zona" />
             </SelectTrigger>
@@ -174,12 +183,6 @@ export function AddressAutocomplete({
         <Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-200 bg-green-50">
           <MapPin className="h-3 w-3" />
           Zona: {zoneLabel}
-        </Badge>
-      )}
-
-      {!zone && localValue && localValue.trim().length > 3 && !fallbackMode && selectedFromDropdown && (
-        <Badge variant="outline" className="gap-1 text-xs text-amber-700 border-amber-200 bg-amber-50">
-          Zona no cubierta
         </Badge>
       )}
     </div>
