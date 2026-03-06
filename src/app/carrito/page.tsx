@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PromoBanner } from '@/components/marketing/promo-banner';
-import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag } from 'lucide-react';
+import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
@@ -217,13 +217,15 @@ export default function CarritoPage() {
     );
   }
 
-  // Group items by provider
-  const byProvider = items.reduce<Record<string, CartItem[]>>((acc, item) => {
-    const key = item.service_snapshot.provider_id;
+  // Group items by event_name; items without event_name stay ungrouped
+  const byEvent = items.reduce<Record<string, CartItem[]>>((acc, item) => {
+    const key = item.event_name || '';
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
     return acc;
   }, {});
+  const eventGroups = Object.entries(byEvent).filter(([key]) => key !== '');
+  const ungroupedItems = byEvent[''] || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -237,13 +239,15 @@ export default function CarritoPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-6">
-          {Object.entries(byProvider).map(([providerId, providerItems]) => (
-            <div key={providerId}>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                Proveedor: {providerItems[0].service_snapshot.provider_name}
-              </h3>
+          {eventGroups.map(([eventName, eventItems]) => (
+            <div key={eventName}>
+              <div className="flex items-center gap-2 mb-3">
+                <PartyPopper className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium">{eventName}</h3>
+                <span className="text-xs text-muted-foreground">({eventItems.length} {eventItems.length === 1 ? 'servicio' : 'servicios'} · ${eventItems.reduce((s, i) => s + i.total, 0).toLocaleString()})</span>
+              </div>
               <div className="space-y-3">
-                {providerItems.map(item => (
+                {eventItems.map(item => (
                   <CartItemCard
                     key={item.id}
                     item={item}
@@ -254,6 +258,23 @@ export default function CarritoPage() {
               </div>
             </div>
           ))}
+          {ungroupedItems.length > 0 && (
+            <div>
+              {eventGroups.length > 0 && (
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">Sin evento asignado</h3>
+              )}
+              <div className="space-y-3">
+                {ungroupedItems.map(item => (
+                  <CartItemCard
+                    key={item.id}
+                    item={item}
+                    onRemove={() => removeItem(item.id)}
+                    onUpdate={(updates) => updateItem(item.id, updates)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Order summary + upsell */}
