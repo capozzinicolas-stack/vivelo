@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
 import { serviceCoversZone, type ViveloZoneSlug } from '@/lib/zone-mapping';
-import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
@@ -123,6 +123,9 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                 <Badge variant="outline" className="gap-1"><CalendarIcon className="h-3 w-3" />{format(new Date(item.event_date + 'T12:00:00'), 'dd MMM yyyy', { locale: es })}</Badge>
                 <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" />{item.start_time} - {item.end_time}</Badge>
                 <Badge variant="outline" className="gap-1"><Users className="h-3 w-3" />{item.guest_count} invitados</Badge>
+                {(item.service_snapshot.zones?.length ?? 0) > 0 && (
+                  <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" />Zona: {item.service_snapshot.zones.join(', ')}</Badge>
+                )}
               </div>
             ) : (
               <div className="mt-3 space-y-3 bg-muted/50 rounded-lg p-3">
@@ -194,11 +197,18 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                     inputClassName="h-8 text-xs"
                   />
                 </div>
-                {item.event_zone && !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug) && (
-                  <div className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                    <AlertTriangle className="h-3 w-3" />
-                    Este servicio no cubre esta zona
-                  </div>
+                {item.event_zone && (
+                  serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug) ? (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Este servicio cubre esta zona
+                    </div>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      Este servicio no cubre esta zona
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -285,20 +295,30 @@ export default function CarritoPage() {
                       inputClassName="h-8 text-sm"
                     />
                   </div>
-                  {eventItems[0]?.event_zone && eventItems.some(item =>
-                    !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug)
-                  ) && (
-                    <div className="mt-2 space-y-1">
-                      {eventItems.filter(item =>
-                        !serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug)
-                      ).map(item => (
-                        <div key={item.id} className="flex items-center gap-1 text-xs text-destructive">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          &ldquo;{item.service_snapshot.title}&rdquo; no cubre esta zona
+                  {eventItems[0]?.event_zone && (() => {
+                    const zone = eventItems[0].event_zone as ViveloZoneSlug;
+                    const nonCovering = eventItems.filter(item =>
+                      !serviceCoversZone(item.service_snapshot.zones || [], zone)
+                    );
+                    if (nonCovering.length === 0) {
+                      return (
+                        <div className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Todos los servicios cubren esta zona
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    }
+                    return (
+                      <div className="mt-2 space-y-1">
+                        {nonCovering.map(item => (
+                          <div key={item.id} className="flex items-center gap-1 text-xs text-red-600">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            &ldquo;{item.service_snapshot.title}&rdquo; no cubre esta zona
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-3">
                   {eventItems.map(item => (
