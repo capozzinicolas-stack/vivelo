@@ -204,7 +204,7 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                       Este servicio cubre esta zona
                     </div>
                   ) : (
-                    <div className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                    <div className="mt-1 flex items-center gap-1 text-xs font-medium" style={{ color: '#dc2626' }}>
                       <AlertTriangle className="h-3 w-3" />
                       Este servicio no cubre esta zona
                     </div>
@@ -311,7 +311,7 @@ export default function CarritoPage() {
                     return (
                       <div className="mt-2 space-y-1">
                         {nonCovering.map(item => (
-                          <div key={item.id} className="flex items-center gap-1 text-xs text-red-600">
+                          <div key={item.id} className="flex items-center gap-1 text-xs font-medium" style={{ color: '#dc2626' }}>
                             <AlertTriangle className="h-3 w-3 shrink-0" />
                             &ldquo;{item.service_snapshot.title}&rdquo; no cubre esta zona
                           </div>
