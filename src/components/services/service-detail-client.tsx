@@ -252,6 +252,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
       }),
       notes: notes || null,
       event_name: eventName || null,
+      event_address: null,
       added_at: new Date().toISOString(),
     });
 

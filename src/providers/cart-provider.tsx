@@ -39,6 +39,7 @@ export interface CartItem {
   selected_extras: CartItemExtra[];
   notes: string | null;
   event_name: string | null;
+  event_address: string | null;
   added_at: string;
   // Campaign discount fields (optional)
   campaign_id?: string;

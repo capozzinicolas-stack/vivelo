@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PromoBanner } from '@/components/marketing/promo-banner';
-import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper } from 'lucide-react';
+import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Image from 'next/image';
@@ -28,7 +28,7 @@ function calcHours(start: string, end: string): number {
   return Math.max(diff / 60, 0.5);
 }
 
-function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: () => void; onUpdate: (updates: Partial<CartItem>) => void }) {
+function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: CartItem; onRemove: () => void; onUpdate: (updates: Partial<CartItem>) => void; showAddressInput?: boolean }) {
   const { categoryMap, getCategoryIcon } = useCatalog();
   const [editing, setEditing] = useState(false);
   const [editDate, setEditDate] = useState<Date | undefined>(new Date(item.event_date + 'T12:00:00'));
@@ -180,6 +180,18 @@ function CartItemCard({ item, onRemove, onUpdate }: { item: CartItem; onRemove: 
               </span>
               <span className="font-bold text-lg">${item.total.toLocaleString()}</span>
             </div>
+
+            {showAddressInput && (
+              <div className="mt-3">
+                <Label className="text-xs flex items-center gap-1"><MapPin className="h-3 w-3" /> Direccion del servicio *</Label>
+                <Input
+                  placeholder="Ej: Av. Reforma 500, CDMX"
+                  value={item.event_address || ''}
+                  onChange={(e) => onUpdate({ event_address: e.target.value || null })}
+                  className="mt-1 h-8 text-xs"
+                />
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -239,25 +251,40 @@ export default function CarritoPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart items */}
         <div className="lg:col-span-2 space-y-6">
-          {eventGroups.map(([eventName, eventItems]) => (
-            <div key={eventName}>
-              <div className="flex items-center gap-2 mb-3">
-                <PartyPopper className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">{eventName}</h3>
-                <span className="text-xs text-muted-foreground">({eventItems.length} {eventItems.length === 1 ? 'servicio' : 'servicios'} · ${eventItems.reduce((s, i) => s + i.total, 0).toLocaleString()})</span>
-              </div>
-              <div className="space-y-3">
-                {eventItems.map(item => (
-                  <CartItemCard
-                    key={item.id}
-                    item={item}
-                    onRemove={() => removeItem(item.id)}
-                    onUpdate={(updates) => updateItem(item.id, updates)}
+          {eventGroups.map(([eventName, eventItems]) => {
+            const eventAddress = eventItems[0]?.event_address || '';
+            return (
+              <div key={eventName}>
+                <div className="flex items-center gap-2 mb-3">
+                  <PartyPopper className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium">{eventName}</h3>
+                  <span className="text-xs text-muted-foreground">({eventItems.length} {eventItems.length === 1 ? 'servicio' : 'servicios'} · ${eventItems.reduce((s, i) => s + i.total, 0).toLocaleString()})</span>
+                </div>
+                <div className="mb-3">
+                  <Label className="text-xs flex items-center gap-1"><MapPin className="h-3 w-3" /> Direccion del evento *</Label>
+                  <Input
+                    placeholder="Ej: Av. Reforma 500, CDMX"
+                    value={eventAddress}
+                    onChange={(e) => {
+                      const addr = e.target.value || null;
+                      eventItems.forEach(item => updateItem(item.id, { event_address: addr }));
+                    }}
+                    className="mt-1 h-8 text-sm"
                   />
-                ))}
+                </div>
+                <div className="space-y-3">
+                  {eventItems.map(item => (
+                    <CartItemCard
+                      key={item.id}
+                      item={item}
+                      onRemove={() => removeItem(item.id)}
+                      onUpdate={(updates) => updateItem(item.id, updates)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {ungroupedItems.length > 0 && (
             <div>
               {eventGroups.length > 0 && (
@@ -270,6 +297,7 @@ export default function CarritoPage() {
                     item={item}
                     onRemove={() => removeItem(item.id)}
                     onUpdate={(updates) => updateItem(item.id, updates)}
+                    showAddressInput
                   />
                 ))}
               </div>
@@ -296,7 +324,13 @@ export default function CarritoPage() {
                 <span>${cartTotal.toLocaleString()}</span>
               </div>
 
-              <Button className="w-full" size="lg" onClick={handleCheckout}>
+              {items.some(i => !i.event_address?.trim()) && (
+                <p className="text-xs text-destructive text-center">
+                  Agrega la direccion de cada servicio o evento para continuar.
+                </p>
+              )}
+
+              <Button className="w-full" size="lg" onClick={handleCheckout} disabled={items.some(i => !i.event_address?.trim())}>
                 Proceder al Checkout
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

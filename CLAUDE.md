@@ -507,7 +507,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Alta de servicios (proveedor) | ✅ Terminado | CRUD completo con extras, precios, categorias |
 | Extras por servicio | ✅ Terminado | Logica de min/max, depends_on_guests/hours, imagen y descripcion (150 chars) |
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |
-| Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage |
+| Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion obligatoria |
 | Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
