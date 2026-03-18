@@ -197,6 +197,12 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                     inputClassName="h-8 text-xs"
                   />
                 </div>
+                {item.event_address?.trim() && !item.event_zone && (
+                  <div className="mt-1 flex items-center gap-1 text-xs font-medium" style={{ color: '#dc2626' }}>
+                    <AlertTriangle className="h-3 w-3" />
+                    Esta direccion esta fuera de las zonas de cobertura de Vivelo
+                  </div>
+                )}
                 {item.event_zone && (
                   serviceCoversZone(item.service_snapshot.zones || [], item.event_zone as ViveloZoneSlug) ? (
                     <div className="mt-1 flex items-center gap-1 text-xs text-green-600">
@@ -295,6 +301,12 @@ export default function CarritoPage() {
                       inputClassName="h-8 text-sm"
                     />
                   </div>
+                  {eventItems[0]?.event_address?.trim() && !eventItems[0]?.event_zone && (
+                    <div className="mt-1 flex items-center gap-1 text-xs font-medium" style={{ color: '#dc2626' }}>
+                      <AlertTriangle className="h-3 w-3" />
+                      Esta direccion esta fuera de las zonas de cobertura de Vivelo
+                    </div>
+                  )}
                   {eventItems[0]?.event_zone && (() => {
                     const zone = eventItems[0].event_zone as ViveloZoneSlug;
                     const nonCovering = eventItems.filter(item =>
@@ -378,6 +390,12 @@ export default function CarritoPage() {
                 </p>
               )}
 
+              {items.some(i => i.event_address?.trim() && !i.event_zone) && (
+                <p className="text-xs text-destructive text-center">
+                  La direccion ingresada esta fuera de las zonas de cobertura de Vivelo.
+                </p>
+              )}
+
               {items.some(i => i.event_zone && !serviceCoversZone(i.service_snapshot.zones || [], i.event_zone as ViveloZoneSlug)) && (
                 <p className="text-xs text-destructive text-center">
                   Uno o mas servicios no cubren la zona seleccionada.
@@ -386,6 +404,7 @@ export default function CarritoPage() {
 
               <Button className="w-full" size="lg" onClick={handleCheckout} disabled={
                 items.some(i => !i.event_address?.trim()) ||
+                items.some(i => i.event_address?.trim() && !i.event_zone) ||
                 items.some(i => i.event_zone && !serviceCoversZone(i.service_snapshot.zones || [], i.event_zone as ViveloZoneSlug))
               }>
                 Proceder al Checkout

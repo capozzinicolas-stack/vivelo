@@ -646,7 +646,10 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 - **Componente**: `src/components/address-autocomplete.tsx`
 - **Mapping**: `src/lib/zone-mapping.ts` — `mapPlaceToZone(PlaceComponents) → ViveloZoneSlug | null`
 - **Fallback**: Si la API no esta configurada o falla, muestra Input + Select manual de zona
-- **Validacion en carrito**: `serviceCoversZone(service.zones, eventZone)` — bloquea checkout si hay conflicto
+- **Validacion en carrito** (3 condiciones bloquean checkout):
+  1. Direccion vacia (`!event_address`)
+  2. Direccion fuera de zonas Vivelo (`event_address` existe pero `event_zone` es null — ej: Colima)
+  3. Zona no cubierta por el servicio (`event_zone` existe pero `serviceCoversZone()` retorna false)
 
 ### Archivos clave
 
