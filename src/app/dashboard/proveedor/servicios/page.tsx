@@ -15,8 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles } from 'lucide-react';
 import type { Service, ServiceStatus } from '@/types/database';
 
-const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', paused: 'Pausado', archived: 'Archivado' };
-const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
+const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', pending_review: 'Pendiente de aprobacion', paused: 'Pausado', archived: 'Archivado' };
+const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 export default function ProveedorServiciosPage() {
   const { categoryMap } = useCatalog();
@@ -107,6 +107,7 @@ export default function ProveedorServiciosPage() {
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <Badge className={statusColors[s.status]}>{statusLabels[s.status]}</Badge>
+                      {s.status === 'pending_review' && <span className="text-xs text-blue-600">Un admin revisara tu servicio</span>}
                       {s.deletion_requested && <Badge className="bg-red-100 text-red-800 text-[10px]">Eliminacion solicitada</Badge>}
                     </div>
                   </TableCell>
@@ -119,16 +120,18 @@ export default function ProveedorServiciosPage() {
                       <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Editar" asChild>
                         <Link href={`/dashboard/proveedor/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0"
-                        title={s.status === 'active' ? 'Pausar' : 'Activar'}
-                        onClick={() => handleTogglePause(s)}
-                      >
-                        {s.status === 'active' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                      </Button>
-                      {!s.deletion_requested && (
+                      {s.status !== 'pending_review' && s.status !== 'archived' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-7 p-0"
+                          title={s.status === 'active' ? 'Pausar' : 'Activar'}
+                          onClick={() => handleTogglePause(s)}
+                        >
+                          {s.status === 'active' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                        </Button>
+                      )}
+                      {!s.deletion_requested && s.status !== 'pending_review' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-red-500" title="Solicitar eliminacion">

@@ -156,7 +156,7 @@ export async function createService(
       buffer_after_minutes: service.buffer_after_minutes ?? 0,
       buffer_before_days: service.buffer_before_days ?? 0,
       buffer_after_days: service.buffer_after_days ?? 0,
-      status: 'active',
+      status: 'pending_review',
       deletion_requested: false,
       deletion_requested_at: null,
       avg_rating: 0,
@@ -193,7 +193,7 @@ export async function createService(
     max_guests: service.max_guests || 100,
     zones: service.zones || [],
     images: service.images || [],
-    status: 'active' as ServiceStatus,
+    status: 'pending_review' as ServiceStatus,
   };
 
   const { data: svc, error: svcError } = await supabase
@@ -400,6 +400,52 @@ export async function rejectDeletion(id: string): Promise<void> {
     if (error) console.warn('[rejectDeletion] Column may not exist:', error.message);
   } catch {
     console.warn('[rejectDeletion] deletion columns not available');
+  }
+}
+
+// ─── SERVICE APPROVAL ───────────────────────────────────────
+
+export async function approveService(id: string, providerId: string, serviceTitle: string): Promise<void> {
+  await updateServiceStatus(id, 'active');
+  await createNotification({
+    recipient_id: providerId,
+    type: 'system',
+    title: 'Servicio aprobado',
+    message: `Tu servicio "${serviceTitle}" ha sido aprobado y ya esta visible para los clientes.`,
+    link: '/dashboard/proveedor/servicios',
+  });
+}
+
+export async function rejectService(id: string, providerId: string, serviceTitle: string): Promise<void> {
+  await updateServiceStatus(id, 'archived');
+  await createNotification({
+    recipient_id: providerId,
+    type: 'system',
+    title: 'Servicio rechazado',
+    message: `Tu servicio "${serviceTitle}" no fue aprobado. Contacta a soporte para mas informacion.`,
+    link: '/dashboard/proveedor/servicios',
+  });
+}
+
+export async function notifyAdminsOfNewService(serviceTitle: string): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+  const { data: admins } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', 'admin');
+
+  if (!admins || admins.length === 0) return;
+
+  for (const admin of admins) {
+    await createNotification({
+      recipient_id: admin.id,
+      type: 'system',
+      title: 'Nuevo servicio pendiente de revision',
+      message: `El servicio "${serviceTitle}" esta esperando aprobacion.`,
+      link: '/admin-portal/dashboard/servicios',
+    });
   }
 }
 

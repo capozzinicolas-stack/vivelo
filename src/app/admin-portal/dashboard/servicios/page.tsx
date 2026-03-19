@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { getAllServices, updateServiceStatus, approveDeletion, rejectDeletion } from '@/lib/supabase/queries';
+import { getAllServices, updateServiceStatus, approveDeletion, rejectDeletion, approveService, rejectService } from '@/lib/supabase/queries';
 import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Badge } from '@/components/ui/badge';
@@ -15,18 +15,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react';
 import type { Service, ServiceStatus } from '@/types/database';
 
 const PAGE_SIZE = 20;
-const statusTabs = ['all', 'active', 'paused', 'archived', 'deletion'] as const;
-const tabLabels: Record<string, string> = { all: 'Todos', active: 'Activos', paused: 'Pausados', archived: 'Archivados', deletion: 'Solicitudes de eliminacion' };
-const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
+const statusTabs = ['all', 'pending_review', 'active', 'paused', 'archived', 'deletion'] as const;
+const tabLabels: Record<string, string> = { all: 'Todos', pending_review: 'Pendientes', active: 'Activos', paused: 'Pausados', archived: 'Archivados', deletion: 'Solicitudes de eliminacion' };
+const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 const tabCounts = (services: Service[]) => {
   const deletion = services.filter(s => s.deletion_requested).length;
   return {
     all: services.length,
+    pending_review: services.filter(s => s.status === 'pending_review').length,
     active: services.filter(s => s.status === 'active').length,
     paused: services.filter(s => s.status === 'paused').length,
     archived: services.filter(s => s.status === 'archived').length,
@@ -157,6 +158,26 @@ export default function AdminServiciosPage() {
     }
   };
 
+  const handleApprove = async (s: Service) => {
+    try {
+      await approveService(s.id, s.provider_id, s.title);
+      setServices(prev => prev.map(svc => svc.id === s.id ? { ...svc, status: 'active' as ServiceStatus } : svc));
+      toast({ title: 'Servicio aprobado', description: `"${s.title}" ya esta visible para clientes.` });
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleReject = async (s: Service) => {
+    try {
+      await rejectService(s.id, s.provider_id, s.title);
+      setServices(prev => prev.map(svc => svc.id === s.id ? { ...svc, status: 'archived' as ServiceStatus } : svc));
+      toast({ title: 'Servicio rechazado', description: `"${s.title}" ha sido rechazado.` });
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
@@ -166,19 +187,31 @@ export default function AdminServiciosPage() {
           <h1 className="text-2xl font-bold">Moderacion de Servicios</h1>
           <span className="text-sm text-muted-foreground">{filtered.length} servicios</span>
         </div>
-        {deletionRequests.length > 0 && (
-          <Badge className="bg-red-100 text-red-800 gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            {deletionRequests.length} solicitud{deletionRequests.length !== 1 ? 'es' : ''} de eliminacion
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {counts.pending_review > 0 && (
+            <Badge className="bg-blue-100 text-blue-800 gap-1">
+              <Clock className="h-3 w-3" />
+              {counts.pending_review} pendiente{counts.pending_review !== 1 ? 's' : ''}
+            </Badge>
+          )}
+          {deletionRequests.length > 0 && (
+            <Badge className="bg-red-100 text-red-800 gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {deletionRequests.length} solicitud{deletionRequests.length !== 1 ? 'es' : ''} de eliminacion
+            </Badge>
+          )}
+        </div>
       </div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           {statusTabs.map((s) => (
             <TabsTrigger key={s} value={s} className="relative">
               {tabLabels[s]}
-              {s === 'deletion' && deletionRequests.length > 0 ? (
+              {s === 'pending_review' && counts.pending_review > 0 ? (
+                <span className="ml-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-white text-[10px] font-bold">
+                  {counts[s]}
+                </span>
+              ) : s === 'deletion' && deletionRequests.length > 0 ? (
                 <span className="ml-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold">
                   {counts[s]}
                 </span>
@@ -222,7 +255,62 @@ export default function AdminServiciosPage() {
           </Select>
         </div>
         <TabsContent value={tab} className="mt-4">
-          {tab === 'deletion' ? (
+          {tab === 'pending_review' ? (
+            <div className="space-y-4">
+              {filtered.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8 border rounded-md">No hay servicios pendientes de revision</div>
+              ) : filtered.map(s => {
+                const cat = categoryMap[s.category];
+                return (
+                  <div key={s.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">{s.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {cat?.label} · ${s.base_price.toLocaleString()} {s.price_unit} · Proveedor: {s.provider?.full_name || 'N/A'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Creado: {new Date(s.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Ver detalle" onClick={() => setPreview(s)}>
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Badge className={statusColors['pending_review']}>Pendiente</Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => handleApprove(s)}>
+                        <CheckCircle className="h-3 w-3" /> Aprobar
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive" className="gap-1">
+                            <XCircle className="h-3 w-3" /> Rechazar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Rechazar servicio</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esto rechazara el servicio &quot;{s.title}&quot; y sera archivado. El proveedor recibira una notificacion.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleReject(s)} className="bg-red-600 hover:bg-red-700">
+                              Rechazar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : tab === 'deletion' ? (
             <div className="space-y-4">
               {deletionRequests.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8 border rounded-md">No hay solicitudes de eliminacion pendientes</div>

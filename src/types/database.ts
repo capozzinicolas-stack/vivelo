@@ -42,7 +42,7 @@ export interface CatalogTag {
   sort_order: number;
   is_active: boolean;
 }
-export type ServiceStatus = 'draft' | 'active' | 'paused' | 'archived';
+export type ServiceStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
 export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded';

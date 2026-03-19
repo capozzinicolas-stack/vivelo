@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { createService, getCancellationPolicies, setServiceTags } from '@/lib/supabase/queries';
+import { createService, getCancellationPolicies, setServiceTags, notifyAdminsOfNewService } from '@/lib/supabase/queries';
 import { uploadServiceMedia, deleteServiceMedia, validateFile, getMediaType } from '@/lib/supabase/storage';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
@@ -188,7 +188,8 @@ export default function NuevoServicioPage() {
       if (selectedTags.length > 0 && created?.id) {
         await setServiceTags(created.id, selectedTags);
       }
-      toast({ title: 'Servicio creado!', description: `"${title}" ha sido creado exitosamente.` });
+      notifyAdminsOfNewService(title).catch(() => {});
+      toast({ title: 'Servicio enviado a revision', description: `"${title}" sera revisado por un administrador antes de publicarse.` });
       router.push('/dashboard/proveedor/servicios');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : JSON.stringify(err);
