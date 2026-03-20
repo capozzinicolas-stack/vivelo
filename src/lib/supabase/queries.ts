@@ -1378,6 +1378,7 @@ export async function updateProfile(profileId: string, updates: {
   avatar_url?: string | null;
   company_name?: string | null;
   bio?: string | null;
+  rfc?: string | null;
 }): Promise<void> {
   if (isMockMode()) return;
 
@@ -1461,6 +1462,23 @@ export async function updateBankingStatus(profileId: string, status: BankingStat
   if (error) {
     console.warn('[updateBankingStatus] Columns may not exist:', error.message);
   }
+}
+
+export async function getProvidersPendingBanking(): Promise<Profile[]> {
+  if (isMockMode()) {
+    const { mockUsers } = await import('@/data/mock-users');
+    return mockUsers.filter(u => u.role === 'provider' && u.banking_status === 'pending_review');
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'provider')
+    .eq('banking_status', 'pending_review')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // ─── FEATURED PLACEMENTS ────────────────────────────────────

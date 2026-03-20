@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { ProviderOnboardingBanner } from '@/components/dashboard/provider-onboarding-banner';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthContext();
@@ -18,7 +19,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <Sidebar role={user.role} />
-      <div className="flex-1 p-6 lg:p-8">{children}</div>
+      <div className="flex-1">
+        {user.role === 'provider' && <ProviderOnboardingBanner profile={user} />}
+        <div className="p-6 lg:p-8">{children}</div>
+      </div>
     </div>
   );
 }
