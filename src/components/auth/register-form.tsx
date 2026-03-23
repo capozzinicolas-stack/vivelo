@@ -25,6 +25,14 @@ export function RegisterForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
 
+  // Auto-select role from ?role= param (e.g. from landing page)
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    if (roleParam === 'provider' || roleParam === 'client') {
+      setRole(roleParam);
+    }
+  }, [searchParams]);
+
   // Capture ?ref= param and store in localStorage
   useEffect(() => {
     const refParam = searchParams.get('ref');

@@ -75,6 +75,26 @@ function updateSessionWithHeader(request: NextRequest, headerName: string, heade
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   const isAdminDomain = hostname.startsWith('admin.');
+  const isNuevosProveedores = hostname.startsWith('nuevosproveedores.');
+
+  if (isNuevosProveedores) {
+    const { pathname } = request.nextUrl;
+
+    if (
+      pathname.startsWith('/api/') ||
+      pathname.startsWith('/_next/') ||
+      pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2)$/)
+    ) {
+      return NextResponse.next();
+    }
+
+    // Rewrite all paths to /nuevos-proveedores
+    const url = request.nextUrl.clone();
+    url.pathname = '/nuevos-proveedores';
+    const response = NextResponse.rewrite(url);
+    response.headers.set('x-nuevos-proveedores', '1');
+    return response;
+  }
 
   if (isAdminDomain) {
     const { pathname } = request.nextUrl;
@@ -134,6 +154,13 @@ export async function middleware(request: NextRequest) {
 
   // Check for mock auth mode
   const isMockMode = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
+
+  // Direct access to /nuevos-proveedores (dev testing) — suppress consumer chrome
+  if (pathname === '/nuevos-proveedores') {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nuevos-proveedores', '1');
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   // Dashboard routes: set header to suppress public chrome (navbar/footer)
   if (pathname.startsWith('/dashboard')) {
