@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   Eye,
@@ -118,11 +119,15 @@ export function LandingPage({ faqItems }: LandingPageProps) {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <Link href="https://solovivelo.com" className="flex items-center gap-2">
-            <span className="text-2xl font-bold tracking-tight">
-              <span className={scrolled ? 'text-[#43276c]' : 'text-white'}>Vive</span>
-              <span className="text-[#ecbe38]">lo</span>
-            </span>
+          <Link href="https://solovivelo.com" className="flex items-center">
+            <Image
+              src={scrolled ? '/logo-vivelo.png' : '/logo-vivelo-white.png'}
+              alt="Vivelo"
+              width={120}
+              height={40}
+              className="h-8 w-auto"
+              priority
+            />
           </Link>
           <Link
             href={REGISTER_URL}
