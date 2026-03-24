@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { CheckCircle, XCircle, Loader2, ShieldCheck, KeyRound } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, KeyRound, UserPlus, Pause, Play, Trash2, AlertTriangle } from 'lucide-react';
 import type { Profile, UserRole } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -23,37 +27,45 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [resettingId, setResettingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+
+  // Invite admin dialog state
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviting, setInviting] = useState(false);
+
+  // Delete dialog state
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadUsers = async () => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role, verified, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[AdminUsuarios] Supabase query error:', error);
+        toast({ title: 'Error al cargar usuarios', description: error.message, variant: 'destructive' });
+        return;
+      }
+
+      setUsers((data || []) as unknown as Profile[]);
+    } catch (err) {
+      console.error('[AdminUsuarios] Exception:', err);
+      toast({ title: 'Error al cargar usuarios', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        console.log('[AdminUsuarios] Auth user:', user?.id, user?.email);
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id, email, full_name, role, verified, created_at')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('[AdminUsuarios] Supabase query error:', error);
-          toast({ title: 'Error al cargar usuarios', description: error.message, variant: 'destructive' });
-          return;
-        }
-
-        console.log('[AdminUsuarios] Loaded profiles:', data?.length);
-        setUsers((data || []) as unknown as Profile[]);
-      } catch (err) {
-        console.error('[AdminUsuarios] Exception:', err);
-        toast({ title: 'Error al cargar usuarios', variant: 'destructive' });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadUsers();
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { setPage(1); }, [tab]);
 
@@ -66,7 +78,7 @@ export default function AdminUsuariosPage() {
       const { error } = await supabase.from('profiles').update({ verified }).eq('id', id);
       if (error) throw error;
       setUsers(prev => prev.map(u => u.id === id ? { ...u, verified } : u));
-      toast({ title: verified ? 'Usuario verificado' : 'Verificacion removida' });
+      toast({ title: verified ? 'Usuario activado' : 'Usuario pausado' });
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     }
@@ -104,13 +116,64 @@ export default function AdminUsuariosPage() {
     }
   };
 
+  const handleInviteAdmin = async () => {
+    if (!inviteEmail || !inviteName) return;
+    setInviting(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, full_name: inviteName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al invitar admin');
+      toast({ title: `Invitacion enviada a ${inviteEmail}` });
+      setInviteOpen(false);
+      setInviteEmail('');
+      setInviteName('');
+      setLoading(true);
+      loadUsers();
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Error al invitar', variant: 'destructive' });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deleteTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al borrar usuario');
+      toast({ title: `Usuario ${deleteTarget.full_name} eliminado` });
+      setDeleteTarget(null);
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Error al borrar', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando usuarios" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Gestion de Usuarios</h1>
-        <p className="text-sm text-muted-foreground">{users.length} usuarios registrados</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">{users.length} usuarios registrados</p>
+          <Button size="sm" onClick={() => setInviteOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-1" />
+            Invitar Admin
+          </Button>
+        </div>
       </div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{roleTabs.map((r) => <TabsTrigger key={r} value={r}>{roleLabels[r]}</TabsTrigger>)}</TabsList>
@@ -122,7 +185,7 @@ export default function AdminUsuariosPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead>Verificado</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead className="hidden md:table-cell">Registro</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
@@ -151,13 +214,31 @@ export default function AdminUsuariosPage() {
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{new Date(u.created_at).toLocaleDateString('es-MX')}</TableCell>
                     <TableCell className="space-x-1">
-                      <Button size="sm" variant="outline" className="h-7" aria-label={u.verified ? 'Quitar verificacion de usuario' : 'Verificar usuario'} onClick={() => handleVerify(u.id, !u.verified)}>
-                        <ShieldCheck className="h-3 w-3 mr-1" />
-                        {u.verified ? 'Quitar' : 'Verificar'}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        aria-label={u.verified ? 'Pausar usuario' : 'Activar usuario'}
+                        onClick={() => handleVerify(u.id, !u.verified)}
+                      >
+                        {u.verified
+                          ? <><Pause className="h-3 w-3 mr-1" />Pausar</>
+                          : <><Play className="h-3 w-3 mr-1" />Activar</>}
                       </Button>
                       <Button size="sm" variant="outline" className="h-7" aria-label="Restablecer contrasena" disabled={resettingId === u.id} onClick={() => handleResetPassword(u.id, u.email)}>
                         {resettingId === u.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <KeyRound className="h-3 w-3 mr-1" />}
                         Restablecer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        aria-label="Borrar usuario"
+                        disabled={u.id === currentUser?.id}
+                        onClick={() => setDeleteTarget(u)}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Borrar
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -168,6 +249,72 @@ export default function AdminUsuariosPage() {
           <PaginationControls currentPage={page} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </TabsContent>
       </Tabs>
+
+      {/* Invite Admin Dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invitar Admin</DialogTitle>
+            <DialogDescription>
+              Se creara una cuenta con rol admin y se enviara un enlace para establecer contrasena.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="invite-name">Nombre completo</Label>
+              <Input
+                id="invite-name"
+                placeholder="Juan Perez"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="admin@ejemplo.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleInviteAdmin} disabled={inviting || !inviteEmail || !inviteName}>
+              {inviting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <UserPlus className="h-4 w-4 mr-1" />}
+              Invitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Borrar usuario
+            </DialogTitle>
+            <DialogDescription>
+              Borrar permanentemente a <strong>{deleteTarget?.full_name}</strong> ({deleteTarget?.email})? Esta accion no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteUser} disabled={deleting}>
+              {deleting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Borrar permanentemente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
