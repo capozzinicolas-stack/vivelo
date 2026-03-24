@@ -25,6 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Detect recovery hash on any page and redirect to /reset-password
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery') && !window.location.pathname.startsWith('/reset-password')) {
+      window.location.href = '/reset-password' + hash;
+    }
+  }, []);
+
   useEffect(() => {
     if (isMockMode) {
       // Default to client user in mock mode
