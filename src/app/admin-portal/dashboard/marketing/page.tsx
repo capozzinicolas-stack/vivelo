@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, BookOpen, Download, ExternalLink } from 'lucide-react';
 import type { FeaturedPlacement, Campaign, FeaturedSection, Service, ShowcaseItem, SiteBanner } from '@/types/database';
 import { FEATURED_SECTION_LABELS, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, GRADIENT_OPTIONS, BANNER_KEY_LABELS } from '@/lib/constants';
 import { useCatalog } from '@/providers/catalog-provider';
@@ -344,6 +344,7 @@ export default function AdminMarketingPage() {
           <TabsTrigger value="destaques">Areas de Destaque</TabsTrigger>
           <TabsTrigger value="campanas">Campanas</TabsTrigger>
           <TabsTrigger value="banners">Banners y Showcase</TabsTrigger>
+          <TabsTrigger value="brandbook">Brand Book</TabsTrigger>
         </TabsList>
 
         <TabsContent value="destaques" className="space-y-6">
@@ -778,6 +779,36 @@ export default function AdminMarketingPage() {
               </div>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="brandbook" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Brand Book Vivelo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Guia completa de identidad de marca de Vivelo. Incluye logotipo, colores, tipografia, tono de comunicacion y lineamientos de uso.
+              </p>
+              <div className="flex gap-3">
+                <Button asChild>
+                  <a href="/api/admin/brand-book" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver Brand Book
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href="/api/admin/brand-book?download=1">
+                    <Download className="h-4 w-4 mr-2" />
+                    Descargar HTML
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
