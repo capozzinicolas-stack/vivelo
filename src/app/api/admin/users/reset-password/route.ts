@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createAdminSupabaseClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solovivelo.com';
     const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+      redirectTo: `${siteUrl}/reset-password`,
     });
 
     if (error) {
