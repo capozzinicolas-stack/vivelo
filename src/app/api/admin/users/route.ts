@@ -140,7 +140,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Send password reset so the invited admin can set their real password
-    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email);
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://solovivelo.com';
+    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/auth/callback?next=/reset-password`,
+    });
 
     if (resetError) {
       console.error('[Admin Users] Reset password email error:', resetError);
