@@ -86,6 +86,7 @@ export interface Profile {
   banking_rejection_reason: string | null;
   default_cancellation_policy_id?: string | null;
   commission_rate: number;
+  must_change_password: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -22,6 +22,7 @@ import {
   Bell,
   Store,
   Star,
+  CircleUser,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -36,6 +37,7 @@ const adminNavItems = [
   { label: 'Contenido', href: '/dashboard/contenido', icon: FileText },
   { label: 'Notificaciones', href: '/dashboard/notificaciones', icon: Bell },
   { label: 'Configuracion', href: '/dashboard/configuracion', icon: Settings },
+  { label: 'Mi Perfil', href: '/dashboard/perfil', icon: CircleUser },
 ];
 
 function NavLinks({

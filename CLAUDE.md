@@ -511,7 +511,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion con Google Places + validacion de zona |
 | Zonas geograficas | ✅ Terminado | 9 zonas, Google Places Autocomplete, fallback manual, validacion de cobertura en carrito |
 | Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
-| Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios |
+| Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, perfil admin |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
 | Checkout + Stripe | ⚠️ En progreso | Pago funciona pero bookings pueden perderse (ver Bugs Conocidos) |
 | Cancelacion + reembolsos | ⚠️ En progreso | Funciona pero depende del fix de checkout |
@@ -688,6 +688,45 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 - ✅ Service-role key solo en servidor, nunca expuesta al cliente
 - ✅ Cancelacion multi-party (client/provider/admin) con validacion de ownership
 - ✅ Snapshots financieros inmutables en bookings
+
+## Recuperacion de Contrasena Admin
+
+### Flujo
+
+1. Admin en `admin.solovivelo.com/login` → click "Olvidaste tu contrasena?" → formulario de email
+2. `POST /api/admin/auth/recover` (sin auth requerido):
+   - Verifica que el email pertenece a un admin (si no, retorna success sin revelar info)
+   - Genera contrasena temporal (`Vivelo-XXXXXXXX`)
+   - Actualiza password en Supabase auth via `supabaseAdmin.auth.admin.updateUserById()`
+   - Marca `profiles.must_change_password = true`
+   - Envia email con contrasena temporal via Resend (`sendTemporaryPassword`)
+3. Admin hace login con contrasena temporal → detecta `must_change_password: true` → redirect a `/dashboard/perfil?cambiar=1`
+4. Pagina de perfil muestra banner de alerta + formulario de cambio de contrasena
+5. `POST /api/admin/auth/change-password` (requiere auth admin):
+   - Verifica contrasena actual con `signInWithPassword`
+   - Actualiza password via `supabaseAdmin.auth.admin.updateUserById()`
+   - Marca `must_change_password = false`
+6. Desde perfil, el admin siempre puede cambiar su contrasena voluntariamente
+
+### Archivos
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00102_add_must_change_password.sql` | Columna `must_change_password BOOLEAN DEFAULT false` en profiles |
+| `src/app/api/admin/auth/recover/route.ts` | Endpoint de recuperacion (genera temp password, envia email) |
+| `src/app/api/admin/auth/change-password/route.ts` | Endpoint de cambio de contrasena (verifica actual, actualiza) |
+| `src/lib/email.ts` | Funcion `sendTemporaryPassword()` |
+| `src/components/admin/admin-login-form.tsx` | Login + formulario de recuperacion + redirect si `must_change_password` |
+| `src/app/admin-portal/dashboard/perfil/page.tsx` | Pagina de perfil admin con cambio de contrasena |
+| `src/components/admin/admin-sidebar.tsx` | Link "Mi Perfil" en sidebar |
+
+### Gestion de Usuarios Admin
+
+- **Invitar admin**: `POST /api/admin/users` — crea usuario con password random, rol admin, envia email recovery
+- **Pausar/Activar**: Toggle `verified` en profiles (verified=false actua como pausa)
+- **Borrar usuario**: `DELETE /api/admin/users` — borra profile + auth.users (protegido contra auto-borrado y FK constraints)
+
+---
 
 ## Regla de Git
 Al terminar cada ticket, haz commit con el formato:

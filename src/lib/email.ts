@@ -102,6 +102,45 @@ export async function sendCancellationNotice(data: CancellationEmailData) {
   }
 }
 
+interface TemporaryPasswordEmailData {
+  adminName: string;
+  adminEmail: string;
+  temporaryPassword: string;
+}
+
+export async function sendTemporaryPassword(data: TemporaryPasswordEmailData) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping temporary password email');
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: data.adminEmail,
+      subject: 'Tu contrasena temporal — Vivelo Admin',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #43276c;">Contrasena temporal</h1>
+          <p>Hola ${data.adminName},</p>
+          <p>Se solicito una recuperacion de contrasena para tu cuenta de administrador en Vivelo.</p>
+          <div style="background: #f9f7f4; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+            <p style="font-size: 14px; color: #666; margin-bottom: 8px;">Tu contrasena temporal es:</p>
+            <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #43276c; margin: 16px 0; font-family: monospace;">${data.temporaryPassword}</p>
+          </div>
+          <p>Ingresa a <a href="https://admin.solovivelo.com" style="color: #43276c;">admin.solovivelo.com</a> con esta contrasena. Se te pedira cambiarla al iniciar sesion.</p>
+          <p style="color: #666; font-size: 14px;"><strong>Importante:</strong> Si tu no solicitaste este cambio, ignora este correo.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">Vivelo - Servicios para Eventos en Mexico</p>
+        </div>
+      `,
+    });
+    console.log('[Email] Temporary password sent to', data.adminEmail);
+  } catch (error) {
+    console.error('[Email] Failed to send temporary password:', error);
+  }
+}
+
 interface EventCodesEmailData {
   clientName: string;
   clientEmail: string;
