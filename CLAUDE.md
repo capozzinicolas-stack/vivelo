@@ -715,7 +715,7 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 | `supabase/migrations/00102_add_must_change_password.sql` | Columna `must_change_password BOOLEAN DEFAULT false` en profiles |
 | `src/app/api/admin/auth/recover/route.ts` | Endpoint de recuperacion (genera temp password, envia email) |
 | `src/app/api/admin/auth/change-password/route.ts` | Endpoint de cambio de contrasena (verifica actual, actualiza) |
-| `src/lib/email.ts` | Funcion `sendTemporaryPassword()` |
+| `src/lib/email.ts` | Funcion `sendTemporaryPassword()` (interfaz generica: `userName`, `userEmail`, `loginUrl?`) |
 | `src/components/admin/admin-login-form.tsx` | Login + formulario de recuperacion + redirect si `must_change_password` |
 | `src/app/admin-portal/dashboard/perfil/page.tsx` | Pagina de perfil admin con cambio de contrasena |
 | `src/components/admin/admin-sidebar.tsx` | Link "Mi Perfil" en sidebar |
@@ -725,6 +725,39 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 - **Invitar admin**: `POST /api/admin/users` — crea usuario con password random, rol admin, envia email recovery
 - **Pausar/Activar**: Toggle `verified` en profiles (verified=false actua como pausa)
 - **Borrar usuario**: `DELETE /api/admin/users` — borra profile + auth.users (protegido contra auto-borrado y FK constraints)
+
+## Recuperacion de Contrasena Cliente/Proveedor
+
+### Flujo
+
+Mismo patron que admin, con endpoints separados que rechazan admins:
+
+1. Cliente/proveedor en `solovivelo.com/login` → click "¿Olvidaste tu contrasena?" → formulario de email
+2. `POST /api/auth/recover` (sin auth requerido):
+   - Verifica que el email pertenece a un client o provider (si es admin o no existe, retorna success sin revelar info)
+   - Genera contrasena temporal (`Vivelo-XXXXXXXX`)
+   - Actualiza password en Supabase auth via `supabaseAdmin.auth.admin.updateUserById()`
+   - Marca `profiles.must_change_password = true`
+   - Envia email con contrasena temporal via Resend (`sendTemporaryPassword` con `loginUrl: 'solovivelo.com/login'`)
+3. Usuario hace login con contrasena temporal → detecta `must_change_password: true` → redirect a `/dashboard/cliente/perfil?cambiar=1` o `/dashboard/proveedor/perfil?cambiar=1`
+4. Pagina de perfil muestra banner amber de alerta + formulario de cambio de contrasena
+5. `POST /api/auth/change-password` (requiere auth client o provider):
+   - Verifica contrasena actual con `signInWithPassword`
+   - Actualiza password via `supabaseAdmin.auth.admin.updateUserById()`
+   - Marca `must_change_password = false`
+6. Si vino con `?cambiar=1`, redirect a `/dashboard` al completar
+7. Desde perfil, el usuario siempre puede cambiar su contrasena voluntariamente
+
+### Archivos
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/app/api/auth/recover/route.ts` | Endpoint de recuperacion para client/provider (rechaza admin) |
+| `src/app/api/auth/change-password/route.ts` | Endpoint de cambio de contrasena para client/provider (rechaza admin) |
+| `src/lib/email.ts` | `sendTemporaryPassword()` — generico con `loginUrl` para diferenciar admin vs usuario |
+| `src/components/auth/login-form.tsx` | Login + formulario de recuperacion + redirect si `must_change_password` |
+| `src/app/dashboard/cliente/perfil/page.tsx` | Perfil cliente con Card de cambio de contrasena |
+| `src/app/dashboard/proveedor/perfil/page.tsx` | Perfil proveedor con Card de cambio de contrasena |
 
 ---
 

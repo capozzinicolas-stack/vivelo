@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = createAdminSupabaseClient();
 
-    // Verify the email belongs to an admin
+    // Verify the email belongs to a client or provider
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, full_name, role')
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
 
     if (profileError || !profile) {
       // Don't reveal whether the email exists — always return success
-      console.log('[Admin Recover] Email not found:', email);
+      console.log('[Recover] Email not found:', email);
       return NextResponse.json({ success: true });
     }
 
-    if (profile.role !== 'admin') {
-      // Don't reveal role info
-      console.log('[Admin Recover] Non-admin email:', email);
+    if (profile.role === 'admin') {
+      // Don't reveal role info — admins use their own recovery flow
+      console.log('[Recover] Admin email, ignoring:', email);
       return NextResponse.json({ success: true });
     }
 
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (updateAuthError) {
-      console.error('[Admin Recover] Update auth error:', updateAuthError);
+      console.error('[Recover] Update auth error:', updateAuthError);
       return NextResponse.json({ error: 'Error al procesar la solicitud' }, { status: 500 });
     }
 
@@ -62,19 +62,20 @@ export async function POST(request: NextRequest) {
       .eq('id', profile.id);
 
     if (updateProfileError) {
-      console.error('[Admin Recover] Update profile error:', updateProfileError);
+      console.error('[Recover] Update profile error:', updateProfileError);
     }
 
     // Send email with temporary password
     await sendTemporaryPassword({
-      userName: profile.full_name || 'Administrador',
+      userName: profile.full_name || 'Usuario',
       userEmail: email,
       temporaryPassword: tempPassword,
+      loginUrl: 'solovivelo.com/login',
     });
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[Admin Recover] Unhandled error:', err);
+    console.error('[Recover] Unhandled error:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Error interno del servidor' },
       { status: 500 }

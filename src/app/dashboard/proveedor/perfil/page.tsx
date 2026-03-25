@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuthContext } from '@/providers/auth-provider';
 import { updateProfile, updateProviderBanking } from '@/lib/supabase/queries';
 import { uploadProfilePicture, uploadDocument } from '@/lib/supabase/storage';
@@ -12,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Camera, Save, Upload, CheckCircle, XCircle, Clock, AlertTriangle, Copy, Share2, Gift } from 'lucide-react';
+import { Loader2, Camera, Save, Upload, CheckCircle, XCircle, Clock, AlertTriangle, Copy, Share2, Gift, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { BankingStatus } from '@/types/database';
 
@@ -31,6 +32,8 @@ function maskClabe(clabe: string): string {
 export default function ProveedorPerfilPage() {
   const { user, isMockMode, updateUser } = useAuthContext();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const mustChange = searchParams.get('cambiar') === '1';
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [phone, setPhone] = useState(user?.phone || '');
@@ -49,6 +52,15 @@ export default function ProveedorPerfilPage() {
   const [bankingMessage, setBankingMessage] = useState('');
   const [bankingError, setBankingError] = useState('');
   const [myReferralCode, setMyReferralCode] = useState('');
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -74,6 +86,12 @@ export default function ProveedorPerfilPage() {
     }
     loadReferralCode();
   }, [user]);
+
+  useEffect(() => {
+    if (mustChange) {
+      document.getElementById('current-password')?.focus();
+    }
+  }, [mustChange]);
 
   if (!user) return null;
 
@@ -187,9 +205,66 @@ export default function ProveedorPerfilPage() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('La nueva contrasena debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Las contrasenas no coinciden');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('La nueva contrasena debe ser diferente a la actual');
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cambiar la contrasena');
+
+      updateUser({ must_change_password: false });
+      toast({ title: 'Contrasena actualizada exitosamente' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      if (mustChange) {
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Error al cambiar la contrasena');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold">Mi Perfil</h1>
+
+      {mustChange && (
+        <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-4">
+          <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Debes cambiar tu contrasena temporal</p>
+            <p className="text-sm text-amber-700 mt-1">Por seguridad, establece una contrasena personal antes de continuar.</p>
+          </div>
+        </div>
+      )}
 
       {error && <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">{error}</div>}
       {message && <div className="bg-green-50 text-green-700 text-sm p-3 rounded-md">{message}</div>}
@@ -322,6 +397,95 @@ export default function ProveedorPerfilPage() {
           {bankingStatus === 'verified' && (
             <p className="text-sm text-green-700">Tus datos bancarios han sido verificados. Para actualizar tu CLABE, contacta a soporte.</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Change Password Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Cambiar contrasena</CardTitle>
+          <CardDescription>Ingresa tu contrasena actual y la nueva contrasena.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {passwordError && (
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                {passwordError}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Contrasena actual</Label>
+              <div className="relative">
+                <Input
+                  id="current-password"
+                  type={showCurrent ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Nueva contrasena</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNew ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirmar nueva contrasena</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+
+            <Button type="submit" disabled={passwordLoading}>
+              {passwordLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Actualizando...
+                </>
+              ) : (
+                'Cambiar contrasena'
+              )}
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
