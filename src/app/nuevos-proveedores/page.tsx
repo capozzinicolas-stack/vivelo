@@ -41,10 +41,10 @@ export const metadata: Metadata = {
     siteName: 'Vivelo',
     images: [
       {
-        url: 'https://solovivelo.com/logo-vivelo.png',
-        width: 400,
-        height: 400,
-        alt: 'Vivelo — Plataforma de Servicios para Eventos en México',
+        url: 'https://nuevosproveedores.solovivelo.com/og-nuevosproveedores.png',
+        width: 1200,
+        height: 630,
+        alt: 'Haz crecer tu negocio con Vivelo — Plataforma de Servicios para Eventos en México',
       },
     ],
   },
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     title: 'Registra tu Negocio en Vivelo',
     description:
       'Únete a la plataforma líder de servicios para eventos en México. Sin cuota mensual.',
-    images: ['https://solovivelo.com/logo-vivelo.png'],
+    images: ['https://nuevosproveedores.solovivelo.com/og-nuevosproveedores.png'],
   },
 };
 
