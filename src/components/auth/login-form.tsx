@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
-import Link from 'next/link';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -235,12 +234,6 @@ export function LoginForm() {
             >
               ¿Olvidaste tu contrasena?
             </button>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            ¿No tienes cuenta?{' '}
-            <Link href={`/register${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-primary hover:underline font-medium">
-              Registrate
-            </Link>
           </p>
         </CardFooter>
       </form>
