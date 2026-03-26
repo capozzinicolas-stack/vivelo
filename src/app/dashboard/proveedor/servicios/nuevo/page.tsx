@@ -27,7 +27,7 @@ export default function NuevoServicioPage() {
   const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug, getSubcategoryIcon } = useCatalog();
+  const { categories, getSubcategoriesByCategory, getTagsByCategory, zones, getCategoryBySlug, getSubcategoryIcon, getCategoryCommissionRate } = useCatalog();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -267,6 +267,18 @@ export default function NuevoServicioPage() {
                 </Select>
               </div>
             </div>
+            {category && basePrice && parseFloat(basePrice) > 0 && (() => {
+              const rate = getCategoryCommissionRate(category);
+              const pct = (rate * 100).toFixed(0);
+              const amount = Math.round(parseFloat(basePrice) * rate * 100) / 100;
+              return (
+                <div className="flex items-center">
+                  <span className="inline-flex items-center gap-1.5 bg-deep-purple/10 text-deep-purple text-sm px-3 py-1.5 rounded-full font-medium">
+                    Comisión Vivelo ({pct}%): ${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Min. Invitados</Label><Input type="number" value={minGuests} onChange={(e) => setMinGuests(e.target.value)} className="mt-1" /></div>
               <div><Label>Max. Invitados *</Label><Input type="number" value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)} placeholder="Ej: 100" className="mt-1" /></div>
