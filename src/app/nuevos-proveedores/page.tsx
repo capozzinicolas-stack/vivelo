@@ -5,6 +5,29 @@ export const metadata: Metadata = {
   title: 'Registra tu Negocio en Vivelo — La Plataforma #1 de Servicios para Eventos en México',
   description:
     'Únete a Vivelo y ofrece tus servicios de catering, audio, decoración, foto y video a miles de clientes. Sin cuota mensual, cobros seguros con Stripe y dashboard para gestionar tu negocio.',
+  keywords: [
+    'servicios para eventos México',
+    'plataforma proveedores eventos',
+    'catering eventos México',
+    'vender servicios eventos',
+    'marketplace eventos México',
+    'registrar negocio eventos',
+    'proveedor de eventos',
+    'audio iluminación eventos',
+    'decoración eventos',
+    'fotografía video eventos',
+  ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
   alternates: {
     canonical: 'https://nuevosproveedores.solovivelo.com',
   },
@@ -16,12 +39,21 @@ export const metadata: Metadata = {
     description:
       'Haz crecer tu negocio de eventos. Recibe reservas, gestiona tu agenda y cobra de forma segura en la plataforma líder de México.',
     siteName: 'Vivelo',
+    images: [
+      {
+        url: 'https://solovivelo.com/logo-vivelo.png',
+        width: 400,
+        height: 400,
+        alt: 'Vivelo — Plataforma de Servicios para Eventos en México',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Registra tu Negocio en Vivelo',
     description:
       'Únete a la plataforma líder de servicios para eventos en México. Sin cuota mensual.',
+    images: ['https://solovivelo.com/logo-vivelo.png'],
   },
 };
 
@@ -93,6 +125,12 @@ export default function NuevosProveedoresPage() {
       '@type': 'Organization',
       name: 'Vivelo',
       url: 'https://solovivelo.com',
+      logo: 'https://solovivelo.com/logo-vivelo.png',
+      sameAs: [
+        'https://www.instagram.com/solo.vivelo/',
+        'https://www.tiktok.com/@solovivelo',
+        'https://www.facebook.com/people/Vivelo/61577239706576/',
+      ],
     },
   };
 

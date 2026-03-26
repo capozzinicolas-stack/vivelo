@@ -19,6 +19,11 @@ import {
   Camera,
   Users,
   Armchair,
+  Star,
+  Quote,
+  BarChart3,
+  Bell,
+  Settings,
 } from 'lucide-react';
 import {
   Accordion,
@@ -101,6 +106,55 @@ const categories = [
   { icon: Armchair, label: 'Mobiliario' },
 ];
 
+const testimonials = [
+  {
+    name: 'María González',
+    role: 'Catering para Eventos',
+    location: 'Ciudad de México',
+    quote: 'Desde que me registré en Vivelo, mis reservas aumentaron un 40%. La plataforma me permite gestionar todo desde un solo lugar y los pagos llegan puntuales.',
+    initials: 'MG',
+  },
+  {
+    name: 'Carlos Ramírez',
+    role: 'Audio e Iluminación',
+    location: 'Querétaro',
+    quote: 'Lo mejor es que no pago nada si no vendo. Vivelo me conecta con clientes que ya están listos para reservar, sin tener que perseguir cotizaciones.',
+    initials: 'CR',
+  },
+  {
+    name: 'Ana Lucía Torres',
+    role: 'Fotografía y Video',
+    location: 'Puebla',
+    quote: 'El dashboard es súper intuitivo. Puedo ver mis reservas, bloquear fechas y hasta manejar mis extras. Me ahorra horas de trabajo cada semana.',
+    initials: 'AT',
+  },
+];
+
+const dashboardFeatures = [
+  {
+    icon: BarChart3,
+    title: 'Métricas en Tiempo Real',
+    description: 'Visualiza tus ingresos, reservas y rendimiento desde tu panel de control.',
+  },
+  {
+    icon: CalendarCheck,
+    title: 'Calendario Inteligente',
+    description: 'Gestiona tu disponibilidad, bloquea fechas y controla cuántos eventos atiendes al mismo tiempo.',
+  },
+  {
+    icon: Bell,
+    title: 'Notificaciones Instantáneas',
+    description: 'Recibe alertas cuando un cliente reserva, cancela o necesita algo.',
+  },
+  {
+    icon: Settings,
+    title: 'Control Total',
+    description: 'Configura precios, extras, políticas de cancelación y fotos de tus servicios.',
+  },
+];
+
+const WA_MESSAGE = encodeURIComponent('Hola, me interesa registrar mi negocio de eventos en Vivelo. ¿Me pueden dar más información?');
+
 export function LandingPage({ faqItems }: LandingPageProps) {
   const [scrolled, setScrolled] = useState(false);
 
@@ -122,7 +176,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
           <Link href="https://solovivelo.com" className="flex items-center">
             <Image
               src={scrolled ? '/logo-vivelo.png' : '/logo-vivelo-white.png'}
-              alt="Vivelo"
+              alt="Vivelo — Plataforma de Servicios para Eventos en México"
               width={120}
               height={40}
               className="h-8 w-auto"
@@ -199,8 +253,47 @@ export function LandingPage({ faqItems }: LandingPageProps) {
         </div>
       </section>
 
+      {/* Testimonials */}
+      <section className="py-20 bg-[#fcf7f4]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#43276c] text-center mb-4">
+            Proveedores que ya Crecen con Vivelo
+          </h2>
+          <p className="text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+            Conoce las experiencias de quienes ya forman parte de nuestra plataforma.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((t) => (
+              <div
+                key={t.name}
+                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col"
+              >
+                <Quote className="w-8 h-8 text-[#ecbe38] mb-4" />
+                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-6">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#43276c] flex items-center justify-center text-white font-bold text-sm">
+                    {t.initials}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#43276c] text-sm">{t.name}</p>
+                    <p className="text-gray-500 text-xs">{t.role} — {t.location}</p>
+                  </div>
+                </div>
+                <div className="flex gap-0.5 mt-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-[#ecbe38] text-[#ecbe38]" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
-      <section id="como-funciona" className="py-20 bg-[#fcf7f4]">
+      <section id="como-funciona" className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <h2 className="text-3xl md:text-4xl font-bold text-[#43276c] text-center mb-4">
             ¿Cómo funciona?
@@ -219,6 +312,32 @@ export function LandingPage({ faqItems }: LandingPageProps) {
                 <span className="text-sm font-bold text-[#ecbe38] mb-2">Paso {step.number}</span>
                 <h3 className="text-xl font-semibold text-[#43276c] mb-2">{step.title}</h3>
                 <p className="text-gray-600 text-sm">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Dashboard Features */}
+      <section className="py-20 bg-[#43276c]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-4">
+            Tu Dashboard de Proveedor
+          </h2>
+          <p className="text-white/70 text-center mb-12 max-w-2xl mx-auto">
+            Todo lo que necesitas para administrar tu negocio, en un solo panel.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {dashboardFeatures.map((feature) => (
+              <div
+                key={feature.title}
+                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+              >
+                <div className="w-12 h-12 bg-[#ecbe38] rounded-xl flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-[#43276c]" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
+                <p className="text-white/70 text-sm leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -312,7 +431,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
 
       {/* WhatsApp Bubble */}
       <a
-        href="https://wa.me/5215519080884"
+        href={`https://wa.me/5215519080884?text=${WA_MESSAGE}`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Contactar por WhatsApp"
