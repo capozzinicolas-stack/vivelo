@@ -422,7 +422,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
             <Link href="https://solovivelo.com/terminos" className="hover:text-white/80 transition-colors">
               Términos
             </Link>
-            <Link href="https://solovivelo.com/privacidad" className="hover:text-white/80 transition-colors">
+            <Link href="https://solovivelo.com/politica-de-privacidad" className="hover:text-white/80 transition-colors">
               Privacidad
             </Link>
           </div>
