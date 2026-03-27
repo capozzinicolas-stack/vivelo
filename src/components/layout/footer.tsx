@@ -24,7 +24,7 @@ const footerSections = [
     links: [
       { label: 'Terminos y Condiciones', href: '#' },
       { label: 'Politicas de Privacidad', href: '/politica-de-privacidad' },
-      { label: 'Politicas de Cancelaciones y Reembolso', href: '#' },
+      { label: 'Politicas de Cancelaciones y Reembolso', href: '/politica-de-cancelaciones' },
     ],
   },
   {
