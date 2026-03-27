@@ -6,14 +6,14 @@ const footerSections = [
     title: 'Empresa',
     links: [
       { label: 'Quienes Somos', href: '#' },
-      { label: 'Vende con Vivelo', href: '/register' },
+      { label: 'Vende con Vivelo', href: 'https://nuevosproveedores.solovivelo.com' },
       { label: 'Representacion Vivelo', href: '#' },
     ],
   },
   {
     title: null,
     links: [
-      { label: 'Ofrezca tus Servicios', href: '/register' },
+      { label: 'Ofrezca tus Servicios', href: 'https://nuevosproveedores.solovivelo.com' },
       { label: 'Nuestro Blog', href: '/blog' },
       { label: 'Atencion al Cliente', href: '#' },
       { label: 'Nuestros Partners', href: '#' },
