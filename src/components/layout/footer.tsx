@@ -5,7 +5,7 @@ const footerSections = [
   {
     title: 'Empresa',
     links: [
-      { label: 'Quienes Somos', href: '#' },
+      { label: 'Quienes Somos', href: '/quien-somos' },
       { label: 'Vende con Vivelo', href: 'https://nuevosproveedores.solovivelo.com' },
       { label: 'Representacion Vivelo', href: '#' },
     ],
