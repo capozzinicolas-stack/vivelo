@@ -107,7 +107,7 @@ export async function deleteServiceMedia(url: string): Promise<void> {
 
 // ─── BLOG UPLOADS ────────────────────────────────────────────
 
-export async function uploadBlogMedia(file: File): Promise<string> {
+export async function uploadBlogMedia(file: File, userId?: string): Promise<string> {
   const mediaType = getMediaType(file);
   if (!mediaType) throw new Error('Tipo de archivo no soportado.');
   if (mediaType === 'video' && file.size > MAX_VIDEO_SIZE) throw new Error('El video no puede exceder 50MB.');
@@ -119,7 +119,9 @@ export async function uploadBlogMedia(file: File): Promise<string> {
 
   const supabase = createClient();
   const ext = mediaType === 'image' && fileToUpload !== file ? 'jpg' : (file.name.split('.').pop()?.toLowerCase() || 'bin');
-  const path = `blog/${crypto.randomUUID()}.${ext}`;
+  // Storage policy requires first folder = auth.uid()
+  const folder = userId || 'blog';
+  const path = `${folder}/blog_${crypto.randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage.from(BUCKET).upload(path, fileToUpload, {
     cacheControl: '3600',

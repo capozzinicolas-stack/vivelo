@@ -84,10 +84,12 @@ function ImageUploadField({
   label,
   value,
   onChange,
+  userId,
 }: {
   label: string;
   value: string;
   onChange: (url: string) => void;
+  userId?: string;
 }) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -95,7 +97,7 @@ function ImageUploadField({
   async function handleFile(file: File) {
     setUploading(true);
     try {
-      const url = await uploadBlogMedia(file);
+      const url = await uploadBlogMedia(file, userId);
       onChange(url);
     } catch {
       console.error('Error uploading image');
@@ -452,7 +454,7 @@ export default function AdminContenidoPage() {
   async function handleInsertImage(file: File) {
     setInsertingImage(true);
     try {
-      const url = await uploadBlogMedia(file);
+      const url = await uploadBlogMedia(file, user?.id);
       const textarea = contentRef.current;
       const markdown = `\n![Imagen](${url})\n`;
       if (textarea) {
@@ -595,7 +597,7 @@ export default function AdminContenidoPage() {
                   <Textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} rows={2} placeholder="Breve descripcion..." />
                 </div>
 
-                <ImageUploadField label="Imagen de portada" value={coverImage} onChange={setCoverImage} />
+                <ImageUploadField label="Imagen de portada" value={coverImage} onChange={setCoverImage} userId={user?.id} />
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -715,7 +717,7 @@ export default function AdminContenidoPage() {
                   <p className="text-xs text-muted-foreground mt-1">Presiona Enter o coma para agregar</p>
                 </div>
 
-                <ImageUploadField label="Imagen Open Graph (para redes sociales)" value={ogImage} onChange={setOgImage} />
+                <ImageUploadField label="Imagen Open Graph (para redes sociales)" value={ogImage} onChange={setOgImage} userId={user?.id} />
               </TabsContent>
 
               {/* ─── Tab: Enlaces ───────────────────────────────── */}
