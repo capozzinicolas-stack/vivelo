@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { getServiceByIdServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer } from '@/lib/supabase/server-queries';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer } from '@/lib/supabase/server-queries';
+import { isUUID } from '@/lib/slug';
 import { ServiceDetailClient } from '@/components/services/service-detail-client';
 import { ServiceFaq } from '@/components/services/service-faq';
 import { ServiceReviews } from '@/components/services/service-reviews';
@@ -15,7 +16,9 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const service = await getServiceByIdServer(params.id);
+  const service = isUUID(params.id)
+    ? await getServiceByIdServer(params.id)
+    : await getServiceBySlugServer(params.id);
   if (!service) return { title: 'Servicio no encontrado' };
 
   const providerName = service.provider?.company_name || service.provider?.full_name || 'Proveedor';
@@ -34,15 +37,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ServiceDetailPage({ params }: Props) {
-  const [service, bookingCount, reviews] = await Promise.all([
-    getServiceByIdServer(params.id),
-    getServiceBookingCountServer(params.id),
-    getReviewsByServiceServer(params.id),
-  ]);
+  const idOrSlug = params.id;
 
-  if (!service) {
-    notFound();
+  // If UUID, redirect permanently to slug URL
+  if (isUUID(idOrSlug)) {
+    const service = await getServiceByIdServer(idOrSlug);
+    if (!service) notFound();
+    permanentRedirect(`/servicios/${service.slug}`);
   }
+
+  // Resolve by slug
+  const service = await getServiceBySlugServer(idOrSlug);
+  if (!service) notFound();
+
+  const [bookingCount, reviews] = await Promise.all([
+    getServiceBookingCountServer(service.id),
+    getReviewsByServiceServer(service.id),
+  ]);
 
   // Ensure provider is loaded
   let provider = service.provider || null;
@@ -81,7 +92,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         reviewCount: service.review_count,
       },
     } : {}),
-    url: `${siteUrl}/servicios/${params.id}`,
+    url: `${siteUrl}/servicios/${service.slug}`,
   };
 
   return (

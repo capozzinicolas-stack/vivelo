@@ -34,6 +34,31 @@ export async function getServiceByIdServer(id: string): Promise<Service | null> 
   return { ...fallback, extras: [], provider } as unknown as Service;
 }
 
+export async function getServiceBySlugServer(slug: string): Promise<Service | null> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, extras(*), provider:profiles!provider_id(*), cancellation_policy:cancellation_policies(*)')
+    .eq('slug', slug)
+    .single();
+  if (!error) return data;
+
+  console.warn('[getServiceBySlugServer] Join query failed, trying simple:', error.message);
+  const { data: fallback, error: err2 } = await supabase
+    .from('services')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+  if (err2 || !fallback) return null;
+
+  let provider = null;
+  try {
+    const { data: p } = await supabase.from('profiles').select('*').eq('id', fallback.provider_id).single();
+    if (p) provider = p;
+  } catch { /* ignore */ }
+  return { ...fallback, extras: [], provider } as unknown as Service;
+}
+
 export async function getServicesByProviderServer(providerId: string): Promise<Service[]> {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase

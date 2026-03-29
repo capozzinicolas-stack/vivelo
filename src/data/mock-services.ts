@@ -17,6 +17,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000001',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'buffet-mexicano-premium',
     title: 'Buffet Mexicano Premium',
     description: 'Disfruta de un autentico buffet mexicano con los mejores platos de la cocina tradicional. Incluye arroz, mole, carnitas, ensalada y mas.',
     category: 'FOOD_DRINKS',
@@ -50,6 +51,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000002',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'barra-de-cocteles-artesanales',
     title: 'Barra de Cocteles Artesanales',
     description: 'Servicio de barra con mixologos profesionales. Cocteles personalizados para tu evento con ingredientes frescos y locales.',
     category: 'FOOD_DRINKS',
@@ -83,6 +85,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000003',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'dj-sonido-profesional',
     title: 'DJ + Sonido Profesional',
     description: 'Sistema de sonido profesional con DJ experimentado. Incluye luces basicas, microfonos y equipo completo.',
     category: 'AUDIO',
@@ -116,6 +119,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000004',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'decoracion-floral-elegante',
     title: 'Decoracion Floral Elegante',
     description: 'Arreglos florales personalizados para tu evento. Centros de mesa, arcos decorativos y ambientacion floral completa.',
     category: 'DECORATION',
@@ -149,6 +153,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000005',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'fotografia-y-video-4k',
     title: 'Fotografia y Video 4K',
     description: 'Cobertura completa de tu evento con fotografia profesional y video en 4K. Incluye edicion y entrega digital.',
     category: 'PHOTO_VIDEO',
@@ -182,6 +187,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000006',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'meseros-profesionales',
     title: 'Meseros Profesionales',
     description: 'Personal de servicio capacitado y uniformado. Atencion de primera para tus invitados.',
     category: 'STAFF',
@@ -215,6 +221,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000007',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'mesas-y-sillas-elegantes',
     title: 'Mesas y Sillas Elegantes',
     description: 'Mobiliario premium para eventos. Mesas redondas, rectangulares, sillas Chiavari y mas.',
     category: 'FURNITURE',
@@ -248,6 +255,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000008',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'iluminacion-ambiental-led',
     title: 'Iluminacion Ambiental LED',
     description: 'Transformamos tu evento con iluminacion LED profesional. Incluye wash lights, uplights y efectos especiales.',
     category: 'DECORATION',
@@ -281,6 +289,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000009',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'tarima-y-escenario',
     title: 'Tarima y Escenario',
     description: 'Montaje de tarima profesional para tu evento. Disponible en varios tamanos con accesorios.',
     category: 'FURNITURE',
@@ -314,6 +323,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000010',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'servicio-de-food-truck',
     title: 'Servicio de Food Truck',
     description: 'Food truck gourmet con menu personalizado. Comida fresca preparada en el momento.',
     category: 'FOOD_DRINKS',
@@ -347,6 +357,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000011',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'photobooth-360',
     title: 'Photobooth 360',
     description: 'Experiencia interactiva con photobooth 360 y props personalizados. Incluye impresion instantanea.',
     category: 'PHOTO_VIDEO',
@@ -380,6 +391,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000012',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'coordinador-de-eventos',
     title: 'Coordinador de Eventos',
     description: 'Coordinacion profesional del dia de tu evento. Manejo de proveedores, timeline y logistica.',
     category: 'STAFF',
@@ -413,6 +425,7 @@ export const mockServices: Service[] = [
   {
     id: '10000000-0000-0000-0000-000000000013',
     provider_id: '00000000-0000-0000-0000-000000000002',
+    slug: 'taquiza-premium-para-eventos',
     title: 'Taquiza Premium para Eventos',
     description: 'Taquiza con trompo al pastor, bistec, chorizo y complementos ilimitados. Incluye tortilleras y salsas artesanales.',
     category: 'FOOD_DRINKS',

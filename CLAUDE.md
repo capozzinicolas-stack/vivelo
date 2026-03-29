@@ -519,6 +519,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Google Calendar | 🚫 No integrar | Codigo existe pero NO se usa — no tocar |
 | Codigos de verificacion | 🔲 Implementado | Cron + endpoints existen, sin pruebas reales en produccion |
 | Mis Eventos (cliente) | ✅ Terminado | Agrupacion de servicios por `event_name` con gasto total y desglose |
+| SEO Slugs (servicios) | ✅ Terminado | URLs publicas usan `/servicios/{slug}` en vez de UUID. UUIDs redirigen 301. |
 
 ---
 

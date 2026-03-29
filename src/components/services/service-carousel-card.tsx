@@ -26,7 +26,7 @@ export function ServiceCarouselCard({ service, badge, originalPrice, discountedP
   const showStrikethrough = originalPrice != null && discountedPrice != null;
 
   return (
-    <Link href={`/servicios/${service.id}`}>
+    <Link href={`/servicios/${service.slug}`}>
       <Card className="group overflow-hidden transition-shadow hover:shadow-lg cursor-pointer h-full">
         {/* Image */}
         <div className="relative">

@@ -25,7 +25,7 @@ function formatPrice(price: number): string {
 export function ChatServiceCard({ service }: { service: CardType }) {
   return (
     <Link
-      href={`/servicios/${service.id}`}
+      href={`/servicios/${service.slug}`}
       className="block rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50"
     >
       <div className="flex gap-3">

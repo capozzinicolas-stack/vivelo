@@ -16,7 +16,7 @@ export function ServiceCard({ service }: { service: Service }) {
   const coverImage = service.images?.[0];
 
   return (
-    <Link href={`/servicios/${service.id}`}>
+    <Link href={`/servicios/${service.slug}`}>
       <Card className="group overflow-hidden transition-shadow hover:shadow-lg cursor-pointer h-full">
         {coverImage ? (
           // eslint-disable-next-line @next/next/no-img-element

@@ -155,7 +155,7 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
             </div>
             <DialogTitle className="text-xl">
               {service ? (
-                <Link href={`/servicios/${service.id}`} className="hover:text-primary hover:underline">
+                <Link href={`/servicios/${service.slug}`} className="hover:text-primary hover:underline">
                   {service.title}
                 </Link>
               ) : 'Reserva'}

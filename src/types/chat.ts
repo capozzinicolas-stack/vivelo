@@ -9,6 +9,7 @@ export interface ChatMessage {
 
 export interface ChatServiceCard {
   id: string;
+  slug: string;
   title: string;
   base_price: number;
   price_unit: string;

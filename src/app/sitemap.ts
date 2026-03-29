@@ -23,12 +23,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Active services
     const { data: services } = await supabase
       .from('services')
-      .select('id, updated_at')
+      .select('id, slug, updated_at')
       .eq('status', 'active');
 
     if (services) {
       servicePages = services.map((s) => ({
-        url: `${siteUrl}/servicios/${s.id}`,
+        url: `${siteUrl}/servicios/${s.slug}`,
         lastModified: new Date(s.updated_at),
         changeFrequency: 'weekly' as const,
         priority: 0.8,

@@ -38,6 +38,7 @@ async function searchServices(input: Record<string, unknown>): Promise<ToolResul
 
   const serviceCards: ChatServiceCard[] = limited.map((s) => ({
     id: s.id,
+    slug: s.slug,
     title: s.title,
     base_price: s.base_price,
     price_unit: s.price_unit,
@@ -81,6 +82,7 @@ async function getServiceDetails(input: Record<string, unknown>): Promise<ToolRe
 
   const card: ChatServiceCard = {
     id: service.id,
+    slug: service.slug,
     title: service.title,
     base_price: service.base_price,
     price_unit: service.price_unit,

@@ -1,4 +1,5 @@
 import { createClient } from './client';
+import { generateSlug } from '@/lib/slug';
 import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
@@ -143,6 +144,7 @@ export async function createService(
   if (isMockMode()) {
     const newService: Service = {
       id: crypto.randomUUID(),
+      slug: generateSlug(service.title),
       ...service,
       subcategory: service.subcategory ?? null,
       videos: service.videos ?? [],
@@ -181,9 +183,25 @@ export async function createService(
 
   const supabase = createClient();
 
+  // Generate unique slug from title
+  let slug = generateSlug(service.title);
+  const { count: slugCount } = await supabase
+    .from('services').select('id', { count: 'exact', head: true }).eq('slug', slug);
+  if (slugCount && slugCount > 0) {
+    let counter = 2;
+    while (true) {
+      const candidate = `${slug}-${counter}`;
+      const { count: c2 } = await supabase
+        .from('services').select('id', { count: 'exact', head: true }).eq('slug', candidate);
+      if (!c2 || c2 === 0) { slug = candidate; break; }
+      counter++;
+    }
+  }
+
   const insertData: Record<string, unknown> = {
     provider_id: service.provider_id,
     title: service.title,
+    slug,
     description: service.description || '',
     category: service.category,
     subcategory: service.subcategory || null,
@@ -301,7 +319,24 @@ export async function updateService(
   const phase2Updates: Record<string, unknown> = {};
 
   // Original 00002 columns
-  if (updates.title !== undefined) coreUpdates.title = updates.title;
+  if (updates.title !== undefined) {
+    coreUpdates.title = updates.title;
+    // Regenerate slug when title changes
+    let newSlug = generateSlug(updates.title);
+    const { count: slugCount } = await supabase
+      .from('services').select('id', { count: 'exact', head: true }).eq('slug', newSlug).neq('id', id);
+    if (slugCount && slugCount > 0) {
+      let counter = 2;
+      while (true) {
+        const candidate = `${newSlug}-${counter}`;
+        const { count: c2 } = await supabase
+          .from('services').select('id', { count: 'exact', head: true }).eq('slug', candidate).neq('id', id);
+        if (!c2 || c2 === 0) { newSlug = candidate; break; }
+        counter++;
+      }
+    }
+    coreUpdates.slug = newSlug;
+  }
   if (updates.description !== undefined) coreUpdates.description = updates.description;
   if (updates.category !== undefined) coreUpdates.category = updates.category;
   if (updates.base_price !== undefined) coreUpdates.base_price = updates.base_price;

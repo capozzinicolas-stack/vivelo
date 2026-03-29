@@ -94,6 +94,7 @@ export interface Profile {
 export interface Service {
   id: string;
   provider_id: string;
+  slug: string;
   title: string;
   description: string;
   category: ServiceCategory;
