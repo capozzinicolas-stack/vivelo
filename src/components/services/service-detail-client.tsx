@@ -295,7 +295,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           {provider && (
             <p className="text-sm text-muted-foreground">
               Ofrecido por{' '}
-              <Link href={`/proveedores/${service.provider_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
+              <Link href={`/proveedores/${provider.slug || service.provider_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
                 {provider.company_name || provider.full_name}
               </Link>
             </p>

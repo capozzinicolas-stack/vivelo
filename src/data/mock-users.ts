@@ -3,6 +3,7 @@ import { Profile } from '@/types/database';
 export const mockUsers: Profile[] = [
   {
     id: '00000000-0000-0000-0000-000000000001',
+    slug: 'maria-gonzalez',
     email: 'maria@example.com',
     full_name: 'María González',
     avatar_url: null,
@@ -27,6 +28,7 @@ export const mockUsers: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000002',
+    slug: 'catering-rivera',
     email: 'carlos@example.com',
     full_name: 'Carlos Rivera',
     avatar_url: null,
@@ -51,6 +53,7 @@ export const mockUsers: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000003',
+    slug: 'vivelo-mx',
     email: 'admin@vivelo.com',
     full_name: 'Admin Vivelo',
     avatar_url: null,

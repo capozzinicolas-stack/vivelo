@@ -1418,10 +1418,35 @@ export async function updateProfile(profileId: string, updates: {
   if (isMockMode()) return;
 
   const supabase = createClient();
-  const { error } = await supabase.from('profiles').update({
+
+  // Regenerate slug when company_name or full_name changes
+  const updateData: Record<string, unknown> = {
     ...updates,
     updated_at: new Date().toISOString(),
-  }).eq('id', profileId);
+  };
+  if (updates.company_name !== undefined || updates.full_name !== undefined) {
+    // Fetch current profile to resolve slug source
+    const { data: current } = await supabase.from('profiles').select('company_name, full_name').eq('id', profileId).single();
+    const slugSource = (updates.company_name ?? current?.company_name) || (updates.full_name ?? current?.full_name) || '';
+    if (slugSource) {
+      let newSlug = generateSlug(slugSource);
+      const { count } = await supabase
+        .from('profiles').select('id', { count: 'exact', head: true }).eq('slug', newSlug).neq('id', profileId);
+      if (count && count > 0) {
+        let counter = 2;
+        while (true) {
+          const candidate = `${newSlug}-${counter}`;
+          const { count: c2 } = await supabase
+            .from('profiles').select('id', { count: 'exact', head: true }).eq('slug', candidate).neq('id', profileId);
+          if (!c2 || c2 === 0) { newSlug = candidate; break; }
+          counter++;
+        }
+      }
+      updateData.slug = newSlug;
+    }
+  }
+
+  const { error } = await supabase.from('profiles').update(updateData).eq('id', profileId);
   if (error) {
     console.error('[updateProfile] Failed:', JSON.stringify(error));
     throw new Error(`Error actualizando perfil: ${error.message}`);

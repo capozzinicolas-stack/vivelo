@@ -1,20 +1,23 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getProfileByIdServer, getServicesByProviderServer } from '@/lib/supabase/server-queries';
+import { getProfileByIdServer, getProfileBySlugServer, getServicesByProviderServer } from '@/lib/supabase/server-queries';
 import { ServiceCard } from '@/components/services/service-card';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin, Star, ShieldCheck } from 'lucide-react';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { isUUID } from '@/lib/slug';
 
 interface Props {
   params: { id: string };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const provider = await getProfileByIdServer(params.id);
+  const provider = isUUID(params.id)
+    ? await getProfileByIdServer(params.id)
+    : await getProfileBySlugServer(params.id);
   if (!provider) return { title: 'Proveedor no encontrado' };
 
   const name = provider.company_name || provider.full_name;
@@ -30,14 +33,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProveedorPublicPage({ params }: Props) {
-  const [provider, allServices] = await Promise.all([
-    getProfileByIdServer(params.id),
-    getServicesByProviderServer(params.id),
-  ]);
+  const idOrSlug = params.id;
 
-  if (!provider) {
-    notFound();
+  // If UUID, redirect permanently to slug URL
+  if (isUUID(idOrSlug)) {
+    const provider = await getProfileByIdServer(idOrSlug);
+    if (!provider) notFound();
+    permanentRedirect(`/proveedores/${provider.slug}`);
   }
+
+  // Resolve by slug
+  const provider = await getProfileBySlugServer(idOrSlug);
+  if (!provider) notFound();
+
+  const allServices = await getServicesByProviderServer(provider.id);
 
   const services = allServices
     .filter(s => s.status === 'active')
@@ -65,7 +74,7 @@ export default async function ProveedorPublicPage({ params }: Props) {
     name: providerName,
     description: provider.bio || undefined,
     ...(provider.avatar_url ? { image: provider.avatar_url } : {}),
-    url: `${siteUrl}/proveedores/${params.id}`,
+    url: `${siteUrl}/proveedores/${provider.slug}`,
     ...(allZones.length > 0 ? { areaServed: allZones.map(z => ({ '@type': 'Place', name: z })) } : {}),
     ...(avgRating > 0 ? {
       aggregateRating: {

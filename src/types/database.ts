@@ -67,6 +67,7 @@ export interface CancellationPolicy {
 
 export interface Profile {
   id: string;
+  slug: string;
   email: string;
   full_name: string;
   avatar_url: string | null;

@@ -90,6 +90,16 @@ export async function getProfileByIdServer(id: string): Promise<Profile | null> 
   return data;
 }
 
+export async function getProfileBySlugServer(slug: string): Promise<Profile | null> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.from('profiles').select('*').eq('slug', slug).single();
+  if (error) {
+    console.warn('[getProfileBySlugServer] Failed:', error.message);
+    return null;
+  }
+  return data;
+}
+
 // ─── BLOG ───────────────────────────────────────────────────
 
 export async function getBlogPostBySlugServer(slug: string): Promise<BlogPost | null> {

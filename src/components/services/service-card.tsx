@@ -50,7 +50,7 @@ export function ServiceCard({ service }: { service: Service }) {
           {service.provider && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <User className="h-3 w-3" />
-              por <Link href={`/proveedores/${service.provider_id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-foreground hover:text-primary hover:underline">{service.provider.company_name || service.provider.full_name}</Link>
+              por <Link href={`/proveedores/${service.provider?.slug || service.provider_id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-foreground hover:text-primary hover:underline">{service.provider.company_name || service.provider.full_name}</Link>
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">

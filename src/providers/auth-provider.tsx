@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isMockMode) {
       const newUser: Profile = {
         id: crypto.randomUUID(),
+        slug: fullName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
         email,
         full_name: fullName,
         avatar_url: null,
