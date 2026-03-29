@@ -524,6 +524,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | SEO Slugs (proveedores) | ✅ Terminado | URLs publicas usan `/proveedores/{slug}` en vez de UUID. UUIDs redirigen 301. Trigger SQL auto-genera slug al crear perfil. |
 | SEO Canonicals | ✅ Terminado | Canonical URLs en servicios, proveedores y blog. Zone metadata corregido a 9 zonas reales. |
 | Blog CMS Completo | ✅ Terminado | Campos SEO (meta_title, meta_description, focus_keyword, og_image, tags), upload de imagenes, links a servicios/proveedores, tags con filtrado, markdown preview, inline image insertion |
+| Blog SEO Engine | ✅ Terminado | TOC auto-generado, tiempo de lectura, posts relacionados por tags, busqueda en lista, RSS feed (/blog/feed.xml), YouTube embeds |
 
 ---
 
@@ -771,7 +772,8 @@ Mismo patron que admin, con endpoints separados que rechazan admins:
 ### Arquitectura
 
 - **Admin**: `src/app/admin-portal/dashboard/contenido/page.tsx` — CRUD de posts con formulario de 3 tabs (Contenido, SEO, Enlaces)
-- **Publico**: `src/app/blog/` — Lista con filtro por tags + detalle con markdown rendering
+- **Publico**: `src/app/blog/` — Lista con filtro por tags + busqueda + detalle con markdown rendering
+- **RSS Feed**: `src/app/blog/feed.xml/route.ts` — RSS 2.0 con cache de 1h
 - **Storage**: Imagenes de blog se suben a bucket `service-media` con path `blog/{uuid}.{ext}` via `uploadBlogMedia()`
 
 ### Campos del Blog Post
@@ -801,12 +803,21 @@ Asocia posts con servicios y/o proveedores. Tab "Enlaces" en el admin permite bu
 ### Markdown Rendering
 
 El contenido se renderiza linea por linea soportando:
-- `# ## ###` — Encabezados
+- `# ## ###` — Encabezados (## genera TOC automatico si hay 2+)
 - `![alt](url)` — Imagenes con caption
+- URLs de YouTube solas en una linea — Embed iframe automatico (youtube-nocookie.com)
 - `- ` — Listas
 - `> ` — Blockquotes
 - `**bold**`, `*italic*`, `[text](url)` — Inline formatting
 - Boton "Insertar imagen" sube al storage y pega `![Imagen](url)` en el cursor
+
+### Funciones SEO del Blog
+
+- **Tiempo de lectura**: Calculado automaticamente (200 wpm), mostrado como "X min de lectura"
+- **Tabla de contenido (TOC)**: Auto-generada desde encabezados `##`, con anchor links
+- **Posts relacionados**: Query por tags compartidos (`overlaps`), muestra hasta 3 posts al final
+- **Busqueda**: Input en la lista del blog filtra por titulo y excerpt
+- **RSS Feed**: `/blog/feed.xml` con todos los posts publicados, cache 1h
 
 ### Archivos Clave
 
@@ -814,11 +825,12 @@ El contenido se renderiza linea por linea soportando:
 |---------|-----------|
 | `supabase/migrations/00105_blog_post_links.sql` | Tabla de links blog↔servicios/proveedores |
 | `src/app/admin-portal/dashboard/contenido/page.tsx` | Formulario admin completo (3 tabs) |
-| `src/app/blog/blog-list-client.tsx` | Lista publica con filtro por tags |
-| `src/app/blog/[slug]/page.tsx` | Detalle con SEO, links, markdown mejorado |
+| `src/app/blog/blog-list-client.tsx` | Lista publica con busqueda + filtro por tags |
+| `src/app/blog/[slug]/page.tsx` | Detalle con SEO, TOC, reading time, related posts, YouTube embeds |
+| `src/app/blog/feed.xml/route.ts` | RSS 2.0 feed |
 | `src/lib/supabase/storage.ts` | `uploadBlogMedia()` |
 | `src/lib/supabase/queries.ts` | `createBlogPost`, `getBlogPostLinks`, `setBlogPostLinks` |
-| `src/lib/supabase/server-queries.ts` | `getBlogPostLinksServer` |
+| `src/lib/supabase/server-queries.ts` | `getBlogPostLinksServer`, `getRelatedBlogPostsServer` |
 
 ---
 

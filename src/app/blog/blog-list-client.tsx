@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Video, Mic, ArrowLeft } from 'lucide-react';
+import { FileText, Video, Mic, ArrowLeft, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import type { BlogPost } from '@/types/database';
@@ -27,6 +28,7 @@ export function BlogListClient() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -48,11 +50,21 @@ export function BlogListClient() {
     return Array.from(tagSet).sort();
   }, [posts]);
 
-  // Filter posts by selected tag
+  // Filter posts by selected tag and search query
   const filteredPosts = useMemo(() => {
-    if (!selectedTag) return posts;
-    return posts.filter(p => (p.tags ?? []).includes(selectedTag));
-  }, [posts, selectedTag]);
+    let result = posts;
+    if (selectedTag) {
+      result = result.filter(p => (p.tags ?? []).includes(selectedTag));
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p =>
+        p.title.toLowerCase().includes(q) ||
+        (p.excerpt ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [posts, selectedTag, searchQuery]);
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -62,6 +74,17 @@ export function BlogListClient() {
         </Button>
         <h1 className="text-4xl font-bold">Blog</h1>
         <p className="text-muted-foreground mt-2">Noticias, guias y contenido sobre eventos en México</p>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar articulos..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Tag filter pills */}

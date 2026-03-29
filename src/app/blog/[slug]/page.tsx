@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
-import { ArrowLeft, FileText, Video, Mic, Calendar, Tag } from 'lucide-react';
-import { getBlogPostBySlugServer, getBlogPostLinksServer } from '@/lib/supabase/server-queries';
+import { ArrowLeft, FileText, Video, Mic, Calendar, Tag, Clock, List } from 'lucide-react';
+import { getBlogPostBySlugServer, getBlogPostLinksServer, getRelatedBlogPostsServer } from '@/lib/supabase/server-queries';
 import { notFound } from 'next/navigation';
 import { ServiceCard } from '@/components/services/service-card';
 
@@ -50,6 +51,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** Calculate reading time in minutes (200 wpm average) */
+function getReadingTime(content: string): number {
+  const words = content.trim().split(/\s+/).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+/** Extract ## headings for table of contents */
+function extractHeadings(content: string): { id: string; text: string }[] {
+  return content.split('\n')
+    .filter(line => line.startsWith('## ') && !line.startsWith('### '))
+    .map(line => {
+      const text = line.slice(3).trim();
+      const id = text
+        .toLowerCase()
+        .replace(/ñ/gi, 'n')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+      return { id, text };
+    });
+}
+
+/** Extract YouTube video ID from URL */
+function getYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
+}
+
 export default async function BlogPostPage({ params }: Props) {
   const post = await getBlogPostBySlugServer(params.slug);
 
@@ -57,12 +87,17 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  const links = await getBlogPostLinksServer(post.id);
+  const [links, relatedPosts] = await Promise.all([
+    getBlogPostLinksServer(post.id),
+    getRelatedBlogPostsServer(post.id, post.tags ?? []),
+  ]);
   const linkedServices = links.filter(l => l.service && l.service.status === 'active').map(l => ({ ...l.service!, provider: l.provider || l.service!.provider }));
   const linkedProviders = links.filter(l => l.provider && !l.service_id).map(l => l.provider!);
 
   const MediaIcon = mediaTypeIcons[post.media_type] || FileText;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
+  const readingTime = getReadingTime(post.content);
+  const headings = extractHeadings(post.content);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -119,6 +154,10 @@ export default async function BlogPostPage({ params }: Props) {
               {new Date(post.publish_date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           )}
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            {readingTime} min de lectura
+          </div>
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold mb-4">{post.title}</h1>
@@ -132,6 +171,24 @@ export default async function BlogPostPage({ params }: Props) {
 
         {post.excerpt && (
           <p className="text-lg text-muted-foreground mb-8">{post.excerpt}</p>
+        )}
+
+        {/* Table of contents */}
+        {headings.length >= 2 && (
+          <nav className="mb-8 p-4 bg-muted/50 rounded-lg border">
+            <div className="flex items-center gap-2 mb-3 font-semibold text-sm">
+              <List className="h-4 w-4" />Contenido
+            </div>
+            <ul className="space-y-1">
+              {headings.map(h => (
+                <li key={h.id}>
+                  <a href={`#${h.id}`} className="text-sm text-muted-foreground hover:text-violet-600 hover:underline">
+                    {h.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
         )}
 
         {post.media_type === 'video' && post.media_url && (
@@ -165,11 +222,36 @@ export default async function BlogPostPage({ params }: Props) {
                 </figure>
               );
             }
+            // YouTube embed: standalone YouTube URL on a line
+            const ytId = getYouTubeId(line.trim());
+            if (ytId && /^https?:\/\//.test(line.trim())) {
+              return (
+                <div key={i} className="my-6 rounded-lg overflow-hidden aspect-video">
+                  <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${ytId}`}
+                    title="YouTube video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="w-full h-full"
+                  />
+                </div>
+              );
+            }
             if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mt-8 mb-4">{line.slice(2)}</h1>;
-            if (line.startsWith('## ')) return <h2 key={i} className="text-2xl font-bold mt-6 mb-3">{line.slice(3)}</h2>;
+            if (line.startsWith('## ')) {
+              const text = line.slice(3).trim();
+              const id = text
+                .toLowerCase()
+                .replace(/ñ/gi, 'n')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-');
+              return <h2 key={i} id={id} className="text-2xl font-bold mt-6 mb-3">{text}</h2>;
+            }
             if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mt-4 mb-2">{line.slice(4)}</h3>;
-            if (line.startsWith('- ')) return <li key={i} className="ml-6 mb-1 text-muted-foreground leading-relaxed">{line.slice(2)}</li>;
-            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-violet-300 pl-4 italic text-muted-foreground my-4">{line.slice(2)}</blockquote>;
+            if (line.startsWith('- ')) return <li key={i} className="ml-6 mb-1 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line.slice(2))}</li>;
+            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-violet-300 pl-4 italic text-muted-foreground my-4">{renderInlineMarkdown(line.slice(2))}</blockquote>;
             if (line.trim() === '') return <br key={i} />;
             return <p key={i} className="mb-3 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line)}</p>;
           })}
@@ -198,6 +280,38 @@ export default async function BlogPostPage({ params }: Props) {
                 </Badge>
               </Link>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Related posts */}
+      {relatedPosts.length > 0 && (
+        <div className="mt-12 pt-8 border-t">
+          <h2 className="text-xl font-semibold mb-4">Articulos relacionados</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {relatedPosts.map(rp => {
+              const RpIcon = mediaTypeIcons[rp.media_type] || FileText;
+              return (
+                <Link key={rp.id} href={`/blog/${rp.slug}`}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
+                    {rp.cover_image ? (
+                      <div className="h-32 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={rp.cover_image} alt={rp.title} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-br from-violet-100 to-indigo-100 h-32 flex items-center justify-center">
+                        <RpIcon className="h-8 w-8 text-violet-400" />
+                      </div>
+                    )}
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-sm line-clamp-2">{rp.title}</h3>
+                      {rp.excerpt && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{rp.excerpt}</p>}
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

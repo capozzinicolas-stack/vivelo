@@ -18,6 +18,7 @@ import { BLOG_STATUS_LABELS, BLOG_STATUS_COLORS } from '@/lib/constants';
 import { getAllBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, getBlogPostLinks, setBlogPostLinks, getServices } from '@/lib/supabase/queries';
 import { uploadBlogMedia } from '@/lib/supabase/storage';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,
@@ -264,6 +265,7 @@ function LinkedContentSelector({
 
 export default function AdminContenidoPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -427,8 +429,10 @@ export default function AdminContenidoPage() {
       setDialogOpen(false);
       resetForm();
       loadData();
+      toast({ title: editingPost ? 'Post actualizado' : 'Post creado' });
     } catch (err) {
       console.error('Error saving blog post:', err);
+      toast({ title: 'Error al guardar', description: err instanceof Error ? err.message : 'Error desconocido', variant: 'destructive' });
     }
     setSaving(false);
   }
@@ -437,8 +441,10 @@ export default function AdminContenidoPage() {
     try {
       await deleteBlogPost(id);
       loadData();
+      toast({ title: 'Post eliminado' });
     } catch (err) {
       console.error('Error deleting blog post:', err);
+      toast({ title: 'Error al eliminar', description: err instanceof Error ? err.message : 'Error desconocido', variant: 'destructive' });
     }
   }
 
@@ -560,7 +566,7 @@ export default function AdminContenidoPage() {
 
       {/* ─── Create / Edit Dialog ─────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPost ? 'Editar Post' : 'Nuevo Post'}</DialogTitle>
           </DialogHeader>

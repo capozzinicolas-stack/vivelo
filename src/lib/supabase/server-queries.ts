@@ -145,6 +145,25 @@ export async function getBlogPostLinksServer(blogPostId: string): Promise<BlogPo
   return data || [];
 }
 
+export async function getRelatedBlogPostsServer(postId: string, tags: string[], limit = 3): Promise<BlogPost[]> {
+  if (tags.length === 0) return [];
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('id, title, slug, excerpt, cover_image, media_type, publish_date, tags')
+    .eq('status', 'published')
+    .neq('id', postId)
+    .lte('publish_date', new Date().toISOString())
+    .overlaps('tags', tags)
+    .order('publish_date', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[getRelatedBlogPostsServer] Query failed:', error.message);
+    return [];
+  }
+  return (data || []) as BlogPost[];
+}
+
 // ─── BOOKINGS (counts) ─────────────────────────────────────
 
 export async function getServiceBookingCountServer(serviceId: string): Promise<number> {

@@ -8,6 +8,11 @@ export const metadata: Metadata = {
     title: 'Blog - Vivelo',
     description: 'Noticias, guias y contenido sobre eventos en México',
   },
+  alternates: {
+    types: {
+      'application/rss+xml': '/blog/feed.xml',
+    },
+  },
 };
 
 export default function BlogPage() {
