@@ -1,4 +1,5 @@
 import { getPublishedBlogPostsServer } from '@/lib/supabase/server-queries';
+import { stripHtml } from '@/lib/blog-utils';
 
 export async function GET() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
@@ -11,7 +12,7 @@ export async function GET() {
       <title>${escapeXml(post.title)}</title>
       <link>${siteUrl}/blog/${post.slug}</link>
       <guid isPermaLink="true">${siteUrl}/blog/${post.slug}</guid>
-      <description>${escapeXml(post.excerpt || '')}</description>
+      <description>${escapeXml(stripHtml(post.excerpt || ''))}</description>
       ${post.publish_date ? `<pubDate>${new Date(post.publish_date).toUTCString()}</pubDate>` : ''}
       ${(post.tags ?? []).map(t => `<category>${escapeXml(t)}</category>`).join('\n      ')}
     </item>`).join('\n');

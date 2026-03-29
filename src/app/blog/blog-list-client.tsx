@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import type { BlogPost } from '@/types/database';
 import { getPublishedBlogPosts } from '@/lib/supabase/queries';
+import { stripHtml } from '@/lib/blog-utils';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,
@@ -60,7 +61,7 @@ export function BlogListClient() {
       const q = searchQuery.toLowerCase();
       result = result.filter(p =>
         p.title.toLowerCase().includes(q) ||
-        (p.excerpt ?? '').toLowerCase().includes(q)
+        stripHtml(p.excerpt ?? '').toLowerCase().includes(q)
       );
     }
     return result;
@@ -159,7 +160,7 @@ export function BlogListClient() {
                           )}
                         </div>
                         <h2 className="text-lg font-semibold line-clamp-2">{post.title}</h2>
-                        {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>}
+                        {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{stripHtml(post.excerpt)}</p>}
                       </CardContent>
                     </Card>
                   </Link>

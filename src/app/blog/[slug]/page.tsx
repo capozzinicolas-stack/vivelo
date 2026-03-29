@@ -8,6 +8,7 @@ import { ArrowLeft, FileText, Video, Mic, Calendar, Tag, Clock, List } from 'luc
 import { getBlogPostBySlugServer, getBlogPostLinksServer, getRelatedBlogPostsServer } from '@/lib/supabase/server-queries';
 import { notFound } from 'next/navigation';
 import { ServiceCard } from '@/components/services/service-card';
+import { isHtmlContent, stripHtml, extractHeadingsFromHtml, addHeadingIds } from '@/lib/blog-utils';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,
@@ -31,7 +32,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
   const title = post.meta_title || post.title;
-  const description = post.meta_description || post.excerpt || `Lee ${post.title} en el blog de Vivelo`;
+  const rawDescription = post.meta_description || post.excerpt || `Lee ${post.title} en el blog de Vivelo`;
+  const description = stripHtml(rawDescription);
   const ogImage = post.og_image || post.cover_image;
 
   return {
@@ -53,7 +55,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Calculate reading time in minutes (200 wpm average) */
 function getReadingTime(content: string): number {
-  const words = content.trim().split(/\s+/).length;
+  const text = isHtmlContent(content) ? stripHtml(content) : content;
+  const words = text.trim().split(/\s+/).length;
   return Math.max(1, Math.round(words / 200));
 }
 
@@ -97,13 +100,16 @@ export default async function BlogPostPage({ params }: Props) {
   const MediaIcon = mediaTypeIcons[post.media_type] || FileText;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
   const readingTime = getReadingTime(post.content);
-  const headings = extractHeadings(post.content);
+  const isHtml = isHtmlContent(post.content);
+  const headings = isHtml
+    ? extractHeadingsFromHtml(post.content)
+    : extractHeadings(post.content);
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: post.title,
-    description: post.excerpt || undefined,
+    description: post.excerpt ? stripHtml(post.excerpt) : undefined,
     ...(post.cover_image ? { image: post.cover_image } : {}),
     ...(post.publish_date ? { datePublished: post.publish_date } : {}),
     dateModified: post.updated_at,
@@ -170,7 +176,11 @@ export default async function BlogPostPage({ params }: Props) {
         )}
 
         {post.excerpt && (
-          <p className="text-lg text-muted-foreground mb-8">{post.excerpt}</p>
+          isHtmlContent(post.excerpt) ? (
+            <div className="text-lg text-muted-foreground mb-8" dangerouslySetInnerHTML={{ __html: post.excerpt }} />
+          ) : (
+            <p className="text-lg text-muted-foreground mb-8">{post.excerpt}</p>
+          )
         )}
 
         {/* Table of contents */}
@@ -209,53 +219,60 @@ export default async function BlogPostPage({ params }: Props) {
           </div>
         )}
 
-        <div className="prose prose-neutral max-w-none">
-          {post.content.split('\n').map((line, i) => {
-            // Images: ![alt](url)
-            const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-            if (imgMatch) {
-              return (
-                <figure key={i} className="my-6">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imgMatch[2]} alt={imgMatch[1]} className="w-full rounded-lg" />
-                  {imgMatch[1] && <figcaption className="text-center text-sm text-muted-foreground mt-2">{imgMatch[1]}</figcaption>}
-                </figure>
-              );
-            }
-            // YouTube embed: standalone YouTube URL on a line
-            const ytId = getYouTubeId(line.trim());
-            if (ytId && /^https?:\/\//.test(line.trim())) {
-              return (
-                <div key={i} className="my-6 rounded-lg overflow-hidden aspect-video">
-                  <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${ytId}`}
-                    title="YouTube video"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="w-full h-full"
-                  />
-                </div>
-              );
-            }
-            if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mt-8 mb-4">{line.slice(2)}</h1>;
-            if (line.startsWith('## ')) {
-              const text = line.slice(3).trim();
-              const id = text
-                .toLowerCase()
-                .replace(/ñ/gi, 'n')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9\s-]/g, '')
-                .replace(/\s+/g, '-');
-              return <h2 key={i} id={id} className="text-2xl font-bold mt-6 mb-3">{text}</h2>;
-            }
-            if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mt-4 mb-2">{line.slice(4)}</h3>;
-            if (line.startsWith('- ')) return <li key={i} className="ml-6 mb-1 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line.slice(2))}</li>;
-            if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-violet-300 pl-4 italic text-muted-foreground my-4">{renderInlineMarkdown(line.slice(2))}</blockquote>;
-            if (line.trim() === '') return <br key={i} />;
-            return <p key={i} className="mb-3 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line)}</p>;
-          })}
-        </div>
+        {isHtml ? (
+          <div
+            className="prose prose-neutral max-w-none"
+            dangerouslySetInnerHTML={{ __html: addHeadingIds(post.content) }}
+          />
+        ) : (
+          <div className="prose prose-neutral max-w-none">
+            {post.content.split('\n').map((line, i) => {
+              // Images: ![alt](url)
+              const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+              if (imgMatch) {
+                return (
+                  <figure key={i} className="my-6">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imgMatch[2]} alt={imgMatch[1]} className="w-full rounded-lg" />
+                    {imgMatch[1] && <figcaption className="text-center text-sm text-muted-foreground mt-2">{imgMatch[1]}</figcaption>}
+                  </figure>
+                );
+              }
+              // YouTube embed: standalone YouTube URL on a line
+              const ytId = getYouTubeId(line.trim());
+              if (ytId && /^https?:\/\//.test(line.trim())) {
+                return (
+                  <div key={i} className="my-6 rounded-lg overflow-hidden aspect-video">
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${ytId}`}
+                      title="YouTube video"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-full"
+                    />
+                  </div>
+                );
+              }
+              if (line.startsWith('# ')) return <h1 key={i} className="text-3xl font-bold mt-8 mb-4">{line.slice(2)}</h1>;
+              if (line.startsWith('## ')) {
+                const text = line.slice(3).trim();
+                const id = text
+                  .toLowerCase()
+                  .replace(/ñ/gi, 'n')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-z0-9\s-]/g, '')
+                  .replace(/\s+/g, '-');
+                return <h2 key={i} id={id} className="text-2xl font-bold mt-6 mb-3">{text}</h2>;
+              }
+              if (line.startsWith('### ')) return <h3 key={i} className="text-xl font-bold mt-4 mb-2">{line.slice(4)}</h3>;
+              if (line.startsWith('- ')) return <li key={i} className="ml-6 mb-1 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line.slice(2))}</li>;
+              if (line.startsWith('> ')) return <blockquote key={i} className="border-l-4 border-violet-300 pl-4 italic text-muted-foreground my-4">{renderInlineMarkdown(line.slice(2))}</blockquote>;
+              if (line.trim() === '') return <br key={i} />;
+              return <p key={i} className="mb-3 text-muted-foreground leading-relaxed">{renderInlineMarkdown(line)}</p>;
+            })}
+          </div>
+        )}
       </article>
 
       {/* Linked services */}
@@ -306,7 +323,7 @@ export default async function BlogPostPage({ params }: Props) {
                     )}
                     <CardContent className="p-4">
                       <h3 className="font-semibold text-sm line-clamp-2">{rp.title}</h3>
-                      {rp.excerpt && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{rp.excerpt}</p>}
+                      {rp.excerpt && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{stripHtml(rp.excerpt)}</p>}
                     </CardContent>
                   </Card>
                 </Link>

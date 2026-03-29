@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Mic, ArrowRight } from 'lucide-react';
 import { HorizontalCarousel, FilterPills } from '@/components/ui/horizontal-carousel';
 import type { BlogPost } from '@/types/database';
+import { stripHtml } from '@/lib/blog-utils';
 
 const topicPills = [
   { label: 'Todos', value: 'ALL' },
@@ -102,7 +103,7 @@ export function BlogSection({ posts, loading }: { posts: BlogPost[]; loading: bo
                       </div>
                       <CardContent className="p-4 space-y-2">
                         <h3 className="font-bold line-clamp-2">{post.title}</h3>
-                        {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>}
+                        {post.excerpt && <p className="text-sm text-muted-foreground line-clamp-3">{stripHtml(post.excerpt)}</p>}
                       </CardContent>
                     </Card>
                   </Link>

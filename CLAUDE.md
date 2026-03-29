@@ -523,7 +523,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | SEO Slugs (servicios) | ✅ Terminado | URLs publicas usan `/servicios/{slug}` en vez de UUID. UUIDs redirigen 301. |
 | SEO Slugs (proveedores) | ✅ Terminado | URLs publicas usan `/proveedores/{slug}` en vez de UUID. UUIDs redirigen 301. Trigger SQL auto-genera slug al crear perfil. |
 | SEO Canonicals | ✅ Terminado | Canonical URLs en servicios, proveedores y blog. Zone metadata corregido a 9 zonas reales. |
-| Blog CMS Completo | ✅ Terminado | Campos SEO (meta_title, meta_description, focus_keyword, og_image, tags), upload de imagenes, links a servicios/proveedores, tags con filtrado, markdown preview, inline image insertion |
+| Blog CMS Completo | ✅ Terminado | Editor WYSIWYG Tiptap (HTML), campos SEO, upload de imagenes, links a servicios/proveedores, tags con filtrado. Dual renderer: HTML (nuevo) + markdown (fallback legacy) |
 | Blog SEO Engine | ✅ Terminado | TOC auto-generado, tiempo de lectura, posts relacionados por tags, busqueda en lista, RSS feed (/blog/feed.xml), YouTube embeds |
 
 ---
@@ -772,7 +772,7 @@ Mismo patron que admin, con endpoints separados que rechazan admins:
 ### Arquitectura
 
 - **Admin**: `src/app/admin-portal/dashboard/contenido/page.tsx` — CRUD de posts con formulario de 3 tabs (Contenido, SEO, Enlaces)
-- **Publico**: `src/app/blog/` — Lista con filtro por tags + busqueda + detalle con markdown rendering
+- **Publico**: `src/app/blog/` — Lista con filtro por tags + busqueda + detalle con dual renderer (HTML + markdown fallback)
 - **RSS Feed**: `src/app/blog/feed.xml/route.ts` — RSS 2.0 con cache de 1h
 - **Storage**: Imagenes de blog se suben a bucket `service-media` con path `blog/{uuid}.{ext}` via `uploadBlogMedia()`
 
@@ -783,7 +783,7 @@ Mismo patron que admin, con endpoints separados que rechazan admins:
 | `title` | TEXT | Contenido | Titulo principal |
 | `slug` | TEXT UNIQUE | Contenido | URL del post |
 | `excerpt` | TEXT | Contenido | Resumen corto |
-| `content` | TEXT | Contenido | Cuerpo en markdown |
+| `content` | TEXT | Contenido | Cuerpo en HTML (editor Tiptap WYSIWYG). Posts legacy en markdown se convierten al editar |
 | `cover_image` | TEXT | Contenido | Imagen de portada (upload widget) |
 | `media_type` | ENUM | Contenido | text / video / audio |
 | `media_url` | TEXT | Contenido | URL del video/audio |
@@ -800,16 +800,21 @@ Mismo patron que admin, con endpoints separados que rechazan admins:
 
 Asocia posts con servicios y/o proveedores. Tab "Enlaces" en el admin permite buscar servicios activos y agregar links. En la pagina publica del blog, los servicios enlazados se muestran como `ServiceCard` y los proveedores como badges con link.
 
-### Markdown Rendering
+### Editor WYSIWYG (Tiptap)
 
-El contenido se renderiza linea por linea soportando:
-- `# ## ###` — Encabezados (## genera TOC automatico si hay 2+)
-- `![alt](url)` — Imagenes con caption
-- URLs de YouTube solas en una linea — Embed iframe automatico (youtube-nocookie.com)
-- `- ` — Listas
-- `> ` — Blockquotes
-- `**bold**`, `*italic*`, `[text](url)` — Inline formatting
-- Boton "Insertar imagen" sube al storage y pega `![Imagen](url)` en el cursor
+El admin usa un editor rico (Tiptap/ProseMirror) que produce HTML limpio. Dos variantes:
+- **`full`** (Contenido): Bold, Italic, Underline, Strike, H1-H3, Listas, Blockquote, HR, Link, Image upload, YouTube embed, Undo/Redo
+- **`simple`** (Extracto): Bold, Italic, Underline, Link
+
+Componente: `src/components/admin/rich-text-editor.tsx`
+
+### Dual Rendering (HTML + Markdown Fallback)
+
+Posts nuevos se guardan en HTML. Posts legacy en markdown se renderizan con el parser original.
+- `isHtmlContent()` detecta formato: HTML empieza con `<tag>`, markdown no
+- Al editar un post markdown, `markdownToBasicHtml()` lo convierte a HTML para Tiptap
+- Al guardar, se guarda como HTML — proxima carga usa el renderer HTML
+- Utilidades en `src/lib/blog-utils.ts`: `isHtmlContent`, `stripHtml`, `extractHeadingsFromHtml`, `addHeadingIds`, `markdownToBasicHtml`
 
 ### Funciones SEO del Blog
 
@@ -824,9 +829,11 @@ El contenido se renderiza linea por linea soportando:
 | Archivo | Proposito |
 |---------|-----------|
 | `supabase/migrations/00105_blog_post_links.sql` | Tabla de links blog↔servicios/proveedores |
-| `src/app/admin-portal/dashboard/contenido/page.tsx` | Formulario admin completo (3 tabs) |
+| `src/components/admin/rich-text-editor.tsx` | Editor WYSIWYG Tiptap (full/simple) |
+| `src/lib/blog-utils.ts` | Utilidades: isHtmlContent, stripHtml, extractHeadingsFromHtml, addHeadingIds, markdownToBasicHtml |
+| `src/app/admin-portal/dashboard/contenido/page.tsx` | Formulario admin completo (3 tabs) con RichTextEditor |
 | `src/app/blog/blog-list-client.tsx` | Lista publica con busqueda + filtro por tags |
-| `src/app/blog/[slug]/page.tsx` | Detalle con SEO, TOC, reading time, related posts, YouTube embeds |
+| `src/app/blog/[slug]/page.tsx` | Detalle con dual renderer (HTML + markdown), SEO, TOC, reading time |
 | `src/app/blog/feed.xml/route.ts` | RSS 2.0 feed |
 | `src/lib/supabase/storage.ts` | `uploadBlogMedia()` |
 | `src/lib/supabase/queries.ts` | `createBlogPost`, `getBlogPostLinks`, `setBlogPostLinks` |

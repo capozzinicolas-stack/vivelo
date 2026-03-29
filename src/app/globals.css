@@ -74,3 +74,21 @@
     font-family: 'Helvetica Now Display', 'Helvetica Neue', Helvetica, Arial, system-ui, -apple-system, sans-serif;
   }
 }
+
+/* ProseMirror / Tiptap editor */
+.ProseMirror:focus {
+  outline: none;
+}
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+.prose iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}

@@ -19,6 +19,8 @@ import { getAllBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, getBlo
 import { uploadBlogMedia } from '@/lib/supabase/storage';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { RichTextEditor } from '@/components/admin/rich-text-editor';
+import { isHtmlContent, markdownToBasicHtml } from '@/lib/blog-utils';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,
@@ -297,13 +299,11 @@ export default function AdminContenidoPage() {
   // Form state — linked content
   const [linkedItems, setLinkedItems] = useState<LinkedItem[]>([]);
 
-  // Content textarea ref for image insertion
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-  const [insertingImage, setInsertingImage] = useState(false);
-  const insertFileRef = useRef<HTMLInputElement>(null);
-
-  // Preview toggle
-  const [showPreview, setShowPreview] = useState(false);
+  // Image upload callback for RichTextEditor
+  const handleEditorImageUpload = useCallback(async (file: File) => {
+    const url = await uploadBlogMedia(file, user?.id);
+    return url;
+  }, [user?.id]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -329,8 +329,10 @@ export default function AdminContenidoPage() {
     setEditingPost(post);
     setTitle(post.title);
     setSlug(post.slug);
-    setExcerpt(post.excerpt ?? '');
-    setContent(post.content);
+    const excerptToLoad = post.excerpt ?? '';
+    setExcerpt(isHtmlContent(excerptToLoad) ? excerptToLoad : excerptToLoad ? markdownToBasicHtml(excerptToLoad) : '');
+    const contentToLoad = isHtmlContent(post.content) ? post.content : markdownToBasicHtml(post.content);
+    setContent(contentToLoad);
     setCoverImage(post.cover_image ?? '');
     setMediaType(post.media_type);
     setMediaUrl(post.media_url ?? '');
@@ -342,7 +344,6 @@ export default function AdminContenidoPage() {
     setOgImage(post.og_image ?? '');
     setTags(post.tags ?? []);
     setFormTab('contenido');
-    setShowPreview(false);
 
     // Load linked items
     try {
@@ -376,7 +377,6 @@ export default function AdminContenidoPage() {
     setOgImage('');
     setTags([]);
     setLinkedItems([]);
-    setShowPreview(false);
   }
 
   async function handleSave() {
@@ -448,32 +448,6 @@ export default function AdminContenidoPage() {
       console.error('Error deleting blog post:', err);
       toast({ title: 'Error al eliminar', description: err instanceof Error ? err.message : 'Error desconocido', variant: 'destructive' });
     }
-  }
-
-  // Insert image into content at cursor position
-  async function handleInsertImage(file: File) {
-    setInsertingImage(true);
-    try {
-      const url = await uploadBlogMedia(file, user?.id);
-      const textarea = contentRef.current;
-      const markdown = `\n![Imagen](${url})\n`;
-      if (textarea) {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const newContent = content.slice(0, start) + markdown + content.slice(end);
-        setContent(newContent);
-        // Set cursor after inserted text
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-          textarea.focus();
-        }, 0);
-      } else {
-        setContent(content + markdown);
-      }
-    } catch {
-      console.error('Error uploading image for content');
-    }
-    setInsertingImage(false);
   }
 
   const filteredPosts = statusFilter === 'all' ? posts : posts.filter(p => p.status === statusFilter);
@@ -594,69 +568,20 @@ export default function AdminContenidoPage() {
                 </div>
                 <div>
                   <Label>Extracto</Label>
-                  <Textarea value={excerpt} onChange={e => setExcerpt(e.target.value)} rows={2} placeholder="Breve descripcion..." />
+                  <RichTextEditor content={excerpt} onChange={setExcerpt} placeholder="Breve descripcion..." variant="simple" />
                 </div>
 
                 <ImageUploadField label="Imagen de portada" value={coverImage} onChange={setCoverImage} userId={user?.id} />
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <Label>Contenido</Label>
-                    <div className="flex gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1"
-                        disabled={insertingImage}
-                        onClick={() => insertFileRef.current?.click()}
-                      >
-                        {insertingImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
-                        Insertar imagen
-                      </Button>
-                      <input
-                        ref={insertFileRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={e => { if (e.target.files?.[0]) handleInsertImage(e.target.files[0]); e.target.value = ''; }}
-                      />
-                      <Button
-                        type="button"
-                        variant={showPreview ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setShowPreview(!showPreview)}
-                      >
-                        {showPreview ? 'Editar' : 'Preview'}
-                      </Button>
-                    </div>
-                  </div>
-                  {showPreview ? (
-                    <div className="border rounded-md p-4 min-h-[200px] prose prose-sm prose-neutral max-w-none">
-                      {content.split('\n').map((line, i) => {
-                        const imgMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
-                        if (imgMatch) {
-                          // eslint-disable-next-line @next/next/no-img-element
-                          return <img key={i} src={imgMatch[2]} alt={imgMatch[1]} className="max-w-full rounded-lg my-2" />;
-                        }
-                        if (line.startsWith('# ')) return <h1 key={i} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
-                        if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-bold mt-3 mb-2">{line.slice(3)}</h2>;
-                        if (line.startsWith('### ')) return <h3 key={i} className="text-lg font-bold mt-2 mb-1">{line.slice(4)}</h3>;
-                        if (line.startsWith('- ')) return <li key={i} className="ml-4">{line.slice(2)}</li>;
-                        if (line.trim() === '') return <br key={i} />;
-                        return <p key={i} className="mb-2 text-muted-foreground">{line}</p>;
-                      })}
-                    </div>
-                  ) : (
-                    <Textarea
-                      ref={contentRef}
-                      value={content}
-                      onChange={e => setContent(e.target.value)}
-                      rows={10}
-                      placeholder="Contenido en markdown... Usa # para titulos, ![alt](url) para imagenes"
-                    />
-                  )}
+                  <Label>Contenido</Label>
+                  <RichTextEditor
+                    content={content}
+                    onChange={setContent}
+                    placeholder="Escribe el contenido..."
+                    variant="full"
+                    onImageUpload={handleEditorImageUpload}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
