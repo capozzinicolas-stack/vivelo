@@ -21,12 +21,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : await getServiceBySlugServer(params.id);
   if (!service) return { title: 'Servicio no encontrado' };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
   const providerName = service.provider?.company_name || service.provider?.full_name || 'Proveedor';
   const description = service.description?.slice(0, 160) || `${service.title} por ${providerName} en Vivelo`;
 
   return {
     title: service.title,
     description,
+    alternates: {
+      canonical: `${siteUrl}/servicios/${service.slug}`,
+    },
     openGraph: {
       title: `${service.title} - Vivelo`,
       description,

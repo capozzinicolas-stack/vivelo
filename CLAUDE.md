@@ -492,7 +492,8 @@ Supabase con RLS en todas las tablas.
 | `featured_placements` | Servicios destacados (pagados) |
 | `reviews` | Resenas con moderacion (pending → approved/rejected) |
 | `notifications` | Notificaciones in-app |
-| `blog_posts` | Articulos del blog con SEO |
+| `blog_posts` | Articulos del blog con SEO (meta_title, meta_description, focus_keyword, tags, og_image, author_id) |
+| `blog_post_links` | Asociacion blog↔servicios/proveedores (FK cascade) |
 | `showcase_items` / `site_banners` | Contenido de marketing |
 | `stripe_webhook_events` | Idempotencia de webhooks |
 
@@ -521,6 +522,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Mis Eventos (cliente) | ✅ Terminado | Agrupacion de servicios por `event_name` con gasto total y desglose |
 | SEO Slugs (servicios) | ✅ Terminado | URLs publicas usan `/servicios/{slug}` en vez de UUID. UUIDs redirigen 301. |
 | SEO Slugs (proveedores) | ✅ Terminado | URLs publicas usan `/proveedores/{slug}` en vez de UUID. UUIDs redirigen 301. Trigger SQL auto-genera slug al crear perfil. |
+| SEO Canonicals | ✅ Terminado | Canonical URLs en servicios, proveedores y blog. Zone metadata corregido a 9 zonas reales. |
+| Blog CMS Completo | ✅ Terminado | Campos SEO (meta_title, meta_description, focus_keyword, og_image, tags), upload de imagenes, links a servicios/proveedores, tags con filtrado, markdown preview, inline image insertion |
 
 ---
 
@@ -760,6 +763,62 @@ Mismo patron que admin, con endpoints separados que rechazan admins:
 | `src/components/auth/login-form.tsx` | Login + formulario de recuperacion + redirect si `must_change_password` |
 | `src/app/dashboard/cliente/perfil/page.tsx` | Perfil cliente con Card de cambio de contrasena |
 | `src/app/dashboard/proveedor/perfil/page.tsx` | Perfil proveedor con Card de cambio de contrasena |
+
+---
+
+## Blog CMS — Sistema de Contenido
+
+### Arquitectura
+
+- **Admin**: `src/app/admin-portal/dashboard/contenido/page.tsx` — CRUD de posts con formulario de 3 tabs (Contenido, SEO, Enlaces)
+- **Publico**: `src/app/blog/` — Lista con filtro por tags + detalle con markdown rendering
+- **Storage**: Imagenes de blog se suben a bucket `service-media` con path `blog/{uuid}.{ext}` via `uploadBlogMedia()`
+
+### Campos del Blog Post
+
+| Campo | Tipo | Tab Admin | Uso |
+|-------|------|-----------|-----|
+| `title` | TEXT | Contenido | Titulo principal |
+| `slug` | TEXT UNIQUE | Contenido | URL del post |
+| `excerpt` | TEXT | Contenido | Resumen corto |
+| `content` | TEXT | Contenido | Cuerpo en markdown |
+| `cover_image` | TEXT | Contenido | Imagen de portada (upload widget) |
+| `media_type` | ENUM | Contenido | text / video / audio |
+| `media_url` | TEXT | Contenido | URL del video/audio |
+| `status` | ENUM | Contenido | draft / published / archived |
+| `publish_date` | TIMESTAMPTZ | Contenido | Fecha de publicacion |
+| `meta_title` | TEXT | SEO | Titulo para buscadores (override de title) |
+| `meta_description` | TEXT | SEO | Descripcion para buscadores (max 160 chars) |
+| `focus_keyword` | TEXT | SEO | Palabra clave principal |
+| `tags` | TEXT[] | SEO | Etiquetas para filtrado y SEO |
+| `og_image` | TEXT | SEO | Imagen Open Graph (override de cover_image) |
+| `author_id` | UUID FK | Auto | Se asigna al crear (usuario admin actual) |
+
+### Blog Post Links (tabla `blog_post_links`)
+
+Asocia posts con servicios y/o proveedores. Tab "Enlaces" en el admin permite buscar servicios activos y agregar links. En la pagina publica del blog, los servicios enlazados se muestran como `ServiceCard` y los proveedores como badges con link.
+
+### Markdown Rendering
+
+El contenido se renderiza linea por linea soportando:
+- `# ## ###` — Encabezados
+- `![alt](url)` — Imagenes con caption
+- `- ` — Listas
+- `> ` — Blockquotes
+- `**bold**`, `*italic*`, `[text](url)` — Inline formatting
+- Boton "Insertar imagen" sube al storage y pega `![Imagen](url)` en el cursor
+
+### Archivos Clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00105_blog_post_links.sql` | Tabla de links blog↔servicios/proveedores |
+| `src/app/admin-portal/dashboard/contenido/page.tsx` | Formulario admin completo (3 tabs) |
+| `src/app/blog/blog-list-client.tsx` | Lista publica con filtro por tags |
+| `src/app/blog/[slug]/page.tsx` | Detalle con SEO, links, markdown mejorado |
+| `src/lib/supabase/storage.ts` | `uploadBlogMedia()` |
+| `src/lib/supabase/queries.ts` | `createBlogPost`, `getBlogPostLinks`, `setBlogPostLinks` |
+| `src/lib/supabase/server-queries.ts` | `getBlogPostLinksServer` |
 
 ---
 

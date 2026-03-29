@@ -373,6 +373,17 @@ export interface BlogPost {
   updated_at: string;
 }
 
+export interface BlogPostLink {
+  id: string;
+  blog_post_id: string;
+  service_id: string | null;
+  provider_id: string | null;
+  created_at: string;
+  // Joined data
+  service?: Service;
+  provider?: Profile;
+}
+
 export interface FeaturedProvider {
   id: string;
   provider_id: string;
@@ -455,6 +466,7 @@ export interface Database {
       campaign_subscriptions: { Row: CampaignSubscription; Insert: Partial<CampaignSubscription> & Pick<CampaignSubscription, 'campaign_id' | 'service_id' | 'provider_id'>; Update: Partial<CampaignSubscription> };
       notifications: { Row: Notification; Insert: Partial<Notification> & Pick<Notification, 'recipient_id' | 'title' | 'message'>; Update: Partial<Notification> };
       blog_posts: { Row: BlogPost; Insert: Partial<BlogPost> & Pick<BlogPost, 'title' | 'slug'>; Update: Partial<BlogPost> };
+      blog_post_links: { Row: BlogPostLink; Insert: Partial<BlogPostLink> & Pick<BlogPostLink, 'blog_post_id'>; Update: Partial<BlogPostLink> };
       featured_providers: { Row: FeaturedProvider; Insert: Partial<FeaturedProvider> & Pick<FeaturedProvider, 'provider_id'>; Update: Partial<FeaturedProvider> };
       showcase_items: { Row: ShowcaseItem; Insert: Partial<ShowcaseItem> & Pick<ShowcaseItem, 'label' | 'subcategory' | 'parent_category'>; Update: Partial<ShowcaseItem> };
       site_banners: { Row: SiteBanner; Insert: Partial<SiteBanner> & Pick<SiteBanner, 'banner_key' | 'title'>; Update: Partial<SiteBanner> };

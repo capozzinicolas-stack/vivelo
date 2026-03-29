@@ -20,10 +20,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : await getProfileBySlugServer(params.id);
   if (!provider) return { title: 'Proveedor no encontrado' };
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
   const name = provider.company_name || provider.full_name;
   return {
     title: name,
     description: provider.bio || `Conoce a ${name}, proveedor de servicios para eventos en Vivelo`,
+    alternates: {
+      canonical: `${siteUrl}/proveedores/${provider.slug}`,
+    },
     openGraph: {
       title: `${name} - Proveedor en Vivelo`,
       description: provider.bio || undefined,

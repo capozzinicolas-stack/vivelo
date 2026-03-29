@@ -3,33 +3,41 @@ import { redirect } from 'next/navigation';
 
 // Known zones for SEO
 const ZONE_META: Record<string, { title: string; description: string }> = {
-  cdmx: {
-    title: 'Servicios para Eventos en CDMX',
+  'ciudad-de-mexico': {
+    title: 'Servicios para Eventos en Ciudad de Mexico',
     description: 'Encuentra los mejores servicios para tu evento en la Ciudad de Mexico. Catering, audio, decoracion, fotografia y mas en CDMX.',
   },
   'estado-de-mexico': {
     title: 'Servicios para Eventos en Estado de Mexico',
     description: 'Los mejores proveedores de servicios para eventos en el Estado de Mexico. Cotiza catering, audio, mobiliario y mas.',
   },
-  guadalajara: {
-    title: 'Servicios para Eventos en Guadalajara',
-    description: 'Proveedores de servicios para eventos en Guadalajara, Jalisco. Encuentra el servicio perfecto para tu evento.',
-  },
-  monterrey: {
-    title: 'Servicios para Eventos en Monterrey',
-    description: 'Encuentra y reserva servicios para eventos en Monterrey, Nuevo Leon. Catering, fotografia, audio y mas.',
+  toluca: {
+    title: 'Servicios para Eventos en Toluca',
+    description: 'Proveedores de servicios para eventos en Toluca y zona metropolitana. Catering, audio, decoracion y mas.',
   },
   puebla: {
     title: 'Servicios para Eventos en Puebla',
     description: 'Proveedores de servicios para eventos en Puebla. Cotiza y reserva catering, decoracion, fotografia y mas.',
   },
+  hidalgo: {
+    title: 'Servicios para Eventos en Hidalgo',
+    description: 'Encuentra servicios para eventos en Hidalgo. Proveedores verificados de catering, audio, fotografia y mas.',
+  },
   queretaro: {
     title: 'Servicios para Eventos en Queretaro',
     description: 'Servicios para eventos en Queretaro. Encuentra proveedores de catering, audio, decoracion y mas.',
   },
-  cancun: {
-    title: 'Servicios para Eventos en Cancun',
-    description: 'Servicios para bodas y eventos en Cancun y la Riviera Maya. Proveedores locales verificados.',
+  guanajuato: {
+    title: 'Servicios para Eventos en Guanajuato',
+    description: 'Proveedores de servicios para eventos en Guanajuato. Cotiza catering, decoracion, fotografia y mas.',
+  },
+  tlaxcala: {
+    title: 'Servicios para Eventos en Tlaxcala',
+    description: 'Encuentra proveedores para tu evento en Tlaxcala. Catering, audio, decoracion y servicios profesionales.',
+  },
+  morelos: {
+    title: 'Servicios para Eventos en Morelos',
+    description: 'Servicios para bodas y eventos en Morelos y Cuernavaca. Proveedores locales verificados en Vivelo.',
   },
 };
 

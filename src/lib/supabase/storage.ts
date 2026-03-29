@@ -105,6 +105,32 @@ export async function deleteServiceMedia(url: string): Promise<void> {
   if (error) throw error;
 }
 
+// ─── BLOG UPLOADS ────────────────────────────────────────────
+
+export async function uploadBlogMedia(file: File): Promise<string> {
+  const mediaType = getMediaType(file);
+  if (!mediaType) throw new Error('Tipo de archivo no soportado.');
+  if (mediaType === 'video' && file.size > MAX_VIDEO_SIZE) throw new Error('El video no puede exceder 50MB.');
+
+  let fileToUpload = file;
+  if (mediaType === 'image' && file.size > MAX_IMAGE_SIZE) {
+    fileToUpload = await compressImage(file);
+  }
+
+  const supabase = createClient();
+  const ext = mediaType === 'image' && fileToUpload !== file ? 'jpg' : (file.name.split('.').pop()?.toLowerCase() || 'bin');
+  const path = `blog/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage.from(BUCKET).upload(path, fileToUpload, {
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // ─── PROFILE UPLOADS ─────────────────────────────────────────
 
 const PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];

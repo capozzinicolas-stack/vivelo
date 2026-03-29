@@ -1,6 +1,6 @@
 import { createClient } from './client';
 import { generateSlug } from '@/lib/slug';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogPostLink, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -2057,6 +2057,12 @@ export async function createBlogPost(post: {
   media_url?: string;
   status: BlogStatus;
   publish_date?: string;
+  meta_title?: string;
+  meta_description?: string;
+  focus_keyword?: string;
+  tags?: string[];
+  og_image?: string;
+  author_id?: string;
 }): Promise<BlogPost> {
   if (isMockMode()) {
     const { mockBlogPosts } = await import('@/data/mock-content');
@@ -2067,6 +2073,12 @@ export async function createBlogPost(post: {
       cover_image: post.cover_image ?? null,
       media_url: post.media_url ?? null,
       publish_date: post.publish_date ?? null,
+      meta_title: post.meta_title ?? null,
+      meta_description: post.meta_description ?? null,
+      focus_keyword: post.focus_keyword ?? null,
+      tags: post.tags ?? [],
+      og_image: post.og_image ?? null,
+      author_id: post.author_id ?? null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -2102,6 +2114,46 @@ export async function deleteBlogPost(id: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.from('blog_posts').delete().eq('id', id);
   if (error) throw new Error(`Error eliminando blog post: ${error.message}`);
+}
+
+// ─── BLOG POST LINKS ────────────────────────────────────────
+
+export async function getBlogPostLinks(blogPostId: string): Promise<BlogPostLink[]> {
+  if (isMockMode()) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('blog_post_links')
+    .select('*, service:services(id, slug, title, images, base_price, price_unit, avg_rating, review_count, status, zones, provider_id, category, subcategory, description, min_guests, max_guests, min_hours, max_hours, base_event_hours, buffer_before_minutes, buffer_after_minutes, buffer_before_days, buffer_after_days, deletion_requested, deletion_requested_at, view_count, videos, sku, created_at, updated_at), provider:profiles(id, slug, full_name, company_name, avatar_url, verified, role, email, phone, bio, max_concurrent_services, apply_buffers_to_all, global_buffer_before_minutes, global_buffer_after_minutes, rfc, clabe, bank_document_url, banking_status, banking_rejection_reason, commission_rate, must_change_password, created_at, updated_at)')
+    .eq('blog_post_id', blogPostId);
+  if (error) {
+    console.warn('[getBlogPostLinks] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function setBlogPostLinks(
+  blogPostId: string,
+  links: { service_id?: string; provider_id?: string }[],
+): Promise<void> {
+  if (isMockMode()) return;
+
+  const supabase = createClient();
+
+  // Delete existing links
+  await supabase.from('blog_post_links').delete().eq('blog_post_id', blogPostId);
+
+  // Insert new links
+  if (links.length > 0) {
+    const rows = links.map(l => ({
+      blog_post_id: blogPostId,
+      service_id: l.service_id || null,
+      provider_id: l.provider_id || null,
+    }));
+    const { error } = await supabase.from('blog_post_links').insert(rows);
+    if (error) throw new Error(`Error guardando links del post: ${error.message}`);
+  }
 }
 
 // ─── FEATURED PROVIDERS ─────────────────────────────────────

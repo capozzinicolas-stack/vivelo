@@ -70,7 +70,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Zone landing pages
   const zonePages: MetadataRoute.Sitemap = [
-    'cdmx', 'estado-de-mexico', 'guadalajara', 'monterrey', 'puebla', 'queretaro', 'cancun',
+    'ciudad-de-mexico', 'estado-de-mexico', 'toluca', 'puebla', 'hidalgo', 'queretaro', 'guanajuato', 'tlaxcala', 'morelos',
   ].map(zona => ({
     url: `${siteUrl}/servicios/zona/${zona}`,
     lastModified: new Date(),

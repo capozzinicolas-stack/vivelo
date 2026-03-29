@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from './server';
-import type { Service, Profile, BlogPost, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner } from '@/types/database';
+import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner } from '@/types/database';
 
 /**
  * Server-side query functions for SSR pages.
@@ -127,6 +127,19 @@ export async function getPublishedBlogPostsServer(): Promise<BlogPost[]> {
     .order('publish_date', { ascending: false });
   if (error) {
     console.warn('[getPublishedBlogPostsServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getBlogPostLinksServer(blogPostId: string): Promise<BlogPostLink[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('blog_post_links')
+    .select('*, service:services(id, slug, title, images, base_price, avg_rating, review_count, zones, category, status, provider_id, subcategory, description, price_unit, min_guests, max_guests, min_hours, max_hours, base_event_hours, buffer_before_minutes, buffer_after_minutes, buffer_before_days, buffer_after_days, deletion_requested, deletion_requested_at, view_count, videos, sku, created_at, updated_at), provider:profiles(id, slug, full_name, company_name, avatar_url, verified, role, email, phone, bio, max_concurrent_services, apply_buffers_to_all, global_buffer_before_minutes, global_buffer_after_minutes, rfc, clabe, bank_document_url, banking_status, banking_rejection_reason, commission_rate, must_change_password, created_at, updated_at)')
+    .eq('blog_post_id', blogPostId);
+  if (error) {
+    console.warn('[getBlogPostLinksServer] Query failed:', error.message);
     return [];
   }
   return data || [];
