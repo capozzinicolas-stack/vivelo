@@ -6,6 +6,7 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ShareButton } from '@/components/ui/share-button';
 import { ArrowLeft, MapPin, Star, ShieldCheck } from 'lucide-react';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { isUUID } from '@/lib/slug';
@@ -117,6 +118,7 @@ export default async function ProveedorPublicPage({ params }: Props) {
               {provider.verified && (
                 <Badge className="bg-green-100 text-green-800 gap-1"><ShieldCheck className="h-3 w-3" />Verificado</Badge>
               )}
+              <ShareButton url={`/proveedores/${provider.slug}`} title={providerName} />
             </div>
             {provider.company_name && (
               <p className="text-muted-foreground">{provider.full_name}</p>

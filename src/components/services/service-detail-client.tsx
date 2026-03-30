@@ -25,6 +25,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ShareButton } from '@/components/ui/share-button';
 import { AlertTriangle, Star, MapPin, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Timer, DollarSign } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
@@ -291,7 +292,10 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
             <div className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /><span className="font-medium">{service.avg_rating}</span><span className="text-muted-foreground">({service.review_count} resenas)</span></div>
             <div className="flex items-center gap-1 text-muted-foreground"><ShoppingCart className="h-3.5 w-3.5" /><span className="text-sm">{bookingCount} contratacion{bookingCount !== 1 ? 'es' : ''}</span></div>
           </div>
-          <h1 className="text-3xl font-bold">{service.title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold">{service.title}</h1>
+            <ShareButton url={`/servicios/${service.slug || service.id}`} title={service.title} />
+          </div>
           {provider && (
             <p className="text-sm text-muted-foreground">
               Ofrecido por{' '}

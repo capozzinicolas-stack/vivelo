@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
+import { ShareButton } from '@/components/ui/share-button';
 import { ArrowLeft, FileText, Video, Mic, Calendar, Tag, Clock, List } from 'lucide-react';
 import { getBlogPostBySlugServer, getBlogPostLinksServer, getRelatedBlogPostsServer } from '@/lib/supabase/server-queries';
 import { notFound } from 'next/navigation';
@@ -164,6 +165,7 @@ export default async function BlogPostPage({ params }: Props) {
             <Clock className="h-4 w-4" />
             {readingTime} min de lectura
           </div>
+          <ShareButton url={`/blog/${post.slug}`} title={post.title} />
         </div>
 
         <h1 className="text-3xl md:text-4xl font-bold mb-4">{post.title}</h1>
