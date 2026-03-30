@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer } from '@/lib/supabase/server-queries';
+import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer, getRelatedServicesServer } from '@/lib/supabase/server-queries';
 import { isUUID } from '@/lib/slug';
 import { ServiceDetailClient } from '@/components/services/service-detail-client';
 import { ServiceFaq } from '@/components/services/service-faq';
 import { ServiceReviews } from '@/components/services/service-reviews';
+import { ServiceCard } from '@/components/services/service-card';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -54,9 +55,10 @@ export default async function ServiceDetailPage({ params }: Props) {
   const service = await getServiceBySlugServer(idOrSlug);
   if (!service) notFound();
 
-  const [bookingCount, reviews] = await Promise.all([
+  const [bookingCount, reviews, relatedServices] = await Promise.all([
     getServiceBookingCountServer(service.id),
     getReviewsByServiceServer(service.id),
+    getRelatedServicesServer(service.category, service.id, 4),
   ]);
 
   // Ensure provider is loaded
@@ -96,6 +98,15 @@ export default async function ServiceDetailPage({ params }: Props) {
         reviewCount: service.review_count,
       },
     } : {}),
+    ...(reviews.length > 0 ? {
+      review: reviews.slice(0, 5).map(r => ({
+        '@type': 'Review',
+        reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5 },
+        author: { '@type': 'Person', name: r.client?.full_name || 'Cliente' },
+        datePublished: r.created_at,
+        ...(r.comment ? { reviewBody: r.comment } : {}),
+      })),
+    } : {}),
     url: `${siteUrl}/servicios/${service.slug}`,
   };
 
@@ -133,6 +144,17 @@ export default async function ServiceDetailPage({ params }: Props) {
       <div className="mt-12">
         <ServiceFaq service={service} providerName={providerName} />
       </div>
+
+      {relatedServices.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">Servicios similares</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {relatedServices.map(s => (
+              <ServiceCard key={s.id} service={s} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

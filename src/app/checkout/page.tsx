@@ -11,6 +11,7 @@ import { createOrder, createBooking, createSubBookings, checkVendorAvailability,
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
 import { ServiceCard } from '@/components/services/service-card';
+import { CheckoutProgress } from '@/components/checkout/checkout-progress';
 import { COMMISSION_RATE } from '@/lib/constants';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 import { getCategoryCommissionRate, calculateCommission } from '@/lib/commission';
@@ -337,6 +338,8 @@ export default function CheckoutPage() {
       <Button variant="ghost" asChild className="mb-6"><Link href="/carrito"><ArrowLeft className="h-4 w-4 mr-2" />Volver al carrito</Link></Button>
 
       <h1 className="text-2xl font-bold mb-8">Checkout</h1>
+
+      <CheckoutProgress currentStep={clientSecret ? 2 : 1} />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Left: Order details */}

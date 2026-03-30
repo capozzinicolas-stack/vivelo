@@ -19,8 +19,13 @@ import { getAllBlogPosts, createBlogPost, updateBlogPost, deleteBlogPost, getBlo
 import { uploadBlogMedia } from '@/lib/supabase/storage';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { RichTextEditor } from '@/components/admin/rich-text-editor';
+import dynamic from 'next/dynamic';
 import { isHtmlContent, markdownToBasicHtml } from '@/lib/blog-utils';
+
+const RichTextEditor = dynamic(
+  () => import('@/components/admin/rich-text-editor').then(m => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="h-64 bg-muted animate-pulse rounded-lg" /> }
+);
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
   text: FileText,

@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShareButton } from '@/components/ui/share-button';
-import { AlertTriangle, Star, MapPin, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Timer, DollarSign } from 'lucide-react';
+import { AlertTriangle, Star, MapPin, CalendarIcon, Users, Clock, Loader2, Search, PartyPopper, ChevronsUpDown, Check, ShoppingCart, Timer, DollarSign, Flame } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -296,6 +296,12 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
             <h1 className="text-3xl font-bold">{service.title}</h1>
             <ShareButton url={`/servicios/${service.slug || service.id}`} title={service.title} />
           </div>
+          {bookingCount >= 5 && (
+            <Badge className="bg-amber-100 text-amber-800 border-amber-200 w-fit gap-1.5">
+              <Flame className="h-3.5 w-3.5" />
+              {bookingCount >= 10 ? `Popular — ${bookingCount} reservas` : `${bookingCount} reservas este mes`}
+            </Badge>
+          )}
           {provider && (
             <p className="text-sm text-muted-foreground">
               Ofrecido por{' '}

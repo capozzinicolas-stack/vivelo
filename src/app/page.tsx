@@ -8,6 +8,7 @@ import {
   getActiveSiteBannersServer,
   getNewServicesServer,
   getTopRatedServicesServer,
+  getTopRatedReviewsServer,
 } from '@/lib/supabase/server-queries';
 import { HomepageClient } from '@/components/homepage/homepage-client';
 import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
@@ -31,9 +32,10 @@ export default async function Home() {
   let siteBanners: SiteBanner[] = [];
   let newServices: Service[] = [];
   let topRatedServices: Service[] = [];
+  let testimonialReviews: Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }> = [];
 
   try {
-    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners, newServices, topRatedServices] = await Promise.all([
+    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners, newServices, topRatedServices, testimonialReviews] = await Promise.all([
       getFeaturedPlacementsServer('servicios_destacados'),
       getPublishedBlogPostsServer(),
       getActiveFeaturedProvidersServer(),
@@ -42,6 +44,7 @@ export default async function Home() {
       getActiveSiteBannersServer(),
       getNewServicesServer(),
       getTopRatedServicesServer(),
+      getTopRatedReviewsServer(6),
     ]);
   } catch (error) {
     console.error('[Homepage] Error loading data:', error);
@@ -87,6 +90,7 @@ export default async function Home() {
         siteBanners={siteBanners}
         newServices={newServices}
         topRatedServices={topRatedServices}
+        testimonialReviews={testimonialReviews}
       />
     </>
   );

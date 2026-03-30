@@ -116,6 +116,23 @@ export async function enrichServicesWithTagsServer(services: Service[]): Promise
   return services.map(s => ({ ...s, tags: tagMap[s.id] || [] }));
 }
 
+export async function getRelatedServicesServer(categoryId: string, excludeId: string, limit = 4): Promise<Service[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, provider:profiles!provider_id(*)')
+    .eq('status', 'active')
+    .eq('category', categoryId)
+    .neq('id', excludeId)
+    .order('avg_rating', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[getRelatedServicesServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 // ─── PROFILES ───────────────────────────────────────────────
 
 export async function getProfileByIdServer(id: string): Promise<Profile | null> {
@@ -235,6 +252,29 @@ export async function getReviewsByServiceServer(serviceId: string): Promise<Arra
     return [];
   }
   return data || [];
+}
+
+export async function getTopRatedReviewsServer(limit = 6): Promise<Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }>> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('id, rating, comment, created_at, client:profiles!client_id(full_name), service:services!service_id(title, slug)')
+    .eq('status', 'approved')
+    .gte('rating', 4)
+    .not('comment', 'is', null)
+    .order('rating', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[getTopRatedReviewsServer] Query failed:', error.message);
+    return [];
+  }
+  // Supabase returns single-row joins as arrays; normalize to single objects
+  return (data || []).map((row: Record<string, unknown>) => ({
+    ...row,
+    client: Array.isArray(row.client) ? row.client[0] : row.client,
+    service: Array.isArray(row.service) ? row.service[0] : row.service,
+  })) as Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }>;
 }
 
 // ─── HOMEPAGE DATA ──────────────────────────────────────────

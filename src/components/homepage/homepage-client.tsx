@@ -13,10 +13,22 @@ import { CategoriesShowcaseSection } from '@/components/homepage/categories-show
 import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
 import { TopRatedSection } from '@/components/homepage/top-rated-section';
+import { TestimonialsSection } from '@/components/homepage/testimonials-section';
+import { NewsletterSection } from '@/components/homepage/newsletter-section';
+import { ExitIntentPopup } from '@/components/marketing/exit-intent-popup';
 import { CampaignOffersSection } from '@/components/homepage/campaign-offers-section';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { useUtmCapture } from '@/hooks/use-utm-capture';
 import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
+
+interface TestimonialReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  client?: { full_name: string };
+  service?: { title: string; slug: string };
+}
 
 interface HomepageClientProps {
   featuredPlacements: FeaturedPlacement[];
@@ -27,6 +39,7 @@ interface HomepageClientProps {
   siteBanners: SiteBanner[];
   newServices: Service[];
   topRatedServices: Service[];
+  testimonialReviews: TestimonialReview[];
 }
 
 export function HomepageClient({
@@ -38,6 +51,7 @@ export function HomepageClient({
   siteBanners,
   newServices,
   topRatedServices,
+  testimonialReviews,
 }: HomepageClientProps) {
   useUtmCapture();
 
@@ -49,11 +63,13 @@ export function HomepageClient({
       {/* 2. Hero + Search */}
       <section className="relative text-white overflow-hidden">
         <Image
-          src="/hero-bg.jpg"
+          src="/hero-bg.webp"
           alt="Personas celebrando en un evento"
           fill
           className="object-cover"
           priority
+          sizes="100vw"
+          quality={80}
         />
         <div className="absolute inset-0 bg-black/40" />
         <div className="relative container mx-auto px-4 pt-12 pb-10 md:pt-24 md:pb-20">
@@ -90,6 +106,9 @@ export function HomepageClient({
       {/* 9. Los Mas Recomendados */}
       <TopRatedSection services={topRatedServices} loading={false} />
 
+      {/* 9.5. Testimonios reales */}
+      <TestimonialsSection reviews={testimonialReviews} />
+
       {/* 10. Ofertas de la semana */}
       <CampaignOffersSection campaigns={campaignsWithServices} loading={false} />
 
@@ -104,6 +123,12 @@ export function HomepageClient({
           <Button size="lg" variant="secondary" asChild><Link href="https://nuevosproveedores.solovivelo.com">Registrate como Proveedor</Link></Button>
         </div>
       </section>
+
+      {/* 12.5. Newsletter */}
+      <NewsletterSection />
+
+      {/* Exit-intent popup */}
+      <ExitIntentPopup />
     </div>
   );
 }

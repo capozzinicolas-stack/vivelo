@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Film } from 'lucide-react';
 
@@ -34,8 +35,9 @@ export function MediaGallery({ images, videos, title }: MediaGalleryProps) {
       {/* Main display */}
       <div className="relative group rounded-xl overflow-hidden bg-black">
         {item.type === 'image' ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.url} alt={`${title} ${current + 1}`} className="w-full h-64 md:h-96 object-contain" />
+          <div className="relative w-full h-64 md:h-96">
+            <Image src={item.url} alt={`${title} ${current + 1}`} fill className="object-contain" sizes="(max-width: 768px) 100vw, 800px" />
+          </div>
         ) : (
           <video src={item.url} className="w-full h-64 md:h-96 object-contain" controls />
         )}
@@ -80,8 +82,7 @@ export function MediaGallery({ images, videos, title }: MediaGalleryProps) {
               }`}
             >
               {it.type === 'image' ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
+                <Image src={it.url} alt={`Thumb ${i + 1}`} fill className="object-cover" sizes="80px" />
               ) : (
                 <div className="w-full h-full bg-muted flex items-center justify-center">
                   <Film className="h-5 w-5 text-muted-foreground" />

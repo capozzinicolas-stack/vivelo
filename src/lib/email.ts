@@ -147,6 +147,36 @@ export async function sendTemporaryPassword(data: TemporaryPasswordEmailData) {
   }
 }
 
+export async function sendNewsletterWelcome(email: string) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping newsletter welcome email');
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: email,
+      subject: 'Bienvenido a Vivelo — Ofertas exclusivas para ti',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #43276c;">Bienvenido a Vivelo!</h1>
+          <p>Gracias por suscribirte a nuestro newsletter.</p>
+          <p>Recibiras las mejores ofertas y novedades en servicios para eventos directamente en tu bandeja de entrada.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://solovivelo.com/servicios" style="background: #43276c; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Explorar Servicios</a>
+          </div>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">Vivelo - Servicios para Eventos en Mexico</p>
+        </div>
+      `,
+    });
+    console.log('[Email] Newsletter welcome sent to', email);
+  } catch (error) {
+    console.error('[Email] Failed to send newsletter welcome:', error);
+  }
+}
+
 interface EventCodesEmailData {
   clientName: string;
   clientEmail: string;

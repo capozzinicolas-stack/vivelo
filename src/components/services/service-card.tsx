@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Star, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +20,9 @@ export function ServiceCard({ service }: { service: Service }) {
     <Link href={`/servicios/${service.slug}`}>
       <Card className="group overflow-hidden transition-shadow hover:shadow-lg cursor-pointer h-full">
         {coverImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverImage} alt={service.title} className="h-48 w-full object-cover" />
+          <div className="relative h-48 w-full">
+            <Image src={coverImage} alt={service.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" />
+          </div>
         ) : (
           <div className={`h-48 w-full flex items-center justify-center ${cat ? cat.color.replace('text-', 'bg-').split(' ')[0] : 'bg-gray-200'}`}>
             {cat && (
