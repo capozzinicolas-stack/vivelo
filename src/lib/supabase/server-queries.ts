@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from './server';
-import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner } from '@/types/database';
+import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner, CatalogCategory, CatalogZone } from '@/types/database';
 
 /**
  * Server-side query functions for SSR pages.
@@ -342,6 +342,36 @@ export async function getTopRatedServicesServer(limit = 20): Promise<Service[]> 
     .limit(limit);
   if (error) {
     console.warn('[getTopRatedServicesServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+// ─── CATALOG (categories/zones for landing pages) ────────
+
+export async function getActiveCategoriesServer(): Promise<CatalogCategory[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('service_categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (error) {
+    console.warn('[getActiveCategoriesServer] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function getActiveZonesServer(): Promise<CatalogZone[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('service_zones')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (error) {
+    console.warn('[getActiveZonesServer] Query failed:', error.message);
     return [];
   }
   return data || [];

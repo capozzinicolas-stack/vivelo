@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { EVENT_TYPES } from '@/data/event-types';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
@@ -16,6 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let servicePages: MetadataRoute.Sitemap = [];
   let blogPages: MetadataRoute.Sitemap = [];
   let providerPages: MetadataRoute.Sitemap = [];
+  let categoryPages: MetadataRoute.Sitemap = [];
+  let categoryZonePages: MetadataRoute.Sitemap = [];
 
   try {
     const supabase = createServerSupabaseClient();
@@ -23,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Active services
     const { data: services } = await supabase
       .from('services')
-      .select('id, slug, updated_at')
+      .select('id, slug, updated_at, category, zones')
       .eq('status', 'active');
 
     if (services) {
@@ -72,6 +75,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           priority: 0.6,
         }));
     }
+
+    // Category pages (from active categories in DB)
+    const { data: dbCategories } = await supabase
+      .from('service_categories')
+      .select('slug')
+      .eq('is_active', true);
+
+    if (dbCategories) {
+      categoryPages = dbCategories.map(c => ({
+        url: `${siteUrl}/servicios/categoria/${c.slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      }));
+    }
+
+    // Category+Zone pages (only combos that have at least one service)
+    const { data: dbZones } = await supabase
+      .from('service_zones')
+      .select('slug, label')
+      .eq('is_active', true);
+
+    if (services && dbCategories && dbZones) {
+      const zoneSlugByLabel = Object.fromEntries((dbZones || []).map(z => [z.label, z.slug]));
+      const combosWithServices = new Set<string>();
+      for (const s of services) {
+        for (const zoneLabel of (s.zones || [])) {
+          const zoneSlug = zoneSlugByLabel[zoneLabel];
+          if (zoneSlug) {
+            combosWithServices.add(`${s.category}|${zoneSlug}`);
+          }
+        }
+      }
+      categoryZonePages = Array.from(combosWithServices).map(combo => {
+        const [cat, zon] = combo.split('|');
+        return {
+          url: `${siteUrl}/servicios/categoria/${cat}/${zon}`,
+          lastModified: new Date(),
+          changeFrequency: 'weekly' as const,
+          priority: 0.6,
+        };
+      });
+    }
   } catch (error) {
     console.error('[Sitemap] Error fetching dynamic data:', error);
   }
@@ -86,5 +132,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...servicePages, ...blogPages, ...providerPages, ...zonePages];
+  // Event type landing pages
+  const eventTypePages: MetadataRoute.Sitemap = EVENT_TYPES.map(et => ({
+    url: `${siteUrl}/eventos/${et.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  return [
+    ...staticPages,
+    ...servicePages,
+    ...blogPages,
+    ...providerPages,
+    ...zonePages,
+    ...categoryPages,
+    ...categoryZonePages,
+    ...eventTypePages,
+  ];
 }

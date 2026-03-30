@@ -527,6 +527,11 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Blog SEO Engine | ✅ Terminado | TOC auto-generado, tiempo de lectura, posts relacionados por tags, busqueda en lista, RSS feed (/blog/feed.xml), YouTube embeds |
 | SSR Paginas Publicas | ✅ Terminado | `/servicios` y `/blog` renderizan server-side para indexacion de Google. Datos se pasan como props a client components. JSON-LD ItemList en servicios, Article en blog posts |
 | Share Buttons | ✅ Terminado | Componente `ShareButton` reutilizable (`src/components/ui/share-button.tsx`). Native share en mobile, dropdown (WhatsApp, Facebook, X, copiar link) en desktop. En servicios, blog y proveedores |
+| Landing Pages SEO | ✅ Terminado | Paginas de aterrizaje SSR para zonas, categorias, categorias+zonas y tipos de evento. Cada pagina tiene JSON-LD ItemList + BreadcrumbList, canonical URL, contenido SEO unico, internal linking cruzado y grid de servicios filtrados. |
+| Paginas de Zona | ✅ Terminado | `/servicios/zona/[zona]` — 9 zonas con SSR, servicios filtrados por zona, contenido descriptivo, links a categorias en la zona y otras zonas. Antes solo redirigian a `/servicios?zona=x`. |
+| Paginas de Categoria | ✅ Terminado | `/servicios/categoria/[categoria]` — 6 categorias con SSR, servicios filtrados por categoria, contenido descriptivo, links a zona+categoria y otras categorias. Dinamicas desde DB (admin agrega categoria → pagina se genera). |
+| Paginas Categoria+Zona | ✅ Terminado | `/servicios/categoria/[categoria]/[zona]` — Combinaciones categoria×zona con SSR. Dinamicas. Sitemap solo incluye combos con servicios activos. |
+| Paginas Tipo de Evento | ✅ Terminado | `/eventos/[tipo]` — 14 tipos de evento (bodas, xv-anos, baby-shower, corporativos, etc.). Definiciones en `src/data/event-types.ts`. Todos los servicios, ordenados por categorias relevantes al tipo de evento. |
 
 ---
 
