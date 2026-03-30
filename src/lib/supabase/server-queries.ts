@@ -78,6 +78,44 @@ export async function getServicesByProviderServer(providerId: string): Promise<S
   return (fallback || []).map(s => ({ ...s, extras: [] }));
 }
 
+export async function getActiveServicesServer(): Promise<Service[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('services')
+    .select('*, extras(*), provider:profiles!provider_id(*)')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  if (!error) return data || [];
+
+  console.warn('[getActiveServicesServer] Join query failed, trying simple:', error.message);
+  const { data: fallback } = await supabase
+    .from('services')
+    .select('*')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  return (fallback || []).map(s => ({ ...s, extras: [] }));
+}
+
+export async function enrichServicesWithTagsServer(services: Service[]): Promise<Service[]> {
+  if (services.length === 0) return services;
+  const supabase = createServerSupabaseClient();
+  const serviceIds = services.map(s => s.id);
+  const { data, error } = await supabase
+    .from('service_tag_assignments')
+    .select('service_id, tag_slug')
+    .in('service_id', serviceIds);
+  if (error) {
+    console.warn('[enrichServicesWithTagsServer] Query failed:', error.message);
+    return services;
+  }
+  const tagMap: Record<string, string[]> = {};
+  for (const row of data || []) {
+    if (!tagMap[row.service_id]) tagMap[row.service_id] = [];
+    tagMap[row.service_id].push(row.tag_slug);
+  }
+  return services.map(s => ({ ...s, tags: tagMap[s.id] || [] }));
+}
+
 // ─── PROFILES ───────────────────────────────────────────────
 
 export async function getProfileByIdServer(id: string): Promise<Profile | null> {

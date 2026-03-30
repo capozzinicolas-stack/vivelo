@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 
 // Known zones for SEO
 const ZONE_META: Record<string, { title: string; description: string }> = {
@@ -63,5 +63,5 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ZonaLandingPage({ params }: Props) {
   // Redirect to servicios page with zone filter pre-applied
-  redirect(`/servicios?zona=${params.zona}`);
+  permanentRedirect(`/servicios?zona=${params.zona}`);
 }

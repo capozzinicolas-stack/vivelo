@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { getPublishedBlogPostsServer } from '@/lib/supabase/server-queries';
 import { BlogListClient } from './blog-list-client';
+import type { BlogPost } from '@/types/database';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -15,6 +17,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BlogPage() {
-  return <BlogListClient />;
+export default async function BlogPage() {
+  let posts: BlogPost[] = [];
+
+  try {
+    posts = await getPublishedBlogPostsServer();
+  } catch (error) {
+    console.error('[BlogPage] Error loading posts:', error);
+  }
+
+  return <BlogListClient initialPosts={posts} />;
 }

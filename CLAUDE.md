@@ -38,7 +38,7 @@ Toda integracion verifica env vars placeholder y retorna datos mock cuando no es
 
 ### Flujo de Datos
 
-Paginas son `'use client'` y cargan datos via `useEffect` con queries client-side (`src/lib/supabase/queries.ts`). Las funciones de query verifican `isMockMode()` y retornan datos mock de `src/data/` cuando Supabase no esta configurado.
+Paginas publicas principales (`/`, `/servicios`, `/blog`, detalle de servicio, blog post, proveedor) usan Server Components que pre-cargan datos via `server-queries.ts` y los pasan como props a client components para interactividad (filtros, busqueda). Paginas de dashboard son `'use client'` y cargan datos via `useEffect` con queries client-side (`src/lib/supabase/queries.ts`). Las funciones de query verifican `isMockMode()` y retornan datos mock de `src/data/` cuando Supabase no esta configurado.
 
 ---
 
@@ -525,6 +525,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | SEO Canonicals | ✅ Terminado | Canonical URLs en servicios, proveedores y blog. Zone metadata corregido a 9 zonas reales. |
 | Blog CMS Completo | ✅ Terminado | Editor WYSIWYG Tiptap (HTML), campos SEO, upload de imagenes, links a servicios/proveedores, tags con filtrado. Dual renderer: HTML (nuevo) + markdown (fallback legacy) |
 | Blog SEO Engine | ✅ Terminado | TOC auto-generado, tiempo de lectura, posts relacionados por tags, busqueda en lista, RSS feed (/blog/feed.xml), YouTube embeds |
+| SSR Paginas Publicas | ✅ Terminado | `/servicios` y `/blog` renderizan server-side para indexacion de Google. Datos se pasan como props a client components. JSON-LD ItemList en servicios, Article en blog posts |
+| Share Buttons | ✅ Terminado | Componente `ShareButton` reutilizable (`src/components/ui/share-button.tsx`). Native share en mobile, dropdown (WhatsApp, Facebook, X, copiar link) en desktop. En servicios, blog y proveedores |
 
 ---
 

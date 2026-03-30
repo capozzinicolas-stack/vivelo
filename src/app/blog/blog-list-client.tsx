@@ -1,16 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Video, Mic, ArrowLeft, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import type { BlogPost } from '@/types/database';
-import { getPublishedBlogPosts } from '@/lib/supabase/queries';
 import { stripHtml } from '@/lib/blog-utils';
 
 const mediaTypeIcons: Record<string, React.ElementType> = {
@@ -25,24 +23,14 @@ const mediaTypeLabels: Record<string, string> = {
   audio: 'Audio',
 };
 
-export function BlogListClient() {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
+interface BlogListClientProps {
+  initialPosts: BlogPost[];
+}
+
+export function BlogListClient({ initialPosts }: BlogListClientProps) {
+  const [posts] = useState<BlogPost[]>(initialPosts);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getPublishedBlogPosts();
-        setPosts(data);
-      } catch (err) {
-        console.error('Error loading blog posts:', err);
-      }
-      setLoading(false);
-    }
-    load();
-  }, []);
 
   // Collect all unique tags from posts
   const allTags = useMemo(() => {
@@ -111,11 +99,7 @@ export function BlogListClient() {
         </div>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-72" />)}
-        </div>
-      ) : filteredPosts.length === 0 ? (
+      {filteredPosts.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
           <p className="text-lg">{selectedTag ? `No hay publicaciones con la etiqueta "${selectedTag}".` : 'Aun no hay publicaciones.'}</p>

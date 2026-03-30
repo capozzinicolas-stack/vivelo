@@ -50,19 +50,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    // Active providers (those with at least one active service)
+    // Active providers (only those with at least one active service)
+    const { data: activeProviderIds } = await supabase
+      .from('services')
+      .select('provider_id')
+      .eq('status', 'active');
+    const providerIdSet = new Set((activeProviderIds || []).map(s => s.provider_id));
+
     const { data: providers } = await supabase
       .from('profiles')
       .select('id, slug, updated_at')
       .eq('role', 'provider');
 
     if (providers) {
-      providerPages = providers.map((p) => ({
-        url: `${siteUrl}/proveedores/${p.slug}`,
-        lastModified: new Date(p.updated_at),
-        changeFrequency: 'weekly' as const,
-        priority: 0.6,
-      }));
+      providerPages = providers
+        .filter(p => providerIdSet.has(p.id))
+        .map((p) => ({
+          url: `${siteUrl}/proveedores/${p.slug}`,
+          lastModified: new Date(p.updated_at),
+          changeFrequency: 'weekly' as const,
+          priority: 0.6,
+        }));
     }
   } catch (error) {
     console.error('[Sitemap] Error fetching dynamic data:', error);

@@ -59,7 +59,7 @@ export function HomepageClient({
         <div className="relative container mx-auto px-4 pt-12 pb-10 md:pt-24 md:pb-20">
           <div className="max-w-xl">
             <h1 className="text-2xl md:text-6xl font-bold mb-1 md:mb-2 leading-tight">Hazlo unico, hazlo Facil.</h1>
-            <h1 className="text-2xl md:text-6xl font-bold mb-3 md:mb-6 leading-tight">Solo <span className="italic">Vivelo</span></h1>
+            <p className="text-2xl md:text-6xl font-bold mb-3 md:mb-6 leading-tight">Solo <span className="italic">Vivelo</span></p>
             <p className="text-sm md:text-xl text-white/90 mb-4 md:mb-8">Los mejores proveedores para tus eventos</p>
           </div>
           <HomeSearchBar />
