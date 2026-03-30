@@ -119,4 +119,8 @@ export const BANNER_KEY_LABELS: Record<string, string> = {
   blog_inline_banner: 'Banner Inline Blog',
   cart_upsell_banner: 'Banner Upsell Carrito',
   post_purchase_banner: 'Banner Post-Compra',
+  homepage_event_types: 'Seccion Tipos de Evento (Homepage)',
+  homepage_zones: 'Seccion Zonas (Homepage)',
+  footer_event_types: 'Columna Tipos de Evento (Footer)',
+  footer_zones: 'Columna Zonas (Footer)',
 };

@@ -532,6 +532,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Paginas de Categoria | ✅ Terminado | `/servicios/categoria/[categoria]` — 6 categorias con SSR, servicios filtrados por categoria, contenido descriptivo, links a zona+categoria y otras categorias. Dinamicas desde DB (admin agrega categoria → pagina se genera). |
 | Paginas Categoria+Zona | ✅ Terminado | `/servicios/categoria/[categoria]/[zona]` — Combinaciones categoria×zona con SSR. Dinamicas. Sitemap solo incluye combos con servicios activos. |
 | Paginas Tipo de Evento | ✅ Terminado | `/eventos/[tipo]` — 14 tipos de evento (bodas, xv-anos, baby-shower, corporativos, etc.). Definiciones en `src/data/event-types.ts`. Todos los servicios, ordenados por categorias relevantes al tipo de evento. |
+| Navegacion SEO (Homepage) | ✅ Terminado | Secciones de tipos de evento y zonas en homepage. Visibilidad controlada por `site_banners` keys `homepage_event_types` y `homepage_zones`. Componentes: `event-types-section.tsx`, `zones-section.tsx`. |
+| Navegacion SEO (Footer) | ✅ Terminado | Columnas de tipos de evento y zonas en footer (SSR). Visibilidad controlada por `site_banners` keys `footer_event_types` y `footer_zones`. Footer es async server component que fetch banners. |
 
 ---
 

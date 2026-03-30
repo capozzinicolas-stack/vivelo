@@ -10,6 +10,8 @@ import { FeaturedServicesSection } from '@/components/homepage/featured-services
 import { NewServicesSection } from '@/components/homepage/new-services-section';
 import { SubcategoryShowcaseSection } from '@/components/homepage/subcategory-showcase-section';
 import { CategoriesShowcaseSection } from '@/components/homepage/categories-showcase-section';
+import { EventTypesSection } from '@/components/homepage/event-types-section';
+import { ZonesSection } from '@/components/homepage/zones-section';
 import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
 import { TopRatedSection } from '@/components/homepage/top-rated-section';
@@ -83,6 +85,16 @@ export function HomepageClient({
 
       {/* 7. Categorias Destacadas */}
       <CategoriesShowcaseSection />
+
+      {/* 7b. Tipos de Evento */}
+      {siteBanners.find(b => b.banner_key === 'homepage_event_types')?.is_active !== false && (
+        <EventTypesSection />
+      )}
+
+      {/* 7c. Servicios por Zona */}
+      {siteBanners.find(b => b.banner_key === 'homepage_zones')?.is_active !== false && (
+        <ZonesSection />
+      )}
 
       {/* 8. Proveedores Destacados */}
       <FeaturedProvidersSection providers={featuredProviders} loading={false} />
