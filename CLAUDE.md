@@ -532,6 +532,14 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Paginas de Categoria | ✅ Terminado | `/servicios/categoria/[categoria]` — 6 categorias con SSR, servicios filtrados por categoria, contenido descriptivo, links a zona+categoria y otras categorias. Dinamicas desde DB (admin agrega categoria → pagina se genera). |
 | Paginas Categoria+Zona | ✅ Terminado | `/servicios/categoria/[categoria]/[zona]` — Combinaciones categoria×zona con SSR. Dinamicas. Sitemap solo incluye combos con servicios activos. |
 | Paginas Tipo de Evento | ✅ Terminado | `/eventos/[tipo]` — 14 tipos de evento (bodas, xv-anos, baby-shower, corporativos, etc.). Definiciones en `src/data/event-types.ts`. Todos los servicios, ordenados por categorias relevantes al tipo de evento. |
+| Newsletter + Email Capture | ✅ Terminado | Seccion en homepage + exit-intent popup. API `POST /api/newsletter/subscribe` con rate limiting (3/min por IP), dedup de emails via Resend audience, welcome email. Hook compartido `useNewsletterSubscribe` en `src/hooks/use-newsletter-subscribe.ts`. localStorage key `vivelo-newsletter-subscribed` para no mostrar si ya suscrito. |
+| Testimonios Homepage | ✅ Terminado | Server component `testimonials-section.tsx` con reviews reales (rating >= 4, aprobadas). Query `getTopRatedReviewsServer()` en server-queries.ts. |
+| Servicios Relacionados | ✅ Terminado | Seccion "Servicios similares" en detalle de servicio (`/servicios/[id]`). Query `getRelatedServicesServer()` por misma categoria, 4 cards. |
+| JSON-LD Reviews | ✅ Terminado | Schema.org Review array en JSON-LD de detalle de servicio. Hasta 5 reviews con rating, author, datePublished. |
+| Checkout Progress Bar | ✅ Terminado | Componente `checkout-progress.tsx` con 3 pasos visuales (Resumen → Pago → Confirmacion). |
+| Indicadores de Urgencia | ✅ Terminado | Badge amber en detalle de servicio cuando `bookingCount >= 5`. Usa datos reales de reservas (all-time). |
+| next/image Migration | ✅ Terminado | service-card, media-gallery, extras-selector migrados de `<img>` a `next/image` con `fill` + `sizes`. Hero image convertido a WebP. |
+| Dynamic Imports | ✅ Terminado | Tiptap RichTextEditor carga via `next/dynamic` con `ssr: false` + skeleton loading. |
 
 ---
 

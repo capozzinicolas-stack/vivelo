@@ -4,49 +4,19 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle2, Mail } from 'lucide-react';
-
-const LS_KEY = 'vivelo-newsletter-subscribed';
+import { useNewsletterSubscribe, isNewsletterSubscribed } from '@/hooks/use-newsletter-subscribe';
 
 export function NewsletterSection() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
+  const { email, setEmail, status, errorMsg, handleSubmit } = useNewsletterSubscribe();
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && localStorage.getItem(LS_KEY)) {
+    if (isNewsletterSubscribed()) {
       setAlreadySubscribed(true);
     }
   }, []);
 
   if (alreadySubscribed) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || status === 'loading') return;
-
-    setStatus('loading');
-    setErrorMsg('');
-
-    try {
-      const res = await fetch('/api/newsletter/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error al suscribir');
-      }
-
-      setStatus('success');
-      localStorage.setItem(LS_KEY, '1');
-    } catch (err) {
-      setStatus('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Error al suscribir');
-    }
-  };
 
   return (
     <section className="bg-gradient-to-r from-deep-purple to-indigo-800 text-white py-16">

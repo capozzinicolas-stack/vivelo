@@ -299,7 +299,7 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           {bookingCount >= 5 && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 w-fit gap-1.5">
               <Flame className="h-3.5 w-3.5" />
-              {bookingCount >= 10 ? `Popular — ${bookingCount} reservas` : `${bookingCount} reservas este mes`}
+              {bookingCount >= 10 ? `Popular — ${bookingCount} reservas` : `${bookingCount} reservas`}
             </Badge>
           )}
           {provider && (

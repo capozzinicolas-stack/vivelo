@@ -1,20 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle2, Gift } from 'lucide-react';
+import { useNewsletterSubscribe, isNewsletterSubscribed } from '@/hooks/use-newsletter-subscribe';
 
 const SESSION_KEY = 'vivelo-exit-intent-shown';
-const LS_SUBSCRIBED_KEY = 'vivelo-newsletter-subscribed';
 
 function useExitIntent() {
   const [triggered, setTriggered] = useState(false);
 
   useEffect(() => {
     // Don't trigger if already shown this session or already subscribed
-    if (sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(LS_SUBSCRIBED_KEY)) {
+    if (sessionStorage.getItem(SESSION_KEY) || isNewsletterSubscribed()) {
       return;
     }
 
@@ -55,43 +55,19 @@ function useExitIntent() {
 export function ExitIntentPopup() {
   const triggered = useExitIntent();
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
+  const { email, setEmail, status, errorMsg, handleSubmit } = useNewsletterSubscribe();
 
   useEffect(() => {
-    if (triggered && !localStorage.getItem(LS_SUBSCRIBED_KEY)) {
+    if (triggered && !isNewsletterSubscribed()) {
       setOpen(true);
     }
   }, [triggered]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || status === 'loading') return;
-
-    setStatus('loading');
-    setErrorMsg('');
-
-    try {
-      const res = await fetch('/api/newsletter/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Error al suscribir');
-      }
-
-      setStatus('success');
-      localStorage.setItem(LS_SUBSCRIBED_KEY, '1');
+  useEffect(() => {
+    if (status === 'success') {
       setTimeout(() => setOpen(false), 2000);
-    } catch (err) {
-      setStatus('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Error al suscribir');
     }
-  }, [email, status]);
+  }, [status]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,9 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange, gues
             <div className="flex items-start gap-3">
               <Checkbox checked={checked} onCheckedChange={() => toggle(extra)} className="mt-0.5" />
               {extra.image && (
-                <img src={extra.image} alt={extra.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                <div className="relative w-16 h-16 flex-shrink-0">
+                  <Image src={extra.image} alt={extra.name} fill className="rounded-lg object-cover" sizes="64px" />
+                </div>
               )}
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
