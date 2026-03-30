@@ -1,8 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getActiveSiteBannersServer } from '@/lib/supabase/server-queries';
-import { EVENT_TYPES } from '@/data/event-types';
-import { VIVELO_ZONES } from '@/lib/constants';
 
 const footerSections = [
   {
@@ -41,61 +38,12 @@ const footerSections = [
   },
 ];
 
-export async function Footer() {
-  let showEventTypes = true;
-  let showZones = true;
-
-  try {
-    const banners = await getActiveSiteBannersServer();
-    const etBanner = banners.find(b => b.banner_key === 'footer_event_types');
-    const zBanner = banners.find(b => b.banner_key === 'footer_zones');
-    if (etBanner && !etBanner.is_active) showEventTypes = false;
-    if (zBanner && !zBanner.is_active) showZones = false;
-  } catch {
-    // Fallback: show both sections
-  }
-
-  const hasNavSections = showEventTypes || showZones;
-
+export function Footer() {
   return (
     <footer>
       {/* Main footer */}
       <div className="bg-deep-purple text-white">
         <div className="container mx-auto px-4 py-12">
-          {/* Navigation sections: event types + zones */}
-          {hasNavSections && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-8 mb-8 border-b border-white/10">
-              {showEventTypes && (
-                <div className="space-y-3">
-                  <h3 className="font-bold text-lg">Tipos de Evento</h3>
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                    {EVENT_TYPES.map(et => (
-                      <li key={et.slug}>
-                        <Link href={`/eventos/${et.slug}`} className="text-sm text-white/70 hover:text-white transition-colors">
-                          {et.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {showZones && (
-                <div className="space-y-3">
-                  <h3 className="font-bold text-lg">Zonas</h3>
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                    {VIVELO_ZONES.map(zone => (
-                      <li key={zone.slug}>
-                        <Link href={`/servicios/zona/${zone.slug}`} className="text-sm text-white/70 hover:text-white transition-colors">
-                          {zone.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
             {/* Logo + social */}
             <div className="lg:col-span-2 space-y-6">
