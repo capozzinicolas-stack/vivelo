@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PaginationControls } from '@/components/ui/pagination-controls';
-import { CheckCircle, XCircle, Loader2, KeyRound, UserPlus, Pause, Play, Trash2, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, KeyRound, UserPlus, Pause, Play, Trash2, AlertTriangle, Copy, Lock } from 'lucide-react';
 import type { Profile, UserRole } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -38,6 +38,11 @@ export default function AdminUsuariosPage() {
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Temp password dialog state
+  const [tempPasswordTarget, setTempPasswordTarget] = useState<Profile | null>(null);
+  const [generatingPassword, setGeneratingPassword] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
 
   const loadUsers = async () => {
     try {
@@ -161,6 +166,32 @@ export default function AdminUsuariosPage() {
     }
   };
 
+  const handleGenerateTempPassword = async () => {
+    if (!tempPasswordTarget) return;
+    setGeneratingPassword(true);
+    try {
+      const res = await fetch('/api/admin/users/temp-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: tempPasswordTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al generar contrasena');
+      setGeneratedPassword(data.tempPassword);
+      toast({ title: 'Contrasena temporal generada' });
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Error al generar', variant: 'destructive' });
+    } finally {
+      setGeneratingPassword(false);
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (!generatedPassword) return;
+    await navigator.clipboard.writeText(generatedPassword);
+    toast({ title: 'Contrasena copiada al portapapeles' });
+  };
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando usuarios" /></div>;
 
   return (
@@ -228,6 +259,10 @@ export default function AdminUsuariosPage() {
                       <Button size="sm" variant="outline" className="h-7" aria-label="Restablecer contrasena" disabled={resettingId === u.id} onClick={() => handleResetPassword(u.id, u.email)}>
                         {resettingId === u.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <KeyRound className="h-3 w-3 mr-1" />}
                         Restablecer
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7" aria-label="Generar contrasena temporal" onClick={() => { setTempPasswordTarget(u); setGeneratedPassword(null); }}>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Temp Pass
                       </Button>
                       <Button
                         size="sm"
@@ -312,6 +347,56 @@ export default function AdminUsuariosPage() {
               {deleting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
               Borrar permanentemente
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Temp Password Dialog */}
+      <Dialog open={!!tempPasswordTarget} onOpenChange={(open) => { if (!open) { setTempPasswordTarget(null); setGeneratedPassword(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-500" />
+              Generar contrasena temporal
+            </DialogTitle>
+            <DialogDescription>
+              {generatedPassword
+                ? <>Contrasena generada para <strong>{tempPasswordTarget?.full_name}</strong>. El usuario debera cambiarla al iniciar sesion.</>
+                : <>Se generara una contrasena temporal para <strong>{tempPasswordTarget?.full_name}</strong> ({tempPasswordTarget?.email}). La contrasena actual sera reemplazada.</>
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {generatedPassword ? (
+            <div className="space-y-3 py-2">
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                <code className="flex-1 text-lg font-mono font-bold text-center select-all">{generatedPassword}</code>
+                <Button size="sm" variant="ghost" aria-label="Copiar contrasena" onClick={handleCopyPassword}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Copia esta contrasena y compartela con el usuario. No se mostrara de nuevo.
+              </p>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            {generatedPassword ? (
+              <Button onClick={() => { setTempPasswordTarget(null); setGeneratedPassword(null); }}>
+                Cerrar
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setTempPasswordTarget(null)} disabled={generatingPassword}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleGenerateTempPassword} disabled={generatingPassword}>
+                  {generatingPassword ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <KeyRound className="h-4 w-4 mr-1" />}
+                  Generar contrasena
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

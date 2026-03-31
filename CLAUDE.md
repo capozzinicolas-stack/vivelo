@@ -512,7 +512,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion con Google Places + validacion de zona |
 | Zonas geograficas | ✅ Terminado | 9 zonas, Google Places Autocomplete, fallback manual, validacion de cobertura en carrito |
 | Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
-| Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, perfil admin |
+| Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, contrasena temporal, perfil admin. Booking status updates usan API route con service-role (bypass RLS) |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
 | Checkout + Stripe | ⚠️ En progreso | Pago funciona pero bookings pueden perderse (ver Bugs Conocidos) |
 | Cancelacion + reembolsos | ⚠️ En progreso | Funciona pero depende del fix de checkout |
@@ -749,6 +749,7 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 - **Invitar admin**: `POST /api/admin/users` — crea usuario con password random, rol admin, envia email recovery
 - **Pausar/Activar**: Toggle `verified` en profiles (verified=false actua como pausa)
 - **Borrar usuario**: `DELETE /api/admin/users` — borra profile + auth.users (protegido contra auto-borrado y FK constraints)
+- **Generar contrasena temporal**: `POST /api/admin/users/temp-password` — genera `Vivelo-XXXXXXXX`, la setea via service-role, marca `must_change_password=true`, retorna la contrasena en la respuesta para que el admin la copie y comparta manualmente. Util para usuarios con emails falsos donde el reset por correo no funciona.
 
 ## Recuperacion de Contrasena Cliente/Proveedor
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getAllBookings, updateBookingStatus } from '@/lib/supabase/queries';
+import { getAllBookings } from '@/lib/supabase/queries';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -108,11 +108,19 @@ export default function AdminReservasPage() {
 
   const handleStatusChange = async (id: string, status: BookingStatus) => {
     try {
-      await updateBookingStatus(id, status);
+      const res = await fetch('/api/admin/bookings/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: id, status }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al actualizar');
+      }
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
       toast({ title: `Reserva ${BOOKING_STATUS_LABELS[status]}` });
-    } catch {
-      toast({ title: 'Error', variant: 'destructive' });
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo actualizar', variant: 'destructive' });
     }
   };
 
