@@ -236,6 +236,52 @@ export async function getServiceBookingCountServer(serviceId: string): Promise<n
   return count ?? 0;
 }
 
+export async function getProviderBookingCountServer(providerId: string): Promise<number> {
+  const supabase = createAdminSupabaseClient();
+  const { count, error } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('provider_id', providerId)
+    .in('status', ['confirmed', 'completed']);
+  if (error) {
+    console.warn('[getProviderBookingCountServer] Query failed:', error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+export async function getProviderReviewsServer(providerId: string, limit = 5): Promise<Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }>> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('id, rating, comment, created_at, client:profiles!client_id(full_name), service:services!service_id(title, slug, provider_id)')
+    .eq('status', 'approved')
+    .not('comment', 'is', null)
+    .order('rating', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (error) {
+    console.warn('[getProviderReviewsServer] Query failed:', error.message);
+    return [];
+  }
+  // Filter by provider_id (supabase doesn't allow filtering on joined fields directly)
+  const filtered = (data || [])
+    .filter((r: Record<string, unknown>) => {
+      const svc = Array.isArray(r.service) ? r.service[0] : r.service;
+      return svc && (svc as Record<string, unknown>).provider_id === providerId;
+    })
+    .slice(0, limit)
+    .map((row: Record<string, unknown>) => {
+      const svc = Array.isArray(row.service) ? row.service[0] : row.service;
+      return {
+        ...row,
+        client: Array.isArray(row.client) ? row.client[0] : row.client,
+        service: svc ? { title: (svc as Record<string, string>).title, slug: (svc as Record<string, string>).slug } : undefined,
+      };
+    });
+  return filtered as Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }>;
+}
+
 // ─── REVIEWS ────────────────────────────────────────────────
 
 export async function getReviewsByServiceServer(serviceId: string): Promise<Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: Profile }>> {

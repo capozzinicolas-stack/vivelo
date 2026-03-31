@@ -544,6 +544,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Accessibility (aria-labels) | ✅ Terminado | Todos los icon-only buttons tienen `aria-label`. ~35 buttons en ~20 archivos. ToolbarButton de Tiptap usa `aria-label={title}` para cubrir todos los toolbar buttons. |
 | Contrast WCAG AA | ✅ Terminado | `text-white/80` → `text-white/90`, `text-white/70` → `text-white/90`, `text-white/50` → `text-white/70`, `placeholder:text-white/50` → `placeholder:text-white/70` en homepage, promo-banner, quien-somos, nuevos-proveedores. |
 | Terminos y Condiciones | ✅ Terminado | Pagina `/terminos-y-condiciones` con tabs (General + Proveedores). Checkbox obligatorio al registrar proveedor con dialog overlay de resumen. Tabla `terms_acceptances` registra user_id, terms_type, version, full_name, email, ip, user_agent, timestamp. API `POST /api/terms/accept`. Footer link actualizado. |
+| Pagina de Proveedor Mejorada | ✅ Terminado | Perfil con stats (eventos realizados, miembro desde), badges de categorias, resenas destacadas (top 5 del proveedor), filtros por zona/categoria/subcategoria + ordenar por precio/rating (solo si 4+ servicios). Client component `provider-services-grid.tsx`. Queries: `getProviderBookingCountServer`, `getProviderReviewsServer`. |
 
 ---
 
