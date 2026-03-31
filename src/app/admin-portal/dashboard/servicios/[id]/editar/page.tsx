@@ -486,7 +486,7 @@ export default function AdminEditarServicioPage() {
                     <div className="relative w-12 h-12 rounded overflow-hidden border shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={extra.image} alt={extra.name} className="w-full h-full object-cover" />
-                      <Button type="button" variant="destructive" size="icon" className="absolute top-0 right-0 h-4 w-4" onClick={() => handleRemoveExtraImage(extra.id, extra.image!)}><X className="h-2.5 w-2.5" /></Button>
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-0 right-0 h-4 w-4" onClick={() => handleRemoveExtraImage(extra.id, extra.image!)} aria-label="Eliminar imagen"><X className="h-2.5 w-2.5" /></Button>
                     </div>
                   )}
                   <div>
@@ -552,7 +552,7 @@ export default function AdminEditarServicioPage() {
                 <div className="relative mt-1 w-24 h-24 rounded-lg overflow-hidden border">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={newExtraImage} alt="Extra" className="w-full h-full object-cover" />
-                  <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={async () => { try { await deleteServiceMedia(newExtraImage); } catch { /* continue */ } setNewExtraImage(''); }}><X className="h-3 w-3" /></Button>
+                  <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={async () => { try { await deleteServiceMedia(newExtraImage); } catch { /* continue */ } setNewExtraImage(''); }} aria-label="Eliminar imagen"><X className="h-3 w-3" /></Button>
                 </div>
               ) : (
                 <label className="mt-1 flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">

@@ -179,7 +179,7 @@ export default function ProviderCampanasPage() {
                       Inscrito el {new Date(sub.created_at).toLocaleDateString('es-MX')}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleUnsubscribe(sub.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleUnsubscribe(sub.id)} aria-label="Cancelar suscripcion">
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
                 </CardContent>

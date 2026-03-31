@@ -109,10 +109,10 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                 <p className="text-xs text-muted-foreground">por {item.service_snapshot.provider_name}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(!editing)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(!editing)} aria-label={editing ? 'Cancelar edicion' : 'Editar'}>
                   {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onRemove}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onRemove} aria-label="Eliminar del carrito">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

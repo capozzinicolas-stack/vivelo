@@ -143,6 +143,7 @@ export function MediaUpload({
                   size="icon"
                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => handleRemove(item)}
+                  aria-label="Eliminar archivo"
                 >
                   <X className="h-3 w-3" />
                 </Button>

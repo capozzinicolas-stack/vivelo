@@ -86,9 +86,9 @@ export function ExtrasSelector({ extras, selectedExtras, onSelectionChange, gues
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Cantidad:</span>
-                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= minQty}><Minus className="h-3 w-3" /></Button>
+                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, -1)} disabled={qty <= minQty} aria-label="Reducir cantidad"><Minus className="h-3 w-3" /></Button>
                       <span className="w-8 text-center text-sm font-medium">{qty}</span>
-                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, 1)} disabled={qty >= extra.max_quantity}><Plus className="h-3 w-3" /></Button>
+                      <Button type="button" variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(extra.id, 1)} disabled={qty >= extra.max_quantity} aria-label="Aumentar cantidad"><Plus className="h-3 w-3" /></Button>
                       <span className="text-xs text-muted-foreground">
                         ({minQty > 1 ? `min ${minQty} · ` : ''}max {extra.max_quantity})
                       </span>

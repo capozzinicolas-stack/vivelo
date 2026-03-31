@@ -108,7 +108,7 @@ export function Sidebar({ role }: { role: UserRole }) {
       {/* Mobile hamburger + sheet */}
       <div className="fixed right-4 top-4 z-40 lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild><Button variant="outline" size="icon"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+          <SheetTrigger asChild><Button variant="outline" size="icon" aria-label="Abrir menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
           <SheetContent side="right" className="w-64 p-0">
             <SheetHeader className="border-b p-4">
               <SheetTitle className="text-left">

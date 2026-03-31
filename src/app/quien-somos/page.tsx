@@ -239,7 +239,7 @@ export default function QuienSomosPage() {
           <section className="bg-deep-purple text-white py-16 md:py-20 text-center">
             <div className="container mx-auto px-4">
               <h2 className="text-2xl md:text-3xl font-bold text-gold mb-4">Servicios para cada tipo de evento</h2>
-              <p className="text-white/80 text-lg max-w-2xl mx-auto mb-10">
+              <p className="text-white/90 text-lg max-w-2xl mx-auto mb-10">
                 Desde una fiesta de cumpleanos hasta un congreso empresarial, tenemos proveedores especializados en 6 categorias clave.
               </p>
 
@@ -255,7 +255,7 @@ export default function QuienSomosPage() {
                   <div key={cat.title} className="bg-white/[0.08] border border-white/[0.12] rounded-xl p-7 hover:bg-white/[0.14] transition-colors">
                     <div className="text-3xl mb-3">{cat.icon}</div>
                     <h3 className="text-base font-semibold mb-2">{cat.title}</h3>
-                    <p className="text-sm text-white/70">{cat.desc}</p>
+                    <p className="text-sm text-white/90">{cat.desc}</p>
                   </div>
                 ))}
               </div>

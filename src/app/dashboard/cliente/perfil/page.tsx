@@ -354,13 +354,13 @@ export default function ClientePerfilPage() {
           <CardContent>
             <div className="flex gap-2">
               <Input value={myReferralCode} readOnly className="font-mono font-bold text-center" />
-              <Button variant="outline" size="icon" onClick={() => {
+              <Button variant="outline" size="icon" aria-label="Copiar codigo" onClick={() => {
                 navigator.clipboard.writeText(myReferralCode);
                 toast({ title: 'Codigo copiado', description: 'Tu codigo de referido ha sido copiado al portapapeles.' });
               }}>
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" onClick={() => {
+              <Button variant="outline" size="icon" aria-label="Compartir codigo" onClick={() => {
                 const shareUrl = `https://solovivelo.com/register?ref=${myReferralCode}`;
                 if (navigator.share) {
                   navigator.share({ title: 'Vivelo', text: `Usa mi codigo ${myReferralCode} para un descuento!`, url: shareUrl });

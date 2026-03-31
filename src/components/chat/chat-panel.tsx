@@ -59,6 +59,7 @@ export function ChatPanel() {
           size="icon"
           onClick={toggleChat}
           className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/20"
+          aria-label="Cerrar chat"
         >
           <X className="h-5 w-5" />
         </Button>
@@ -88,6 +89,7 @@ export function ChatPanel() {
             size="icon"
             disabled={!input.trim() || isLoading}
             className="h-10 w-10 rounded-full"
+            aria-label="Enviar mensaje"
           >
             <Send className="h-4 w-4" />
           </Button>

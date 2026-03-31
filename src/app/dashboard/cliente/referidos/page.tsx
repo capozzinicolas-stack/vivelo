@@ -122,10 +122,10 @@ export default function ReferidosPage() {
             <>
               <div className="flex gap-2">
                 <Input value={referralCode.code} readOnly className="font-mono text-lg font-bold text-center" />
-                <Button variant="outline" size="icon" onClick={handleCopyCode}>
+                <Button variant="outline" size="icon" onClick={handleCopyCode} aria-label="Copiar codigo">
                   <Copy className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={handleShare}>
+                <Button variant="outline" size="icon" onClick={handleShare} aria-label="Compartir codigo">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>

@@ -23,7 +23,7 @@ export function NewsletterSection() {
       <div className="container mx-auto px-4 text-center max-w-2xl">
         <Mail className="h-10 w-10 mx-auto mb-4 opacity-80" />
         <h2 className="text-2xl md:text-3xl font-bold mb-2">Recibe ofertas exclusivas</h2>
-        <p className="text-white/80 mb-8">Suscribete y recibe las mejores promociones en servicios para tu proximo evento</p>
+        <p className="text-white/90 mb-8">Suscribete y recibe las mejores promociones en servicios para tu proximo evento</p>
 
         {status === 'success' ? (
           <div className="flex items-center justify-center gap-2 text-white">
@@ -38,7 +38,7 @@ export function NewsletterSection() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-white"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:border-white"
             />
             <Button
               type="submit"

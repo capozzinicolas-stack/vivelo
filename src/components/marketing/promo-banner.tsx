@@ -43,7 +43,7 @@ export function PromoBanner({ banner: bannerProp, bannerKey, variant = 'card', c
             <span className="text-xs font-semibold uppercase tracking-wider opacity-80">Promocion</span>
           </div>
           <h2 className="text-2xl md:text-3xl font-bold mb-2">{banner.title}</h2>
-          {banner.subtitle && <p className="text-white/80 mb-6 max-w-xl mx-auto">{banner.subtitle}</p>}
+          {banner.subtitle && <p className="text-white/90 mb-6 max-w-xl mx-auto">{banner.subtitle}</p>}
           {banner.button_text && banner.button_link && (
             <Button size="lg" variant="secondary" asChild>
               <Link href={banner.button_link}>{banner.button_text}</Link>
@@ -61,7 +61,7 @@ export function PromoBanner({ banner: bannerProp, bannerKey, variant = 'card', c
           <Megaphone className="h-5 w-5 shrink-0" />
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate">{banner.title}</p>
-            {banner.subtitle && <p className="text-xs text-white/80 truncate">{banner.subtitle}</p>}
+            {banner.subtitle && <p className="text-xs text-white/90 truncate">{banner.subtitle}</p>}
           </div>
         </div>
         {banner.button_text && banner.button_link && (
@@ -81,7 +81,7 @@ export function PromoBanner({ banner: bannerProp, bannerKey, variant = 'card', c
         <span className="text-xs font-semibold uppercase tracking-wider opacity-80">Promocion</span>
       </div>
       <h3 className="text-xl md:text-2xl font-bold mb-2">{banner.title}</h3>
-      {banner.subtitle && <p className="text-white/80 text-sm mb-4">{banner.subtitle}</p>}
+      {banner.subtitle && <p className="text-white/90 text-sm mb-4">{banner.subtitle}</p>}
       {banner.button_text && banner.button_link && (
         <Button variant="secondary" asChild>
           <Link href={banner.button_link}>{banner.button_text}</Link>

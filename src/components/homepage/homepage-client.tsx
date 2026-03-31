@@ -119,7 +119,7 @@ export function HomepageClient({
       <section className="bg-gradient-to-r from-deep-purple to-indigo-800 text-white py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Eres proveedor de servicios?</h2>
-          <p className="text-white/80 mb-8 max-w-xl mx-auto">Unete a Vivelo y conecta con miles de clientes buscando servicios para sus eventos en México.</p>
+          <p className="text-white/90 mb-8 max-w-xl mx-auto">Unete a Vivelo y conecta con miles de clientes buscando servicios para sus eventos en México.</p>
           <Button size="lg" variant="secondary" asChild><Link href="https://nuevosproveedores.solovivelo.com">Registrate como Proveedor</Link></Button>
         </div>
       </section>

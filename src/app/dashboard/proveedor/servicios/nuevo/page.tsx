@@ -432,7 +432,7 @@ export default function NuevoServicioPage() {
                     <div className="relative mt-1 w-24 h-24 rounded-lg overflow-hidden border">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={ex.image} alt="Extra" className="w-full h-full object-cover" />
-                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={() => handleRemoveExtraImage(i)}><X className="h-3 w-3" /></Button>
+                      <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5" onClick={() => handleRemoveExtraImage(i)} aria-label="Eliminar imagen"><X className="h-3 w-3" /></Button>
                     </div>
                   ) : (
                     <label className="mt-1 flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">

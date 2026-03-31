@@ -527,10 +527,10 @@ export default function AdminContenidoPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => openEditDialog(post)}>
+                            <Button size="icon" variant="ghost" onClick={() => openEditDialog(post)} aria-label="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleDelete(post.id)}>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(post.id)} aria-label="Eliminar">
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>

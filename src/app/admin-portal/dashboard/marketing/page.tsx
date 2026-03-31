@@ -425,7 +425,7 @@ export default function AdminMarketingPage() {
                           <TableCell>{new Date(p.start_date).toLocaleDateString('es-MX')}</TableCell>
                           <TableCell>{new Date(p.end_date).toLocaleDateString('es-MX')}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeletePlacement(p.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeletePlacement(p.id)} aria-label="Eliminar">
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </TableCell>
@@ -592,10 +592,10 @@ export default function AdminMarketingPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditBanner(banner)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEditBanner(banner)} aria-label="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(banner.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBanner(banner.id)} aria-label="Eliminar">
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>
@@ -703,10 +703,10 @@ export default function AdminMarketingPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditShowcase(item)}>
+                            <Button variant="ghost" size="icon" onClick={() => openEditShowcase(item)} aria-label="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteShowcase(item.id)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteShowcase(item.id)} aria-label="Eliminar">
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </div>

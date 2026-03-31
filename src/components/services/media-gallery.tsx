@@ -50,6 +50,7 @@ export function MediaGallery({ images, videos, title }: MediaGalleryProps) {
               size="icon"
               className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full shadow-lg"
               onClick={prev}
+              aria-label="Imagen anterior"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -59,6 +60,7 @@ export function MediaGallery({ images, videos, title }: MediaGalleryProps) {
               size="icon"
               className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 rounded-full shadow-lg"
               onClick={next}
+              aria-label="Imagen siguiente"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>

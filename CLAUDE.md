@@ -540,6 +540,9 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Indicadores de Urgencia | ✅ Terminado | Badge amber en detalle de servicio cuando `bookingCount >= 5`. Usa datos reales de reservas (all-time). |
 | next/image Migration | ✅ Terminado | service-card, media-gallery, extras-selector migrados de `<img>` a `next/image` con `fill` + `sizes`. Hero image convertido a WebP. |
 | Dynamic Imports | ✅ Terminado | Tiptap RichTextEditor carga via `next/dynamic` con `ssr: false` + skeleton loading. |
+| Image Optimization Config | ✅ Terminado | AVIF+WebP formats, 30-day minimumCacheTTL, optimized deviceSizes/imageSizes en `next.config.mjs`. Cache headers para `/_next/static` (immutable), `/_next/image` (30d), `hero-bg.webp` (immutable). |
+| Accessibility (aria-labels) | ✅ Terminado | Todos los icon-only buttons tienen `aria-label`. ~35 buttons en ~20 archivos. ToolbarButton de Tiptap usa `aria-label={title}` para cubrir todos los toolbar buttons. |
+| Contrast WCAG AA | ✅ Terminado | `text-white/80` → `text-white/90`, `text-white/70` → `text-white/90`, `text-white/50` → `text-white/70`, `placeholder:text-white/50` → `placeholder:text-white/70` en homepage, promo-banner, quien-somos, nuevos-proveedores. |
 
 ---
 

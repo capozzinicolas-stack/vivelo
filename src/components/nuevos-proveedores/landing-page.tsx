@@ -204,7 +204,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
             Haz Crecer tu Negocio de Eventos con{' '}
             <span className="text-[#ecbe38]">Vivelo</span>
           </h1>
-          <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10">
+          <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto mb-10">
             Únete a la plataforma líder en México. Recibe reservas, gestiona tu agenda y cobra de
             forma segura — todo en un solo lugar.
           </p>
@@ -324,7 +324,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
           <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-4">
             Tu Dashboard de Proveedor
           </h2>
-          <p className="text-white/70 text-center mb-12 max-w-2xl mx-auto">
+          <p className="text-white/90 text-center mb-12 max-w-2xl mx-auto">
             Todo lo que necesitas para administrar tu negocio, en un solo panel.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -337,7 +337,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
                   <feature.icon className="w-6 h-6 text-[#43276c]" />
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-white/70 text-sm leading-relaxed">{feature.description}</p>
+                <p className="text-white/90 text-sm leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -401,7 +401,7 @@ export function LandingPage({ faqItems }: LandingPageProps) {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             ¿Listo para Crecer?
           </h2>
-          <p className="text-white/70 text-lg mb-10 max-w-xl mx-auto">
+          <p className="text-white/90 text-lg mb-10 max-w-xl mx-auto">
             Miles de clientes buscan servicios como los tuyos. Regístrate hoy y empieza a recibir
             reservas.
           </p>
@@ -416,13 +416,13 @@ export function LandingPage({ faqItems }: LandingPageProps) {
 
       {/* Footer */}
       <footer className="bg-[#3a2060] py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/70">
           <p>&copy; {new Date().getFullYear()} Vivelo. Todos los derechos reservados.</p>
           <div className="flex gap-6">
-            <Link href="https://solovivelo.com/terminos" className="hover:text-white/80 transition-colors">
+            <Link href="https://solovivelo.com/terminos" className="hover:text-white/90 transition-colors">
               Términos
             </Link>
-            <Link href="https://solovivelo.com/politica-de-privacidad" className="hover:text-white/80 transition-colors">
+            <Link href="https://solovivelo.com/politica-de-privacidad" className="hover:text-white/90 transition-colors">
               Privacidad
             </Link>
           </div>

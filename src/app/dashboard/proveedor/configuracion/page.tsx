@@ -262,7 +262,7 @@ export default function ProveedorConfiguracionPage() {
               <div className="mt-1 flex items-center gap-3 p-3 rounded-lg bg-muted">
                 <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                 <span className="text-sm truncate flex-1">Documento subido</span>
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setBankDocumentUrl('')}>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setBankDocumentUrl('')} aria-label="Eliminar documento">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
