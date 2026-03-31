@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Users, Store, Gift } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,6 +23,8 @@ export function RegisterForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
   const { signUp } = useAuth();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
@@ -57,8 +61,38 @@ export function RegisterForm() {
       return;
     }
 
+    if (role === 'provider' && !termsAccepted) {
+      setError('Debes aceptar los Terminos y Condiciones para Proveedores');
+      setLoading(false);
+      return;
+    }
+
     try {
       await signUp(email, password, fullName, role, digitsOnly);
+
+      // Record terms acceptance for providers (non-blocking)
+      if (role === 'provider') {
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            await fetch('/api/terms/accept', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: authUser.id,
+                termsType: 'provider',
+                termsVersion: '1.0',
+                fullName,
+                email,
+              }),
+            });
+          }
+        } catch {
+          // Non-blocking: terms recording failure shouldn't block registration
+        }
+      }
 
       // Apply referral code after successful signup
       const storedRef = localStorage.getItem('vivelo-referral-code');
@@ -179,9 +213,30 @@ export function RegisterForm() {
               minLength={6}
             />
           </div>
+
+          {role === 'provider' && (
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="terms"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="mt-0.5"
+              />
+              <label htmlFor="terms" className="text-sm text-muted-foreground leading-tight">
+                Acepto los{' '}
+                <button
+                  type="button"
+                  onClick={() => setTermsDialogOpen(true)}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Terminos y Condiciones para Proveedores
+                </button>
+              </label>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || (role === 'provider' && !termsAccepted)}>
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </Button>
           <p className="text-sm text-muted-foreground">
@@ -192,6 +247,73 @@ export function RegisterForm() {
           </p>
         </CardFooter>
       </form>
+
+      {/* Provider Terms Dialog */}
+      <Dialog open={termsDialogOpen} onOpenChange={setTermsDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Terminos y Condiciones para Proveedores</DialogTitle>
+          </DialogHeader>
+          <div className="h-[60vh] overflow-y-auto pr-4">
+            <div className="space-y-6 text-sm leading-relaxed text-foreground">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                <p className="font-semibold text-amber-800">IMPORTANTE</p>
+                <p className="text-amber-700 mt-1">Al registrarse como Proveedor en la plataforma Vivelo y marcar la casilla de aceptacion, usted manifiesta haber leido, comprendido y aceptado de manera expresa e incondicional los presentes Terminos.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">1. Objeto</h3>
+                <p>Los presentes Terminos establecen las reglas bajo las cuales el Proveedor publicara, ofrecera y prestara sus servicios a traves de la plataforma digital Vivelo (solovivelo.com), operada por VIVELO TECNOLOGIA EN EXPERIENCIAS S.A.S de C.V.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">2. Alta y Registro</h3>
+                <p>El Proveedor debera completar el formulario de registro con informacion veraz, proporcionar documentacion requerida (RFC, CLABE, identificacion), y aceptar estos Terminos. El registro esta sujeto a aprobacion de Vivelo.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">3. Comisiones y Pagos</h3>
+                <p>Vivelo retendra una comision base del 16% sobre cada transaccion (puede variar por categoria). El pago se liquida posterior a la prestacion del servicio y recepcion de factura. El Proveedor debera emitir CFDI dentro de 3 dias habiles.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">4. Obligaciones del Proveedor</h3>
+                <p>Prestar servicios con calidad y puntualidad, mantener disponibilidad actualizada, responder en maximo 4 horas habiles, cumplir con legislacion mexicana, no redirigir clientes fuera de la Plataforma.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">5. Cancelaciones y Penalizaciones</h3>
+                <p>Cancelaciones por el Proveedor: penalizacion del 10% (mas de 15 dias) al 100% (menos de 72 horas). Mas de 2 cancelaciones en 6 meses pueden causar baja.</p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">6-14. Mas clausulas</h3>
+                <p>Este es un resumen. Para leer los terminos completos, visita la pagina de{' '}
+                  <Link href="/terminos-y-condiciones?tab=proveedores" target="_blank" className="text-primary hover:underline font-medium">
+                    Terminos y Condiciones para Proveedores
+                  </Link>.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-deep-purple mb-1">Aceptacion Digital</h3>
+                <p>Vivelo registrara la fecha, hora e identificador de la aceptacion como evidencia legal del consentimiento otorgado, conforme a los articulos 89 a 94 del Codigo de Comercio de Mexico.</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Link href="/terminos-y-condiciones?tab=proveedores" target="_blank" className="text-sm text-primary hover:underline mr-auto self-center">
+              Ver terminos completos
+            </Link>
+            <Button variant="outline" onClick={() => setTermsDialogOpen(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => { setTermsAccepted(true); setTermsDialogOpen(false); }}>
+              Acepto los Terminos
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
