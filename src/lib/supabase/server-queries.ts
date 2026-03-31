@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from './server';
+import { createAdminSupabaseClient } from './admin';
 import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner, CatalogCategory, CatalogZone } from '@/types/database';
 
 /**
@@ -222,14 +223,12 @@ export async function getRelatedBlogPostsServer(postId: string, tags: string[], 
 // ─── BOOKINGS (counts) ─────────────────────────────────────
 
 export async function getServiceBookingCountServer(serviceId: string): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
-  const supabase = createServerSupabaseClient();
+  const supabase = createAdminSupabaseClient();
   const { count, error } = await supabase
     .from('bookings')
     .select('id', { count: 'exact', head: true })
     .eq('service_id', serviceId)
-    .in('status', ['confirmed', 'completed'])
-    .lt('event_date', today);
+    .in('status', ['confirmed', 'completed']);
   if (error) {
     console.warn('[getServiceBookingCountServer] Query failed:', error.message);
     return 0;
