@@ -115,6 +115,9 @@ export function HomepageClient({
       {/* 11. Blog - Todo sobre el mundo de eventos */}
       <BlogSection posts={blogPosts} loading={false} />
 
+      {/* 11.5. Newsletter */}
+      <NewsletterSection />
+
       {/* 12. CTA Proveedor */}
       <section className="bg-gradient-to-r from-deep-purple to-indigo-800 text-white py-16">
         <div className="container mx-auto px-4 text-center">
@@ -123,9 +126,6 @@ export function HomepageClient({
           <Button size="lg" variant="secondary" asChild><Link href="https://nuevosproveedores.solovivelo.com">Registrate como Proveedor</Link></Button>
         </div>
       </section>
-
-      {/* 12.5. Newsletter */}
-      <NewsletterSection />
 
       {/* Exit-intent popup */}
       <ExitIntentPopup />

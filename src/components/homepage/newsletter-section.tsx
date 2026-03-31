@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, CheckCircle2, Mail } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 import { useNewsletterSubscribe, isNewsletterSubscribed } from '@/hooks/use-newsletter-subscribe';
 
 export function NewsletterSection() {
@@ -19,43 +19,42 @@ export function NewsletterSection() {
   if (alreadySubscribed) return null;
 
   return (
-    <section className="bg-gradient-to-r from-deep-purple to-indigo-800 text-white py-16">
-      <div className="container mx-auto px-4 text-center max-w-2xl">
-        <Mail className="h-10 w-10 mx-auto mb-4 opacity-80" />
-        <h2 className="text-2xl md:text-3xl font-bold mb-2">Recibe ofertas exclusivas</h2>
-        <p className="text-white/90 mb-8">Suscribete y recibe las mejores promociones en servicios para tu proximo evento</p>
-
+    <section className="border-t bg-off-white py-10">
+      <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-4 max-w-2xl">
         {status === 'success' ? (
-          <div className="flex items-center justify-center gap-2 text-white">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">Gracias por suscribirte!</span>
+          <div className="flex items-center gap-2 text-green-700">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm font-medium">Gracias por suscribirte!</span>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <Input
-              type="email"
-              placeholder="Tu correo electronico"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:border-white"
-            />
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={status === 'loading'}
-              className="shrink-0"
-            >
-              {status === 'loading' ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-2" />Enviando...</>
-              ) : (
-                'Suscribirme'
-              )}
-            </Button>
-          </form>
+          <>
+            <p className="text-sm text-muted-foreground shrink-0">Recibe ofertas exclusivas para tu proximo evento</p>
+            <form onSubmit={handleSubmit} className="flex gap-2 w-full sm:w-auto">
+              <Input
+                type="email"
+                placeholder="Tu correo"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                className="h-9 w-full sm:w-56"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={status === 'loading'}
+                className="shrink-0"
+              >
+                {status === 'loading' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Suscribirme'
+                )}
+              </Button>
+            </form>
+          </>
         )}
         {status === 'error' && (
-          <p className="text-red-300 text-sm mt-2">{errorMsg}</p>
+          <p className="text-red-500 text-xs">{errorMsg}</p>
         )}
       </div>
     </section>
