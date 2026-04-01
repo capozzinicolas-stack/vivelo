@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { COMMISSION_RATE } from '@/lib/constants';
-import { DollarSign, TrendingUp, CreditCard, Clock, Loader2, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, ShieldX, Users } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, Clock, Loader2, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, ShieldX, Users, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
-import type { Booking, Profile } from '@/types/database';
+import { calculateRetentions, REGIMENES_FISCALES } from '@/lib/fiscal';
+import type { Booking, Profile, RegimenFiscal, PersonaType, FiscalStatus } from '@/types/database';
 
 const PERIODS = [
   { value: 'this_month', label: 'Este mes' },
@@ -23,6 +24,14 @@ const PERIODS = [
 ] as const;
 
 type MonthlySortKey = 'month' | 'bookings' | 'revenue' | 'commissions' | 'margin';
+
+interface FiscalRecord {
+  provider_id: string;
+  regimen_fiscal: RegimenFiscal;
+  tipo_persona: PersonaType;
+  fiscal_status: FiscalStatus;
+  provider_name: string;
+}
 
 function getDateRange(period: string): { from: string | null; to: string | null } {
   const now = new Date();
@@ -68,16 +77,23 @@ export default function AdminFinanzasPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [providers, setProviders] = useState<(Profile & { service_count: number })[]>([]);
   const [categoryRates, setCategoryRates] = useState<Record<string, number>>({});
+  const [fiscalData, setFiscalData] = useState<FiscalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('all');
   const [sortKey, setSortKey] = useState<MonthlySortKey>('month');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    Promise.all([getAllBookings(), getProvidersWithCommission(), getCategoryCommissionRates()]).then(([b, p, rates]) => {
+    const fetchFiscal = fetch('/api/admin/fiscal/list')
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => (d.data || []) as FiscalRecord[])
+      .catch(() => [] as FiscalRecord[]);
+
+    Promise.all([getAllBookings(), getProvidersWithCommission(), getCategoryCommissionRates(), fetchFiscal]).then(([b, p, rates, fiscal]) => {
       setBookings(b);
       setProviders(p);
       setCategoryRates(rates);
+      setFiscalData(fiscal);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -196,6 +212,38 @@ export default function AdminFinanzasPage() {
     });
     return Object.values(map).sort((a, b) => b.gmv - a.gmv).slice(0, 5);
   }, [confirmed, providers]);
+
+  // Liquidacion con retenciones (display only — no modifica montos)
+  const providerLiquidation = useMemo(() => {
+    const map: Record<string, { name: string; net: number }> = {};
+    confirmed.forEach(b => {
+      const pid = b.provider_id;
+      if (!map[pid]) {
+        const prov = providers.find(p => p.id === pid);
+        map[pid] = { name: b.provider?.full_name || prov?.full_name || 'Proveedor', net: 0 };
+      }
+      map[pid].net += b.total - b.commission;
+    });
+
+    const fiscalMap: Record<string, FiscalRecord> = {};
+    fiscalData.forEach(f => { fiscalMap[f.provider_id] = f; });
+
+    return Object.entries(map).map(([pid, data]) => {
+      const fiscal = fiscalMap[pid];
+      if (!fiscal) {
+        return { ...data, providerId: pid, hasFiscal: false as const };
+      }
+      const ret = calculateRetentions(data.net, fiscal.regimen_fiscal, fiscal.tipo_persona);
+      return {
+        ...data,
+        providerId: pid,
+        hasFiscal: true as const,
+        regimen: fiscal.regimen_fiscal,
+        fiscalStatus: fiscal.fiscal_status,
+        ...ret,
+      };
+    }).sort((a, b) => b.net - a.net);
+  }, [confirmed, providers, fiscalData]);
 
   // Category breakdown
   const categories = useMemo(() => {
@@ -456,6 +504,69 @@ export default function AdminFinanzasPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Liquidacion con Retenciones (display only) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Liquidacion con Retenciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {providerLiquidation.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">Sin datos aun</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Proveedor</TableHead>
+                    <TableHead>Regimen</TableHead>
+                    <TableHead>Pago Neto</TableHead>
+                    <TableHead>ISR</TableHead>
+                    <TableHead>IVA</TableHead>
+                    <TableHead>Neto tras Retenciones</TableHead>
+                    <TableHead>Estado Fiscal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {providerLiquidation.map(p => (
+                    <TableRow key={p.providerId}>
+                      <TableCell className="font-medium">{p.name}</TableCell>
+                      <TableCell className="max-w-[200px]">
+                        {p.hasFiscal
+                          ? <span className="text-xs truncate block">{REGIMENES_FISCALES[p.regimen]}</span>
+                          : <span className="text-xs text-muted-foreground">Sin datos fiscales</span>}
+                      </TableCell>
+                      <TableCell>${p.net.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {p.hasFiscal
+                          ? `$${p.isr_amount.toLocaleString()} (${(p.isr_rate * 100).toFixed(1)}%)`
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {p.hasFiscal
+                          ? `$${p.iva_amount.toLocaleString()} (${(p.iva_rate * 100).toFixed(1)}%)`
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {p.hasFiscal ? `$${p.net_after_retentions.toLocaleString()}` : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {p.hasFiscal
+                          ? <Badge variant={p.fiscalStatus === 'approved' ? 'default' : 'secondary'} className="text-xs">
+                              {p.fiscalStatus === 'approved' ? 'Aprobado' : p.fiscalStatus === 'pending_review' ? 'Pendiente' : p.fiscalStatus === 'rejected' ? 'Rechazado' : 'Incompleto'}
+                            </Badge>
+                          : <Badge variant="outline" className="text-xs">Sin datos</Badge>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
