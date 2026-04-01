@@ -6,6 +6,9 @@ export type BlogMediaType = 'text' | 'video' | 'audio';
 export type BlogStatus = 'draft' | 'published' | 'archived';
 export type ServiceCategory = string;
 export type ServiceSubcategory = string;
+export type FiscalStatus = 'incomplete' | 'pending_review' | 'approved' | 'rejected';
+export type PersonaType = 'fisica' | 'moral';
+export type RegimenFiscal = '601' | '603' | '605' | '606' | '607' | '608' | '610' | '611' | '612' | '614' | '615' | '616' | '620' | '621' | '622' | '623' | '624' | '625' | '626';
 
 export interface CatalogCategory {
   slug: string;
@@ -449,6 +452,38 @@ export interface UtmAttribution {
   created_at: string;
 }
 
+export interface DireccionFiscal {
+  calle: string;
+  numero_exterior: string;
+  numero_interior?: string;
+  colonia: string;
+  codigo_postal: string;
+  municipio: string;
+  estado: string;
+  pais: string;
+}
+
+export interface ProviderFiscalData {
+  id: string;
+  provider_id: string;
+  rfc: string;
+  razon_social: string;
+  tipo_persona: PersonaType;
+  regimen_fiscal: RegimenFiscal;
+  uso_cfdi: string;
+  direccion_fiscal: DireccionFiscal;
+  clabe: string | null;
+  banco: string | null;
+  constancia_url: string | null;
+  estado_cuenta_url: string | null;
+  fiscal_status: FiscalStatus;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -471,6 +506,7 @@ export interface Database {
       showcase_items: { Row: ShowcaseItem; Insert: Partial<ShowcaseItem> & Pick<ShowcaseItem, 'label' | 'subcategory' | 'parent_category'>; Update: Partial<ShowcaseItem> };
       site_banners: { Row: SiteBanner; Insert: Partial<SiteBanner> & Pick<SiteBanner, 'banner_key' | 'title'>; Update: Partial<SiteBanner> };
       cancellation_policies: { Row: CancellationPolicy; Insert: Partial<CancellationPolicy> & Pick<CancellationPolicy, 'name' | 'rules'>; Update: Partial<CancellationPolicy> };
+      provider_fiscal_data: { Row: ProviderFiscalData; Insert: Partial<ProviderFiscalData> & Pick<ProviderFiscalData, 'provider_id' | 'rfc' | 'razon_social' | 'tipo_persona' | 'regimen_fiscal'>; Update: Partial<ProviderFiscalData> };
     };
   };
 }

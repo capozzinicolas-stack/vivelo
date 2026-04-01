@@ -545,6 +545,41 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Contrast WCAG AA | ✅ Terminado | `text-white/80` → `text-white/90`, `text-white/70` → `text-white/90`, `text-white/50` → `text-white/70`, `placeholder:text-white/50` → `placeholder:text-white/70` en homepage, promo-banner, quien-somos, nuevos-proveedores. |
 | Terminos y Condiciones | ✅ Terminado | Pagina `/terminos-y-condiciones` con tabs (General + Proveedores). Checkbox obligatorio al registrar proveedor con dialog overlay de resumen. Tabla `terms_acceptances` registra user_id, terms_type, version, full_name, email, ip, user_agent, timestamp. API `POST /api/terms/accept`. Footer link actualizado. |
 | Pagina de Proveedor Mejorada | ✅ Terminado | Perfil con stats (eventos realizados, miembro desde), badges de categorias, resenas destacadas (top 5 del proveedor), filtros por zona/categoria/subcategoria + ordenar por precio/rating (solo si 4+ servicios). Client component `provider-services-grid.tsx`. Queries: `getProviderBookingCountServer`, `getProviderReviewsServer`. |
+| Datos Fiscales Proveedores (Backend) | ✅ Terminado | Tabla `provider_fiscal_data` aislada (no toca profiles/bookings/snapshots). Modulo `src/lib/fiscal.ts` con validacion RFC, CLABE, regimenes SAT y calculo de retenciones ISR/IVA (solo visualizacion, NO en flujo de pago). API routes: `GET/POST /api/provider/fiscal`, `POST /api/provider/fiscal/documents` (upload a bucket privado `fiscal-documents`), `GET /api/admin/fiscal/[providerId]` (con URLs firmadas), `PATCH /api/admin/fiscal/[providerId]/status`. Zod schemas en api-schemas.ts. Tipos en database.ts. RLS: proveedor lee/escribe propio, admin via service-role. Datos aprobados son inmutables. Pendiente: UI de proveedor (Fase 2) y UI admin (Fase 3). |
+
+---
+
+## Datos Fiscales — Arquitectura
+
+### Reglas Inquebrantables
+
+1. **NO se toca** `commission.ts`, checkout flow, state machine, ni booking snapshots
+2. Tabla `provider_fiscal_data` es 100% aislada — no modifica `profiles`, `bookings`, ni `booking_snapshots`
+3. Retenciones ISR/IVA se calculan en `src/lib/fiscal.ts` **solo para visualizacion** en reportes de liquidacion
+4. Documentos fiscales van en bucket privado `fiscal-documents` con URLs firmadas (no publicas)
+5. Datos aprobados (`fiscal_status = 'approved'`) son inmutables — el proveedor no puede editarlos
+
+### Archivos
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00107_provider_fiscal_data.sql` | Tabla, enums, RLS, trigger updated_at |
+| `src/lib/fiscal.ts` | Validacion RFC/CLABE, regimenes SAT, calculo retenciones, catalogo bancos/CFDI |
+| `src/types/database.ts` | Tipos `ProviderFiscalData`, `DireccionFiscal`, `FiscalStatus`, `PersonaType`, `RegimenFiscal` |
+| `src/lib/validations/api-schemas.ts` | `CreateFiscalDataSchema`, `UpdateFiscalDataSchema`, `UpdateFiscalStatusSchema` |
+| `src/app/api/provider/fiscal/route.ts` | GET (leer propio) + POST (crear/actualizar) |
+| `src/app/api/provider/fiscal/documents/route.ts` | POST (upload constancia/estado_cuenta) |
+| `src/app/api/admin/fiscal/[providerId]/route.ts` | GET (admin lee datos + URLs firmadas) |
+| `src/app/api/admin/fiscal/[providerId]/status/route.ts` | PATCH (admin aprueba/rechaza) |
+
+### Retenciones (solo lectura)
+
+```
+netAmount = bookingTotal - commission  (calculado externamente, NO en fiscal.ts)
+calculateRetentions(netAmount, regimen, tipoPersona) → { isr_amount, iva_amount, net_after_retentions }
+```
+
+Tasas varian por regimen: RESICO (626) = 1.25% ISR, Plataformas (625) = 1% ISR + 8% IVA, PFAE (612) = 10% ISR. Redondeo: `Math.round(valor × 100) / 100`.
 
 ---
 

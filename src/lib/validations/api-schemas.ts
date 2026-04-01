@@ -125,6 +125,48 @@ export const UpdateTagSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
+// ─── Fiscal Data Schemas ──────────────────────────────────
+
+const REGIMENES_VALIDOS = ['601', '603', '605', '606', '607', '608', '610', '611', '612', '614', '615', '616', '620', '621', '622', '623', '624', '625', '626'] as const;
+
+const DireccionFiscalSchema = z.object({
+  calle: z.string().min(1, 'Calle es requerida'),
+  numero_exterior: z.string().min(1, 'Numero exterior es requerido'),
+  numero_interior: z.string().optional(),
+  colonia: z.string().min(1, 'Colonia es requerida'),
+  codigo_postal: z.string().regex(/^\d{5}$/, 'Codigo postal debe tener 5 digitos'),
+  municipio: z.string().min(1, 'Municipio es requerido'),
+  estado: z.string().min(1, 'Estado es requerido'),
+  pais: z.string().default('Mexico'),
+});
+
+export const CreateFiscalDataSchema = z.object({
+  rfc: z.string().min(12, 'RFC debe tener al menos 12 caracteres').max(13, 'RFC debe tener maximo 13 caracteres'),
+  razon_social: z.string().min(1, 'Razon social es requerida').max(300, 'Razon social muy larga'),
+  tipo_persona: z.enum(['fisica', 'moral'], { message: 'Tipo de persona debe ser "fisica" o "moral"' }),
+  regimen_fiscal: z.enum(REGIMENES_VALIDOS, { message: 'Regimen fiscal invalido' }),
+  uso_cfdi: z.string().min(1, 'Uso de CFDI es requerido').default('G03'),
+  direccion_fiscal: DireccionFiscalSchema,
+  clabe: z.string().regex(/^\d{18}$/, 'CLABE debe tener 18 digitos').optional().nullable(),
+  banco: z.string().max(100).optional().nullable(),
+});
+
+export const UpdateFiscalDataSchema = z.object({
+  rfc: z.string().min(12).max(13).optional(),
+  razon_social: z.string().min(1).max(300).optional(),
+  tipo_persona: z.enum(['fisica', 'moral']).optional(),
+  regimen_fiscal: z.enum(REGIMENES_VALIDOS).optional(),
+  uso_cfdi: z.string().min(1).optional(),
+  direccion_fiscal: DireccionFiscalSchema.optional(),
+  clabe: z.string().regex(/^\d{18}$/, 'CLABE debe tener 18 digitos').optional().nullable(),
+  banco: z.string().max(100).optional().nullable(),
+});
+
+export const UpdateFiscalStatusSchema = z.object({
+  fiscal_status: z.enum(['pending_review', 'approved', 'rejected'], { message: 'Estado fiscal invalido' }),
+  admin_notes: z.string().max(1000, 'Notas muy largas').optional().nullable(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>
