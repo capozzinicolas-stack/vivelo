@@ -546,7 +546,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Terminos y Condiciones | ✅ Terminado | Pagina `/terminos-y-condiciones` con tabs (General + Proveedores). Checkbox obligatorio al registrar proveedor con dialog overlay de resumen. Tabla `terms_acceptances` registra user_id, terms_type, version, full_name, email, ip, user_agent, timestamp. API `POST /api/terms/accept`. Footer link actualizado. |
 | Pagina de Proveedor Mejorada | ✅ Terminado | Perfil con stats (eventos realizados, miembro desde), badges de categorias, resenas destacadas (top 5 del proveedor), filtros por zona/categoria/subcategoria + ordenar por precio/rating (solo si 4+ servicios). Client component `provider-services-grid.tsx`. Queries: `getProviderBookingCountServer`, `getProviderReviewsServer`. |
 | Datos Fiscales Proveedores (Backend) | ✅ Terminado | Tabla `provider_fiscal_data` aislada (no toca profiles/bookings/snapshots). Modulo `src/lib/fiscal.ts` con validacion RFC, CLABE, regimenes SAT y calculo de retenciones ISR/IVA (solo visualizacion, NO en flujo de pago). API routes: `GET/POST /api/provider/fiscal`, `POST /api/provider/fiscal/documents` (upload a bucket privado `fiscal-documents`), `GET /api/admin/fiscal/[providerId]` (con URLs firmadas), `PATCH /api/admin/fiscal/[providerId]/status`. Zod schemas en api-schemas.ts. Tipos en database.ts. RLS: proveedor lee/escribe propio, admin via service-role. Datos aprobados son inmutables. |
-| Datos Fiscales Proveedores (UI Proveedor) | ✅ Terminado | Pagina `/dashboard/proveedor/datos-fiscales` con formulario completo: tipo persona, RFC (validacion por tipo), razon social, regimen fiscal (filtrado por tipo persona), uso CFDI, direccion fiscal (calle, numeros, colonia, CP, municipio, estado), datos bancarios (banco, CLABE), upload de constancia y estado de cuenta. Badge de estado fiscal. Datos aprobados son inmutables (formulario deshabilitado). Link "Datos Fiscales" con icono Receipt en sidebar del proveedor. Pendiente: UI admin (Fase 3). |
+| Datos Fiscales Proveedores (UI Proveedor) | ✅ Terminado | Pagina `/dashboard/proveedor/datos-fiscales` con formulario completo: tipo persona, RFC (validacion por tipo), razon social, regimen fiscal (filtrado por tipo persona), uso CFDI, direccion fiscal (calle, numeros, colonia, CP, municipio, estado), datos bancarios (banco, CLABE), upload de constancia y estado de cuenta. Badge de estado fiscal. Datos aprobados son inmutables (formulario deshabilitado). Link "Datos Fiscales" con icono Receipt en sidebar del proveedor. |
+| Datos Fiscales Proveedores (UI Admin) | ✅ Terminado | Pagina `/admin-portal/dashboard/fiscal` con tabla de todos los proveedores con datos fiscales, filtro por estado, busqueda por nombre/email/RFC. Dialog de detalle con toda la info fiscal, direccion, banco, documentos (URLs firmadas). Botones aprobar/rechazar con notas de admin. API `GET /api/admin/fiscal/list` para listar todos. Link "Fiscal" con icono Receipt en admin sidebar. |
 
 ---
 
@@ -570,8 +571,11 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | `src/lib/validations/api-schemas.ts` | `CreateFiscalDataSchema`, `UpdateFiscalDataSchema`, `UpdateFiscalStatusSchema` |
 | `src/app/api/provider/fiscal/route.ts` | GET (leer propio) + POST (crear/actualizar) |
 | `src/app/api/provider/fiscal/documents/route.ts` | POST (upload constancia/estado_cuenta) |
+| `src/app/api/admin/fiscal/list/route.ts` | GET (admin lista todos con join a profiles) |
 | `src/app/api/admin/fiscal/[providerId]/route.ts` | GET (admin lee datos + URLs firmadas) |
 | `src/app/api/admin/fiscal/[providerId]/status/route.ts` | PATCH (admin aprueba/rechaza) |
+| `src/app/dashboard/proveedor/datos-fiscales/page.tsx` | UI proveedor: formulario fiscal completo |
+| `src/app/admin-portal/dashboard/fiscal/page.tsx` | UI admin: tabla, detalle, aprobar/rechazar |
 
 ### Retenciones (solo lectura)
 

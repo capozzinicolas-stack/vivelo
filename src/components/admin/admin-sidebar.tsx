@@ -23,6 +23,7 @@ import {
   Store,
   Star,
   CircleUser,
+  Receipt,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -32,6 +33,7 @@ const adminNavItems = [
   { label: 'Servicios', href: '/dashboard/servicios', icon: ShieldCheck },
   { label: 'Reservas', href: '/dashboard/reservas', icon: CalendarCheck },
   { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { label: 'Fiscal', href: '/dashboard/fiscal', icon: Receipt },
   { label: 'Finanzas', href: '/dashboard/finanzas', icon: DollarSign },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
   { label: 'Contenido', href: '/dashboard/contenido', icon: FileText },
