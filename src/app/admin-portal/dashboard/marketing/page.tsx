@@ -14,16 +14,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Trash2, Pencil, BookOpen, Download, ExternalLink } from 'lucide-react';
-import type { FeaturedPlacement, Campaign, FeaturedSection, Service, ShowcaseItem, SiteBanner } from '@/types/database';
+import type { FeaturedPlacement, FeaturedProvider, Campaign, FeaturedSection, Service, ShowcaseItem, SiteBanner, Profile } from '@/types/database';
 import { FEATURED_SECTION_LABELS, CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_COLORS, GRADIENT_OPTIONS, BANNER_KEY_LABELS } from '@/lib/constants';
 import { useCatalog } from '@/providers/catalog-provider';
 import { useToast } from '@/hooks/use-toast';
 import {
   getAllFeaturedPlacements, createFeaturedPlacement, deleteFeaturedPlacement,
   getCampaigns, createCampaign, updateCampaignStatus,
-  getAllServices, createNotification,
+  getAllServices, createNotification, getAllProfiles,
   getAllShowcaseItems, createShowcaseItem, updateShowcaseItem, deleteShowcaseItem,
   getAllSiteBanners, updateSiteBanner, createSiteBanner, deleteSiteBanner,
+  getAllFeaturedProviders, createFeaturedProvider, deleteFeaturedProvider,
 } from '@/lib/supabase/queries';
 
 export default function AdminMarketingPage() {
@@ -35,6 +36,15 @@ export default function AdminMarketingPage() {
   const [loading, setLoading] = useState(true);
   const [placementDialogOpen, setPlacementDialogOpen] = useState(false);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
+
+  // Featured Providers
+  const [featuredProviders, setFeaturedProviders] = useState<FeaturedProvider[]>([]);
+  const [providers, setProviders] = useState<Profile[]>([]);
+  const [fpDialogOpen, setFpDialogOpen] = useState(false);
+  const [fpProviderId, setFpProviderId] = useState('');
+  const [fpPosition, setFpPosition] = useState(0);
+  const [fpStartDate, setFpStartDate] = useState('');
+  const [fpEndDate, setFpEndDate] = useState('');
 
   // Placement form
   const [pServiceId, setPServiceId] = useState('');
@@ -86,18 +96,22 @@ export default function AdminMarketingPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [p, c, s, si, sb] = await Promise.all([
+      const [p, c, s, si, sb, fp, profiles] = await Promise.all([
         getAllFeaturedPlacements(),
         getCampaigns(),
         getAllServices(),
         getAllShowcaseItems(),
         getAllSiteBanners(),
+        getAllFeaturedProviders(),
+        getAllProfiles(),
       ]);
       setPlacements(p);
       setCampaigns(c);
       setServices(s.filter(sv => sv.status === 'active'));
       setShowcaseItems(si);
       setSiteBanners(sb);
+      setFeaturedProviders(fp);
+      setProviders(profiles.filter(pr => pr.role === 'provider'));
     } catch (err) {
       console.error('Error loading marketing data:', err);
     }
@@ -209,6 +223,45 @@ export default function AdminMarketingPage() {
     setCStartDate('');
     setCEndDate('');
     setCChannels('');
+  }
+
+  // Featured Provider handlers
+  function resetFpForm() {
+    setFpProviderId(''); setFpPosition(0); setFpStartDate(''); setFpEndDate('');
+  }
+
+  async function handleCreateFeaturedProvider() {
+    if (!fpProviderId || !fpStartDate || !fpEndDate) {
+      toast({ title: 'Campos incompletos', description: 'Selecciona proveedor, fecha inicio y fecha fin.', variant: 'destructive' });
+      return;
+    }
+    try {
+      await createFeaturedProvider({
+        provider_id: fpProviderId,
+        position: fpPosition,
+        start_date: new Date(fpStartDate).toISOString(),
+        end_date: new Date(fpEndDate).toISOString(),
+      });
+      setFpDialogOpen(false);
+      resetFpForm();
+      await loadData();
+      const prov = providers.find(p => p.id === fpProviderId);
+      toast({ title: 'Proveedor destacado', description: `"${prov?.company_name || prov?.full_name}" agregado como proveedor destacado.` });
+    } catch (err) {
+      console.error('Error creating featured provider:', err);
+      toast({ title: 'Error', description: 'No se pudo crear el destaque de proveedor.', variant: 'destructive' });
+    }
+  }
+
+  async function handleDeleteFeaturedProvider(id: string) {
+    try {
+      await deleteFeaturedProvider(id);
+      await loadData();
+      toast({ title: 'Proveedor destacado eliminado' });
+    } catch (err) {
+      console.error('Error deleting featured provider:', err);
+      toast({ title: 'Error', description: 'No se pudo eliminar.', variant: 'destructive' });
+    }
   }
 
   // Showcase handlers
@@ -342,6 +395,7 @@ export default function AdminMarketingPage() {
       <Tabs defaultValue="destaques">
         <TabsList>
           <TabsTrigger value="destaques">Areas de Destaque</TabsTrigger>
+          <TabsTrigger value="proveedores">Proveedores Destacados</TabsTrigger>
           <TabsTrigger value="campanas">Campanas</TabsTrigger>
           <TabsTrigger value="banners">Banners y Showcase</TabsTrigger>
           <TabsTrigger value="brandbook">Brand Book</TabsTrigger>
@@ -437,6 +491,93 @@ export default function AdminMarketingPage() {
               </CardContent>
             </Card>
           ))}
+        </TabsContent>
+
+        <TabsContent value="proveedores" className="space-y-6">
+          <div className="flex justify-end">
+            <Dialog open={fpDialogOpen} onOpenChange={setFpDialogOpen}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-2" />Agregar Proveedor Destacado</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Nuevo Proveedor Destacado</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Proveedor</Label>
+                    <Select value={fpProviderId} onValueChange={setFpProviderId}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar proveedor" /></SelectTrigger>
+                      <SelectContent>
+                        {providers.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.company_name || p.full_name} ({p.email})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Posicion</Label>
+                    <Input type="number" value={fpPosition} onChange={e => setFpPosition(Number(e.target.value))} min={0} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Fecha inicio</Label>
+                      <Input type="date" value={fpStartDate} onChange={e => setFpStartDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Fecha fin</Label>
+                      <Input type="date" value={fpEndDate} onChange={e => setFpEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                  <Button onClick={handleCreateFeaturedProvider} className="w-full">Crear Destaque</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Proveedores Destacados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {featuredProviders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin proveedores destacados. Agrega uno para que aparezca en el homepage.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Pos</TableHead>
+                      <TableHead>Proveedor</TableHead>
+                      <TableHead>Inicio</TableHead>
+                      <TableHead>Fin</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {featuredProviders.map(fp => {
+                      const now = new Date().toISOString();
+                      const isActive = fp.start_date <= now && fp.end_date >= now;
+                      return (
+                        <TableRow key={fp.id}>
+                          <TableCell>{fp.position}</TableCell>
+                          <TableCell>{fp.provider?.company_name || fp.provider?.full_name || fp.provider_id}</TableCell>
+                          <TableCell>{new Date(fp.start_date).toLocaleDateString('es-MX')}</TableCell>
+                          <TableCell>{new Date(fp.end_date).toLocaleDateString('es-MX')}</TableCell>
+                          <TableCell>
+                            <Badge variant={isActive ? 'default' : 'secondary'}>{isActive ? 'Activo' : 'Inactivo'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteFeaturedProvider(fp.id)} aria-label="Eliminar">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="campanas" className="space-y-6">
