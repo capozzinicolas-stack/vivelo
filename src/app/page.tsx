@@ -9,6 +9,7 @@ import {
   getNewServicesServer,
   getTopRatedServicesServer,
   getTopRatedReviewsServer,
+  getMostBookedServicesServer,
 } from '@/lib/supabase/server-queries';
 import { HomepageClient } from '@/components/homepage/homepage-client';
 import type { FeaturedPlacement, BlogPost, FeaturedProvider, Campaign, CampaignSubscription, ShowcaseItem, SiteBanner, Service } from '@/types/database';
@@ -32,10 +33,11 @@ export default async function Home() {
   let siteBanners: SiteBanner[] = [];
   let newServices: Service[] = [];
   let topRatedServices: Service[] = [];
+  let mostBookedServices: (Service & { booking_count: number })[] = [];
   let testimonialReviews: Array<{ id: string; rating: number; comment: string | null; created_at: string; client?: { full_name: string }; service?: { title: string; slug: string } }> = [];
 
   try {
-    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners, newServices, topRatedServices, testimonialReviews] = await Promise.all([
+    [featuredPlacements, blogPosts, featuredProviders, campaignsWithServices, showcaseItems, siteBanners, newServices, topRatedServices, mostBookedServices, testimonialReviews] = await Promise.all([
       getFeaturedPlacementsServer('servicios_destacados'),
       getPublishedBlogPostsServer(),
       getActiveFeaturedProvidersServer(),
@@ -44,6 +46,7 @@ export default async function Home() {
       getActiveSiteBannersServer(),
       getNewServicesServer(),
       getTopRatedServicesServer(),
+      getMostBookedServicesServer(10),
       getTopRatedReviewsServer(6),
     ]);
   } catch (error) {
@@ -90,6 +93,7 @@ export default async function Home() {
         siteBanners={siteBanners}
         newServices={newServices}
         topRatedServices={topRatedServices}
+        mostBookedServices={mostBookedServices}
         testimonialReviews={testimonialReviews}
       />
     </>

@@ -14,6 +14,7 @@ import { EventTypesSection } from '@/components/homepage/event-types-section';
 import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
 import { TopRatedSection } from '@/components/homepage/top-rated-section';
+import { MostBookedSection } from '@/components/homepage/most-booked-section';
 import { TestimonialsSection } from '@/components/homepage/testimonials-section';
 import { NewsletterSection } from '@/components/homepage/newsletter-section';
 import { ExitIntentPopup } from '@/components/marketing/exit-intent-popup';
@@ -40,6 +41,7 @@ interface HomepageClientProps {
   siteBanners: SiteBanner[];
   newServices: Service[];
   topRatedServices: Service[];
+  mostBookedServices: (Service & { booking_count: number })[];
   testimonialReviews: TestimonialReview[];
 }
 
@@ -52,6 +54,7 @@ export function HomepageClient({
   siteBanners,
   newServices,
   topRatedServices,
+  mostBookedServices,
   testimonialReviews,
 }: HomepageClientProps) {
   useUtmCapture();
@@ -92,7 +95,10 @@ export function HomepageClient({
       {/* 4. Los Mas Contratados (featured services carousel) */}
       <FeaturedServicesSection placements={featuredPlacements} loading={false} />
 
-      {/* 5. Los Mas Recomendados */}
+      {/* 5. Los Mas Solicitados (based on real booking data) */}
+      <MostBookedSection services={mostBookedServices} loading={false} />
+
+      {/* 6. Los Mas Recomendados */}
       <TopRatedSection services={topRatedServices} loading={false} />
 
       {/* 6. Recien Llegados */}

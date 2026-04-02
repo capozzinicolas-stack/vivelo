@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { useCatalog } from '@/providers/catalog-provider';
 
@@ -28,11 +29,18 @@ export function CategoriesShowcaseSection() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.filter(c => c.is_active).slice(0, 4).map((cat) => {
             const CatIcon = getCategoryIcon(cat.slug);
+            const hasImage = !!cat.image_url;
             return (
             <Link key={cat.slug} href={`/servicios/categoria/${cat.slug}`}>
-              <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${categoryGradients[cat.slug] || 'from-gray-200 to-gray-100'} h-[160px] md:h-[280px] p-4 md:p-6 flex flex-col justify-between hover:shadow-lg transition-shadow cursor-pointer group`}>
-                <h3 className="text-base md:text-2xl font-bold text-deep-purple leading-tight">{cat.label}</h3>
-                <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center ${cat.color} self-end group-hover:scale-110 transition-transform`}>
+              <div className={`relative rounded-2xl overflow-hidden ${hasImage ? '' : `bg-gradient-to-br ${categoryGradients[cat.slug] || 'from-gray-200 to-gray-100'}`} h-[160px] md:h-[280px] p-4 md:p-6 flex flex-col justify-between hover:shadow-lg transition-shadow cursor-pointer group`}>
+                {hasImage && (
+                  <>
+                    <Image src={cat.image_url!} alt={cat.label} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
+                    <div className="absolute inset-0 bg-black/40" />
+                  </>
+                )}
+                <h3 className={`relative text-base md:text-2xl font-bold leading-tight ${hasImage ? 'text-white' : 'text-deep-purple'}`}>{cat.label}</h3>
+                <div className={`relative w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center ${hasImage ? 'bg-white/20 text-white' : cat.color} self-end group-hover:scale-110 transition-transform`}>
                   <CatIcon className="h-5 w-5 md:h-7 md:w-7" />
                 </div>
               </div>

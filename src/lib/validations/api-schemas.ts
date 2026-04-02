@@ -67,6 +67,7 @@ export const CreateCategorySchema = z.object({
   sort_order: z.number().int().default(0),
   is_active: z.boolean().default(true),
   commission_rate: z.number().min(0, 'La comision no puede ser negativa').max(1, 'La comision no puede ser mayor a 100%').default(0.12),
+  image_url: z.string().url().nullable().optional(),
 });
 
 export const UpdateCategorySchema = z.object({
@@ -78,6 +79,7 @@ export const UpdateCategorySchema = z.object({
   sort_order: z.number().int().optional(),
   is_active: z.boolean().optional(),
   commission_rate: z.number().min(0, 'La comision no puede ser negativa').max(1, 'La comision no puede ser mayor a 100%').optional(),
+  image_url: z.string().url().nullable().optional(),
 });
 
 export const CreateSubcategorySchema = z.object({

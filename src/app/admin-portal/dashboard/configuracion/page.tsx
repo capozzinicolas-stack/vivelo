@@ -82,6 +82,7 @@ export default function AdminConfiguracionPage() {
   const [catSortOrder, setCatSortOrder] = useState('0');
   const [catIsActive, setCatIsActive] = useState(true);
   const [catCommissionRate, setCatCommissionRate] = useState('12');
+  const [catImageUrl, setCatImageUrl] = useState('');
   const [editingCatSlug, setEditingCatSlug] = useState('');
 
   // Subcategory form
@@ -196,7 +197,7 @@ export default function AdminConfiguracionPage() {
     if (type === 'category') {
       setCatSlug(''); setCatLabel(''); setCatDescription(''); setCatIcon('Tag');
       setCatColor('bg-gray-100 text-gray-600'); setCatSkuPrefix(''); setCatSortOrder('0'); setCatIsActive(true);
-      setCatCommissionRate('12');
+      setCatCommissionRate('12'); setCatImageUrl('');
     } else if (type === 'subcategory') {
       setSubSlug(''); setSubLabel(''); setSubIcon('Tag'); setSubCategorySlug(categories[0]?.slug || '');
       setSubSortOrder('0'); setSubIsActive(true);
@@ -213,7 +214,7 @@ export default function AdminConfiguracionPage() {
     setEditingCatSlug(cat.slug); setCatSlug(cat.slug); setCatLabel(cat.label);
     setCatDescription(cat.description); setCatIcon(cat.icon); setCatColor(cat.color);
     setCatSkuPrefix(cat.sku_prefix); setCatSortOrder(cat.sort_order.toString()); setCatIsActive(cat.is_active);
-    setCatCommissionRate(((cat.commission_rate ?? 0.12) * 100).toString());
+    setCatCommissionRate(((cat.commission_rate ?? 0.12) * 100).toString()); setCatImageUrl(cat.image_url || '');
   };
 
   const openEditSubcategory = (sub: CatalogSubcategory) => {
@@ -248,7 +249,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch(`/api/admin/catalog/${editingCatSlug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'category', data: { label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100 } }),
+            body: JSON.stringify({ type: 'category', data: { label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100, image_url: catImageUrl.trim() || null } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         } else {
@@ -256,7 +257,7 @@ export default function AdminConfiguracionPage() {
           const res = await fetch('/api/admin/catalog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'category', data: { slug: catSlug, label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100 } }),
+            body: JSON.stringify({ type: 'category', data: { slug: catSlug, label: catLabel, description: catDescription, icon: catIcon, color: catColor, sku_prefix: catSkuPrefix, sort_order: parseInt(catSortOrder) || 0, is_active: catIsActive, commission_rate: parseFloat(catCommissionRate) / 100, image_url: catImageUrl.trim() || null } }),
           });
           if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         }
@@ -736,6 +737,11 @@ export default function AdminConfiguracionPage() {
                   <Label>Comision (%)</Label>
                   <Input type="number" step="0.1" min="0" max="100" value={catCommissionRate} onChange={e => setCatCommissionRate(e.target.value)} placeholder="12" className="mt-1" />
                   <p className="text-xs text-muted-foreground mt-1">Tasa de comision para esta categoria (ej: 12 = 12%)</p>
+                </div>
+                <div>
+                  <Label>Imagen URL</Label>
+                  <Input value={catImageUrl} onChange={e => setCatImageUrl(e.target.value)} placeholder="https://..." className="mt-1" />
+                  <p className="text-xs text-muted-foreground mt-1">URL de imagen para el showcase de categorias en homepage</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={catIsActive} onCheckedChange={setCatIsActive} />

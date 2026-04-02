@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserCircle, ArrowRight } from 'lucide-react';
 import { HorizontalCarousel } from '@/components/ui/horizontal-carousel';
@@ -13,7 +14,7 @@ export function FeaturedProvidersSection({ providers, loading }: { providers: Fe
         <div className="container mx-auto px-4">
           <Skeleton className="h-8 w-64 mb-10" />
           <div className="flex gap-8">
-            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-32 w-32 rounded-full flex-shrink-0" />)}
+            {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-36 w-36 rounded-2xl flex-shrink-0" />)}
           </div>
         </div>
       </section>
@@ -36,20 +37,20 @@ export function FeaturedProvidersSection({ providers, loading }: { providers: Fe
           {providers.map(fp => {
             const provider = fp.provider;
             if (!provider) return null;
+            const href = provider.slug ? `/proveedores/${provider.slug}` : '/servicios';
             return (
-              <div key={fp.id} className="flex flex-col items-center gap-3 snap-start flex-shrink-0 min-w-[140px]">
-                <div className="w-28 h-28 rounded-full bg-white shadow-soft flex items-center justify-center overflow-hidden">
+              <Link key={fp.id} href={href} className="flex flex-col items-center gap-3 snap-start flex-shrink-0 min-w-[160px] group">
+                <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-2xl bg-white shadow-soft flex items-center justify-center overflow-hidden group-hover:shadow-lg transition-shadow">
                   {provider.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={provider.avatar_url} alt={provider.company_name || provider.full_name} className="w-full h-full object-cover" />
+                    <Image src={provider.avatar_url} alt={provider.company_name || provider.full_name} fill className="object-cover" sizes="(max-width: 768px) 128px, 144px" />
                   ) : (
-                    <UserCircle className="h-14 w-14 text-muted-foreground/40" />
+                    <UserCircle className="h-16 w-16 text-muted-foreground/40" />
                   )}
                 </div>
-                <span className="text-xs font-medium text-center line-clamp-1 max-w-[120px]">
+                <span className="text-sm font-medium text-center line-clamp-1 max-w-[150px] group-hover:text-deep-purple transition-colors">
                   {provider.company_name || provider.full_name}
                 </span>
-              </div>
+              </Link>
             );
           })}
         </HorizontalCarousel>

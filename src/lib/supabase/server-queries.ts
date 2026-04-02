@@ -432,6 +432,45 @@ export async function getTopRatedServicesServer(limit = 20): Promise<Service[]> 
   return data || [];
 }
 
+export async function getMostBookedServicesServer(limit = 10): Promise<(Service & { booking_count: number })[]> {
+  const supabase = createAdminSupabaseClient();
+  // Step 1: Fetch confirmed/completed booking service IDs
+  const { data: bookings, error: bookingsError } = await supabase
+    .from('bookings')
+    .select('service_id')
+    .in('status', ['confirmed', 'completed']);
+  if (bookingsError || !bookings || bookings.length === 0) {
+    console.warn('[getMostBookedServicesServer] Bookings query failed or empty:', bookingsError?.message);
+    return [];
+  }
+  // Count bookings per service
+  const counts = new Map<string, number>();
+  for (const b of bookings) {
+    counts.set(b.service_id, (counts.get(b.service_id) || 0) + 1);
+  }
+  // Sort by count descending, take top N
+  const topServiceIds = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+  if (topServiceIds.length === 0) return [];
+  // Step 2: Fetch service details
+  const serverSupabase = createServerSupabaseClient();
+  const { data: services, error: servicesError } = await serverSupabase
+    .from('services')
+    .select('*, provider:profiles!provider_id(*)')
+    .in('id', topServiceIds)
+    .eq('status', 'active');
+  if (servicesError || !services) {
+    console.warn('[getMostBookedServicesServer] Services query failed:', servicesError?.message);
+    return [];
+  }
+  // Sort by booking count and attach count
+  return services
+    .map(s => ({ ...s, booking_count: counts.get(s.id) || 0 }))
+    .sort((a, b) => b.booking_count - a.booking_count);
+}
+
 // ─── CATALOG (categories/zones for landing pages) ────────
 
 export async function getActiveCategoriesServer(): Promise<CatalogCategory[]> {

@@ -20,6 +20,7 @@ export interface CatalogCategory {
   sort_order: number;
   is_active: boolean;
   commission_rate: number;
+  image_url?: string | null;
 }
 
 export interface CatalogSubcategory {
