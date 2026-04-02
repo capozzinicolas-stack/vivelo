@@ -84,7 +84,7 @@ export function SubcategoryShowcaseSection({ items, promoBanner }: SubcategorySh
             <HorizontalCarousel>
               {displayItems.map((sub) => (
                 <div key={sub.value} className="min-w-[44vw] max-w-[48vw] md:min-w-[280px] md:max-w-[300px] snap-start flex-shrink-0">
-                  <Link href={`/servicios?categoria=${sub.parentCategory}&subcategoria=${sub.value}`}>
+                  <Link href={`/servicios/categoria/${sub.parentCategory}?subcategoria=${sub.value}`}>
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden">
                       <div className={`h-28 md:h-52 bg-gradient-to-br ${sub.color} flex items-center justify-center`}>
                         {(() => { const SubIcon = getSubcategoryIcon(sub.value); return <SubIcon className="h-10 w-10 md:h-16 md:w-16 text-white/40" />; })()}

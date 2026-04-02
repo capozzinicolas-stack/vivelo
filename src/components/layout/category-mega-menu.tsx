@@ -33,7 +33,7 @@ export function CategoryMegaMenu({ category, onClose }: CategoryMegaMenuProps) {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           <Link
-            href={`/servicios?categoria=${category.slug}`}
+            href={`/servicios/categoria/${category.slug}`}
             onClick={onClose}
             className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-violet-600 hover:bg-violet-50 transition-colors"
           >
@@ -44,7 +44,7 @@ export function CategoryMegaMenu({ category, onClose }: CategoryMegaMenuProps) {
             return (
               <Link
                 key={sub.slug}
-                href={`/servicios?categoria=${category.slug}&subcategoria=${sub.slug}`}
+                href={`/servicios/categoria/${category.slug}?subcategoria=${sub.slug}`}
                 onClick={onClose}
                 className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
               >

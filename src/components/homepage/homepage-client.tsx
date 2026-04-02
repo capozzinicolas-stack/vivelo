@@ -10,6 +10,7 @@ import { FeaturedServicesSection } from '@/components/homepage/featured-services
 import { NewServicesSection } from '@/components/homepage/new-services-section';
 import { SubcategoryShowcaseSection } from '@/components/homepage/subcategory-showcase-section';
 import { CategoriesShowcaseSection } from '@/components/homepage/categories-showcase-section';
+import { EventTypesSection } from '@/components/homepage/event-types-section';
 import { BlogSection } from '@/components/homepage/blog-section';
 import { FeaturedProvidersSection } from '@/components/homepage/featured-providers-section';
 import { TopRatedSection } from '@/components/homepage/top-rated-section';
@@ -99,6 +100,9 @@ export function HomepageClient({
 
       {/* 7. Categorias Destacadas */}
       <CategoriesShowcaseSection />
+
+      {/* 7.5. Que estas celebrando? */}
+      <EventTypesSection />
 
       {/* 8. Proveedores Destacados */}
       <FeaturedProvidersSection providers={featuredProviders} loading={false} />

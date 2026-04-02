@@ -17,7 +17,7 @@ export function MobileCategoryBar() {
           return (
             <Link
               key={cat.slug}
-              href={`/servicios?categoria=${cat.slug}`}
+              href={`/servicios/categoria/${cat.slug}`}
               onClick={() => setSelected(cat.slug)}
               className={`flex flex-col items-center gap-1 px-4 py-3 min-w-[76px] shrink-0 transition-colors ${
                 active

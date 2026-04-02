@@ -29,7 +29,7 @@ export function CategoriesShowcaseSection() {
           {categories.filter(c => c.is_active).slice(0, 4).map((cat) => {
             const CatIcon = getCategoryIcon(cat.slug);
             return (
-            <Link key={cat.slug} href={`/servicios?categoria=${cat.slug}`}>
+            <Link key={cat.slug} href={`/servicios/categoria/${cat.slug}`}>
               <div className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${categoryGradients[cat.slug] || 'from-gray-200 to-gray-100'} h-[160px] md:h-[280px] p-4 md:p-6 flex flex-col justify-between hover:shadow-lg transition-shadow cursor-pointer group`}>
                 <h3 className="text-base md:text-2xl font-bold text-deep-purple leading-tight">{cat.label}</h3>
                 <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center ${cat.color} self-end group-hover:scale-110 transition-transform`}>

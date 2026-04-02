@@ -67,7 +67,7 @@ export function Navbar() {
                 onMouseEnter={() => handleCategoryHover(cat.slug)}
               >
                 <Link
-                  href={`/servicios?categoria=${cat.slug}`}
+                  href={`/servicios/categoria/${cat.slug}`}
                   className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md text-center transition-colors hover:bg-muted w-[90px] ${
                     openMegaMenu === cat.slug ? 'bg-muted text-violet-600' : 'text-muted-foreground'
                   }`}

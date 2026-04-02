@@ -6,6 +6,7 @@ import { Star, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useCatalog } from '@/providers/catalog-provider';
+import { VIVELO_ZONES } from '@/lib/constants';
 import type { Service } from '@/types/database';
 
 export function ServiceCard({ service }: { service: Service }) {
@@ -56,7 +57,16 @@ export function ServiceCard({ service }: { service: Service }) {
             </p>
           )}
           <div className="flex flex-wrap gap-1.5">
-            {visibleZones.map((z) => <Badge key={z} variant="outline" className="text-xs font-normal">{z}</Badge>)}
+            {visibleZones.map((z) => {
+              const zoneSlug = VIVELO_ZONES.find(vz => vz.label === z)?.slug;
+              return zoneSlug ? (
+                <Link key={z} href={`/servicios/zona/${zoneSlug}`} onClick={(e) => e.stopPropagation()}>
+                  <Badge variant="outline" className="text-xs font-normal hover:border-primary hover:text-primary transition-colors">{z}</Badge>
+                </Link>
+              ) : (
+                <Badge key={z} variant="outline" className="text-xs font-normal">{z}</Badge>
+              );
+            })}
             {remaining > 0 && <Badge variant="outline" className="text-xs font-normal">+{remaining}</Badge>}
           </div>
         </CardContent>

@@ -7,16 +7,33 @@ const footerSections = [
     links: [
       { label: 'Quienes Somos', href: '/quien-somos' },
       { label: 'Vende con Vivelo', href: 'https://nuevosproveedores.solovivelo.com' },
-      { label: 'Representacion Vivelo', href: '#' },
+      { label: 'Nuestro Blog', href: '/blog' },
     ],
   },
   {
-    title: null,
+    title: 'Zonas',
     links: [
-      { label: 'Ofrezca tus Servicios', href: 'https://nuevosproveedores.solovivelo.com' },
-      { label: 'Nuestro Blog', href: '/blog' },
-      { label: 'Atencion al Cliente', href: '#' },
-      { label: 'Nuestros Partners', href: '#' },
+      { label: 'Ciudad de Mexico', href: '/servicios/zona/ciudad-de-mexico' },
+      { label: 'Estado de Mexico', href: '/servicios/zona/estado-de-mexico' },
+      { label: 'Queretaro', href: '/servicios/zona/queretaro' },
+      { label: 'Puebla', href: '/servicios/zona/puebla' },
+      { label: 'Morelos', href: '/servicios/zona/morelos' },
+      { label: 'Guanajuato', href: '/servicios/zona/guanajuato' },
+      { label: 'Toluca', href: '/servicios/zona/toluca' },
+      { label: 'Hidalgo', href: '/servicios/zona/hidalgo' },
+      { label: 'Tlaxcala', href: '/servicios/zona/tlaxcala' },
+    ],
+  },
+  {
+    title: 'Eventos',
+    links: [
+      { label: 'Bodas', href: '/eventos/bodas' },
+      { label: 'XV Anos', href: '/eventos/xv-anos' },
+      { label: 'Cumpleanos', href: '/eventos/cumpleanos' },
+      { label: 'Corporativos', href: '/eventos/corporativos' },
+      { label: 'Baby Shower', href: '/eventos/baby-shower' },
+      { label: 'Graduaciones', href: '/eventos/graduaciones' },
+      { label: 'Bautizos', href: '/eventos/bautizos' },
     ],
   },
   {
@@ -25,15 +42,6 @@ const footerSections = [
       { label: 'Terminos y Condiciones', href: '/terminos-y-condiciones' },
       { label: 'Politicas de Privacidad', href: '/politica-de-privacidad' },
       { label: 'Politicas de Cancelaciones y Reembolso', href: '/politica-de-cancelaciones' },
-    ],
-  },
-  {
-    title: 'Ayuda',
-    links: [
-      { label: 'Preguntas Frecuentes', href: '#' },
-      { label: 'Contactanos', href: '#' },
-      { label: 'Acompana tu evento', href: '#' },
-      { label: 'Facturacion', href: '#' },
     ],
   },
 ];
