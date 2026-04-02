@@ -89,32 +89,32 @@ export function HomepageClient({
       {/* 3. Mobile: horizontal category bar */}
       <MobileCategoryBar />
 
-      {/* 4. Recomendados (featured services carousel) */}
+      {/* 4. Los Mas Contratados (featured services carousel) */}
       <FeaturedServicesSection placements={featuredPlacements} loading={false} />
 
-      {/* 5. Recien Llegados */}
-      <NewServicesSection services={newServices} loading={false} />
-
-      {/* 6. Los mejores servicios para tu evento (subcategory showcase) */}
-      <SubcategoryShowcaseSection items={showcaseItems} promoBanner={siteBanners.find(b => b.banner_key === 'showcase_promo') ?? null} />
-
-      {/* 7. Categorias Destacadas */}
-      <CategoriesShowcaseSection />
-
-      {/* 7.5. Que estas celebrando? */}
-      <EventTypesSection />
-
-      {/* 8. Proveedores Destacados */}
-      <FeaturedProvidersSection providers={featuredProviders} loading={false} />
-
-      {/* 9. Los Mas Recomendados */}
+      {/* 5. Los Mas Recomendados */}
       <TopRatedSection services={topRatedServices} loading={false} />
 
-      {/* 9.5. Testimonios reales */}
-      <TestimonialsSection reviews={testimonialReviews} />
+      {/* 6. Recien Llegados */}
+      <NewServicesSection services={newServices} loading={false} />
 
-      {/* 10. Ofertas de la semana */}
+      {/* 7. Los mejores servicios para tu evento (subcategory showcase) */}
+      <SubcategoryShowcaseSection items={showcaseItems} promoBanner={siteBanners.find(b => b.banner_key === 'showcase_promo') ?? null} />
+
+      {/* 8. Ofertas activas */}
       <CampaignOffersSection campaigns={campaignsWithServices} loading={false} />
+
+      {/* 9. Categorias Destacadas */}
+      <CategoriesShowcaseSection />
+
+      {/* 10. Que estas celebrando? */}
+      <EventTypesSection />
+
+      {/* 11. Proveedores Destacados */}
+      <FeaturedProvidersSection providers={featuredProviders} loading={false} />
+
+      {/* 12. Testimonios reales */}
+      <TestimonialsSection reviews={testimonialReviews} />
 
       {/* 11. Blog - Todo sobre el mundo de eventos */}
       <BlogSection posts={blogPosts} loading={false} />

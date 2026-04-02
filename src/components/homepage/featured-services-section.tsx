@@ -43,7 +43,7 @@ export function FeaturedServicesSection({ placements, loading }: { placements: F
     <section className="py-8 md:py-16">
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-4 mb-4 md:mb-6">
-          <h2 className="text-xl md:text-3xl font-bold">Recomendados</h2>
+          <h2 className="text-xl md:text-3xl font-bold">Los Mas Contratados</h2>
           <Link href="/servicios" className="flex items-center gap-1 text-deep-purple font-medium hover:underline">
             Ver todos <ArrowRight className="h-5 w-5" />
           </Link>

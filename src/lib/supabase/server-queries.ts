@@ -408,7 +408,7 @@ export async function getNewServicesServer(days = 15): Promise<Service[]> {
     .eq('status', 'active')
     .gte('created_at', cutoff.toISOString())
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(10);
   if (error) {
     console.warn('[getNewServicesServer] Query failed:', error.message);
     return [];
