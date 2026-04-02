@@ -109,7 +109,7 @@ export function LandingPageClient({
         />
       </aside>
 
-      <div className="lg:hidden fixed bottom-4 right-4 z-40">
+      <div className="lg:hidden fixed bottom-20 left-4 z-40">
         <Sheet>
           <SheetTrigger asChild>
             <Button className="rounded-full shadow-lg">
