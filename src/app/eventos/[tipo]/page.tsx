@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
-import { LandingGridClient } from '@/components/services/landing-grid-client';
+import { LandingPageClient } from '@/components/services/landing-page-client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -111,7 +111,7 @@ export default async function EventoTipoPage({ params }: Props) {
           )}
         </div>
 
-        <LandingGridClient
+        <LandingPageClient
           services={services}
           emptyStateTitle={`Aun no hay servicios para ${eventType.label.toLowerCase()}`}
           emptyStateSuggestions={categoryCounts.slice(0, 5)}

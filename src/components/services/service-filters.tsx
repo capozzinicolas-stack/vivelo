@@ -21,11 +21,13 @@ export interface Filters {
 interface ServiceFiltersProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  hideCategory?: boolean;
+  hideZone?: boolean;
 }
 
 export const defaultFilters: Filters = { category: '', subcategory: '', zone: '', priceRange: [0, 1000000], search: '', tags: [] };
 
-export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps) {
+export function ServiceFilters({ filters, onFiltersChange, hideCategory, hideZone }: ServiceFiltersProps) {
   const { categories, zones, getSubcategoriesByCategory, getTagsByCategory, getSubcategoryIcon } = useCatalog();
   const update = (partial: Partial<Filters>) => onFiltersChange({ ...filters, ...partial });
 
@@ -43,16 +45,18 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
         </div>
       </div>
 
-      <div>
-        <Label className="text-sm font-medium mb-2 block">Categoria</Label>
-        <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v, subcategory: '', tags: [] })}>
-          <SelectTrigger><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todas las categorias</SelectItem>
-            {categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {!hideCategory && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Categoria</Label>
+          <Select value={filters.category} onValueChange={(v) => update({ category: v === 'ALL' ? '' : v, subcategory: '', tags: [] })}>
+            <SelectTrigger><SelectValue placeholder="Todas las categorias" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las categorias</SelectItem>
+              {categories.filter(c => c.is_active).map((c) => <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {availableSubcategories.length > 0 && (
         <div>
@@ -92,16 +96,18 @@ export function ServiceFilters({ filters, onFiltersChange }: ServiceFiltersProps
         </div>
       )}
 
-      <div>
-        <Label className="text-sm font-medium mb-2 block">Zona</Label>
-        <Select value={filters.zone} onValueChange={(v) => update({ zone: v === 'ALL' ? '' : v })}>
-          <SelectTrigger><SelectValue placeholder="Todas las zonas" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Todas las zonas</SelectItem>
-            {zones.filter(z => z.is_active).map((z) => <SelectItem key={z.slug} value={z.label}>{z.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {!hideZone && (
+        <div>
+          <Label className="text-sm font-medium mb-2 block">Zona</Label>
+          <Select value={filters.zone} onValueChange={(v) => update({ zone: v === 'ALL' ? '' : v })}>
+            <SelectTrigger><SelectValue placeholder="Todas las zonas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todas las zonas</SelectItem>
+              {zones.filter(z => z.is_active).map((z) => <SelectItem key={z.slug} value={z.label}>{z.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div>
         <Label className="text-sm font-medium mb-2 block">Precio maximo: ${filters.priceRange[1].toLocaleString()}</Label>

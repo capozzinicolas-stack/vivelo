@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
-import { LandingGridClient } from '@/components/services/landing-grid-client';
+import { LandingPageClient } from '@/components/services/landing-page-client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -11,6 +11,7 @@ import type { Service } from '@/types/database';
 
 interface Props {
   params: { categoria: string };
+  searchParams: { subcategoria?: string };
 }
 
 function getCategoryContent(slug: string): { description: string; content: string } | null {
@@ -59,7 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CategoriaLandingPage({ params }: Props) {
+export default async function CategoriaLandingPage({ params, searchParams }: Props) {
   const fallback = fallbackCategories.find(c => c.value === params.categoria);
   if (!fallback) notFound();
 
@@ -139,8 +140,11 @@ export default async function CategoriaLandingPage({ params }: Props) {
           )}
         </div>
 
-        <LandingGridClient
+        <LandingPageClient
           services={services}
+          initialCategory={params.categoria}
+          initialSubcategory={searchParams?.subcategoria || ''}
+          hideCategory
           emptyStateTitle={`Aun no hay servicios de ${fallback.label.toLowerCase()}`}
           emptyStateSuggestions={categorySuggestions}
           emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer } from '@/lib/supabase/server-queries';
-import { LandingGridClient } from '@/components/services/landing-grid-client';
+import { LandingPageClient } from '@/components/services/landing-page-client';
 import { VIVELO_ZONES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -165,8 +165,10 @@ export default async function ZonaLandingPage({ params }: Props) {
           )}
         </div>
 
-        <LandingGridClient
+        <LandingPageClient
           services={services}
+          initialZone={zone.label}
+          hideZone
           emptyStateTitle={`Aun no hay servicios en ${zone.label}`}
           emptyStateSuggestions={zoneSuggestions}
           emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}

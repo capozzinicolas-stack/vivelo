@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
-import { LandingGridClient } from '@/components/services/landing-grid-client';
+import { LandingPageClient } from '@/components/services/landing-page-client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -12,6 +12,7 @@ import type { Service } from '@/types/database';
 
 interface Props {
   params: { categoria: string; zona: string };
+  searchParams: { subcategoria?: string };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -31,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CategoriaZonaLandingPage({ params }: Props) {
+export default async function CategoriaZonaLandingPage({ params, searchParams }: Props) {
   const category = fallbackCategories.find(c => c.value === params.categoria);
   const zone = VIVELO_ZONES.find(z => z.slug === params.zona);
   if (!category || !zone) notFound();
@@ -117,8 +118,13 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
           )}
         </div>
 
-        <LandingGridClient
+        <LandingPageClient
           services={services}
+          initialCategory={params.categoria}
+          initialSubcategory={searchParams?.subcategoria || ''}
+          initialZone={zone.label}
+          hideCategory
+          hideZone
           emptyStateTitle={`Aun no hay ${category.label.toLowerCase()} en ${zone.label}`}
           emptyStateSuggestions={zoneSuggestions}
           emptyStateCta={{ label: `Ver todos ${category.label.toLowerCase()}`, href: `/servicios/categoria/${params.categoria}` }}
