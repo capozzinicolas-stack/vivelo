@@ -5,6 +5,8 @@ import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategor
 import { LandingGridClient } from '@/components/services/landing-grid-client';
 import { VIVELO_ZONES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import type { Service } from '@/types/database';
 
 const ZONE_META: Record<string, { title: string; description: string; intro: string; content: string }> = {
@@ -94,11 +96,12 @@ export default async function ZonaLandingPage({ params }: Props) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
 
+  let allEnriched: Service[] = [];
   let services: Service[] = [];
   try {
     const rawServices = await getActiveServicesServer();
-    const enriched = await enrichServicesWithTagsServer(rawServices);
-    services = enriched.filter(s => s.zones.includes(zone.label));
+    allEnriched = await enrichServicesWithTagsServer(rawServices);
+    services = allEnriched.filter(s => s.zones.includes(zone.label));
   } catch (error) {
     console.error('[ZonaLandingPage] Error loading services:', error);
   }
@@ -109,6 +112,12 @@ export default async function ZonaLandingPage({ params }: Props) {
   } catch { /* fallback empty */ }
 
   const otherZones = VIVELO_ZONES.filter(z => z.slug !== params.zona);
+
+  const zoneSuggestions = otherZones.map(z => ({
+    label: z.label,
+    href: `/servicios/zona/${z.slug}`,
+    count: allEnriched.filter(s => s.zones.includes(z.label)).length,
+  })).filter(s => s.count > 0).slice(0, 5);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -151,9 +160,17 @@ export default async function ZonaLandingPage({ params }: Props) {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">{zoneMeta.title}</h1>
           <p className="text-muted-foreground mt-2">{zoneMeta.intro}</p>
+          {services.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-3">{services.length} servicio{services.length !== 1 ? 's' : ''} · {categories.length} categoria{categories.length !== 1 ? 's' : ''}</p>
+          )}
         </div>
 
-        <LandingGridClient services={services} />
+        <LandingGridClient
+          services={services}
+          emptyStateTitle={`Aun no hay servicios en ${zone.label}`}
+          emptyStateSuggestions={zoneSuggestions}
+          emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}
+        />
 
         {/* SEO content */}
         <div className="mt-12 prose prose-gray max-w-none">
@@ -162,8 +179,7 @@ export default async function ZonaLandingPage({ params }: Props) {
 
         {/* Internal links: categories in this zone */}
         {categories.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-4">Explora por categoria en {zone.label}</h2>
+          <CollapsibleSection title={`Explora por categoria en ${zone.label}`} defaultOpen>
             <div className="flex flex-wrap gap-2">
               {categories.map(c => (
                 <Link key={c.slug} href={`/servicios/categoria/${c.slug}/${params.zona}`}>
@@ -171,12 +187,11 @@ export default async function ZonaLandingPage({ params }: Props) {
                 </Link>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Internal links: other zones */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Otras zonas</h2>
+        <CollapsibleSection title="Otras zonas">
           <div className="flex flex-wrap gap-2">
             {otherZones.map(z => (
               <Link key={z.slug} href={`/servicios/zona/${z.slug}`}>
@@ -184,12 +199,12 @@ export default async function ZonaLandingPage({ params }: Props) {
               </Link>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* CTA */}
         <div className="mt-8 text-center">
-          <Link href="/servicios" className="text-primary hover:underline font-medium">
-            Ver todos los servicios en Mexico →
+          <Link href="/servicios">
+            <Button variant="outline">Ver todos los servicios en Mexico</Button>
           </Link>
         </div>
       </div>

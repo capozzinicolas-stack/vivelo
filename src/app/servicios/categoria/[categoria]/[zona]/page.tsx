@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
 import { LandingGridClient } from '@/components/services/landing-grid-client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { VIVELO_ZONES } from '@/lib/constants';
 import { categories as fallbackCategories } from '@/data/categories';
 import type { Service } from '@/types/database';
@@ -36,11 +38,12 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://solovivelo.com';
 
+  let allEnriched: Service[] = [];
   let services: Service[] = [];
   try {
     const rawServices = await getActiveServicesServer();
-    const enriched = await enrichServicesWithTagsServer(rawServices);
-    services = enriched.filter(s => s.category === params.categoria && s.zones.includes(zone.label));
+    allEnriched = await enrichServicesWithTagsServer(rawServices);
+    services = allEnriched.filter(s => s.category === params.categoria && s.zones.includes(zone.label));
   } catch (error) {
     console.error('[CategoriaZonaLandingPage] Error loading services:', error);
   }
@@ -56,6 +59,12 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
 
   const otherZones = allZones.filter(z => z.slug !== params.zona);
   const otherCategories = allCategories.filter(c => c.slug !== params.categoria);
+
+  const zoneSuggestions = otherZones.map(z => ({
+    label: `${category.label} en ${z.label}`,
+    href: `/servicios/categoria/${params.categoria}/${z.slug}`,
+    count: allEnriched.filter(s => s.category === params.categoria && s.zones.includes(z.label)).length,
+  })).filter(s => s.count > 0).slice(0, 5);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -103,14 +112,21 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
           <p className="text-muted-foreground mt-2">
             Encuentra proveedores de {category.label.toLowerCase()} para tu evento en {zone.label}. {category.description}.
           </p>
+          {services.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-3">{services.length} servicio{services.length !== 1 ? 's' : ''} disponible{services.length !== 1 ? 's' : ''}</p>
+          )}
         </div>
 
-        <LandingGridClient services={services} />
+        <LandingGridClient
+          services={services}
+          emptyStateTitle={`Aun no hay ${category.label.toLowerCase()} en ${zone.label}`}
+          emptyStateSuggestions={zoneSuggestions}
+          emptyStateCta={{ label: `Ver todos ${category.label.toLowerCase()}`, href: `/servicios/categoria/${params.categoria}` }}
+        />
 
         {/* Internal links: same category in other zones */}
         {otherZones.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-4">{category.label} en otras zonas</h2>
+          <CollapsibleSection title={`${category.label} en otras zonas`} defaultOpen>
             <div className="flex flex-wrap gap-2">
               {otherZones.map(z => (
                 <Link key={z.slug} href={`/servicios/categoria/${params.categoria}/${z.slug}`}>
@@ -118,13 +134,12 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
                 </Link>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Internal links: other categories in this zone */}
         {otherCategories.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Otros servicios en {zone.label}</h2>
+          <CollapsibleSection title={`Otros servicios en ${zone.label}`}>
             <div className="flex flex-wrap gap-2">
               {otherCategories.map(c => (
                 <Link key={c.slug} href={`/servicios/categoria/${c.slug}/${params.zona}`}>
@@ -132,19 +147,19 @@ export default async function CategoriaZonaLandingPage({ params }: Props) {
                 </Link>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Related links */}
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 text-center sm:text-left">
-          <Link href={`/servicios/categoria/${params.categoria}`} className="text-primary hover:underline font-medium">
-            Ver todos {category.label.toLowerCase()} →
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <Link href={`/servicios/categoria/${params.categoria}`}>
+            <Button variant="outline">Ver todos {category.label.toLowerCase()}</Button>
           </Link>
-          <Link href={`/servicios/zona/${params.zona}`} className="text-primary hover:underline font-medium">
-            Ver todos los servicios en {zone.label} →
+          <Link href={`/servicios/zona/${params.zona}`}>
+            <Button variant="outline">Servicios en {zone.label}</Button>
           </Link>
-          <Link href="/servicios" className="text-primary hover:underline font-medium">
-            Ver todos los servicios →
+          <Link href="/servicios">
+            <Button variant="outline">Ver todos los servicios</Button>
           </Link>
         </div>
       </div>

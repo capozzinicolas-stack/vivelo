@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
 import { LandingGridClient } from '@/components/services/landing-grid-client';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CollapsibleSection } from '@/components/ui/collapsible-section';
 import { EVENT_TYPES, EVENT_TYPE_MAP } from '@/data/event-types';
 import type { Service } from '@/types/database';
 
@@ -59,6 +61,12 @@ export default async function EventoTipoPage({ params }: Props) {
 
   const otherEventTypes = EVENT_TYPES.filter(et => et.slug !== params.tipo);
 
+  const categoryCounts = categories.map(c => ({
+    label: c.label,
+    href: `/servicios/categoria/${c.slug}`,
+    count: services.filter(s => s.category === c.slug).length,
+  })).filter(c => c.count > 0);
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -98,9 +106,17 @@ export default async function EventoTipoPage({ params }: Props) {
         <div className="mb-8">
           <h1 className="text-3xl font-bold">{eventType.heading}</h1>
           <p className="text-muted-foreground mt-2 max-w-3xl">{eventType.intro}</p>
+          {services.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-3">{services.length} servicio{services.length !== 1 ? 's' : ''} · {categories.length} categoria{categories.length !== 1 ? 's' : ''}</p>
+          )}
         </div>
 
-        <LandingGridClient services={services} />
+        <LandingGridClient
+          services={services}
+          emptyStateTitle={`Aun no hay servicios para ${eventType.label.toLowerCase()}`}
+          emptyStateSuggestions={categoryCounts.slice(0, 5)}
+          emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}
+        />
 
         {/* SEO content */}
         <div className="mt-12 prose prose-gray max-w-none">
@@ -109,8 +125,7 @@ export default async function EventoTipoPage({ params }: Props) {
 
         {/* Internal links: categories */}
         {categories.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-4">Explora por categoria</h2>
+          <CollapsibleSection title="Explora por categoria" defaultOpen>
             <div className="flex flex-wrap gap-2">
               {categories.map(c => (
                 <Link key={c.slug} href={`/servicios/categoria/${c.slug}`}>
@@ -118,13 +133,12 @@ export default async function EventoTipoPage({ params }: Props) {
                 </Link>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Internal links: zones */}
         {zones.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Servicios para {eventType.label.toLowerCase()} por zona</h2>
+          <CollapsibleSection title={`Servicios para ${eventType.label.toLowerCase()} por zona`}>
             <div className="flex flex-wrap gap-2">
               {zones.map(z => (
                 <Link key={z.slug} href={`/servicios/zona/${z.slug}`}>
@@ -132,12 +146,11 @@ export default async function EventoTipoPage({ params }: Props) {
                 </Link>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* Internal links: other event types */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Otros tipos de eventos</h2>
+        <CollapsibleSection title="Otros tipos de eventos">
           <div className="flex flex-wrap gap-2">
             {otherEventTypes.map(et => (
               <Link key={et.slug} href={`/eventos/${et.slug}`}>
@@ -145,12 +158,12 @@ export default async function EventoTipoPage({ params }: Props) {
               </Link>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* CTA */}
         <div className="mt-8 text-center">
-          <Link href="/servicios" className="text-primary hover:underline font-medium">
-            Ver todos los servicios →
+          <Link href="/servicios">
+            <Button variant="outline">Ver todos los servicios</Button>
           </Link>
         </div>
       </div>
