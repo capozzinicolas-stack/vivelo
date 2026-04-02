@@ -169,6 +169,44 @@ export const UpdateFiscalStatusSchema = z.object({
   admin_notes: z.string().max(1000, 'Notas muy largas').optional().nullable(),
 });
 
+// ─── Landing Banner Schemas ──────────────────────────────
+
+export const CreateLandingBannerSchema = z.object({
+  title: z.string().min(1, 'Titulo es requerido').max(200),
+  subtitle: z.string().max(500).nullable().optional(),
+  cta_text: z.string().min(1).max(100).default('Ver mas'),
+  cta_url: z.string().min(1, 'URL del CTA es requerida'),
+  image_url: z.string().url().nullable().optional(),
+  background_color: z.string().max(50).default('#43276c'),
+  position: z.enum(['hero', 'mid_feed', 'bottom'], { message: 'Posicion invalida' }),
+  target_category: z.string().nullable().optional(),
+  target_zone: z.string().nullable().optional(),
+  target_event_type: z.string().nullable().optional(),
+  is_active: z.boolean().default(true),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
+  priority: z.number().int().min(0).default(0),
+  provider_id: z.string().uuid().nullable().optional(),
+});
+
+export const UpdateLandingBannerSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  subtitle: z.string().max(500).nullable().optional(),
+  cta_text: z.string().min(1).max(100).optional(),
+  cta_url: z.string().min(1).optional(),
+  image_url: z.string().url().nullable().optional(),
+  background_color: z.string().max(50).optional(),
+  position: z.enum(['hero', 'mid_feed', 'bottom']).optional(),
+  target_category: z.string().nullable().optional(),
+  target_zone: z.string().nullable().optional(),
+  target_event_type: z.string().nullable().optional(),
+  is_active: z.boolean().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
+  priority: z.number().int().min(0).optional(),
+  provider_id: z.string().uuid().nullable().optional(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

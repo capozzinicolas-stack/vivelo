@@ -485,6 +485,36 @@ export interface ProviderFiscalData {
   updated_at: string;
 }
 
+export type LandingBannerPosition = 'hero' | 'mid_feed' | 'bottom';
+
+export interface LandingPageBanner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  cta_text: string;
+  cta_url: string;
+  image_url: string | null;
+  background_color: string;
+  position: LandingBannerPosition;
+  target_category: string | null;
+  target_zone: string | null;
+  target_event_type: string | null;
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  priority: number;
+  provider_id: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  provider?: {
+    company_name: string | null;
+    full_name: string;
+    avatar_url: string | null;
+    slug: string | null;
+  };
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -508,6 +538,7 @@ export interface Database {
       site_banners: { Row: SiteBanner; Insert: Partial<SiteBanner> & Pick<SiteBanner, 'banner_key' | 'title'>; Update: Partial<SiteBanner> };
       cancellation_policies: { Row: CancellationPolicy; Insert: Partial<CancellationPolicy> & Pick<CancellationPolicy, 'name' | 'rules'>; Update: Partial<CancellationPolicy> };
       provider_fiscal_data: { Row: ProviderFiscalData; Insert: Partial<ProviderFiscalData> & Pick<ProviderFiscalData, 'provider_id' | 'rfc' | 'razon_social' | 'tipo_persona' | 'regimen_fiscal'>; Update: Partial<ProviderFiscalData> };
+      landing_page_banners: { Row: LandingPageBanner; Insert: Partial<LandingPageBanner> & Pick<LandingPageBanner, 'title' | 'cta_url'>; Update: Partial<LandingPageBanner> };
     };
   };
 }

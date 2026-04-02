@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer } from '@/lib/supabase/server-queries';
+import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getLandingBannersServer } from '@/lib/supabase/server-queries';
 import { LandingPageClient } from '@/components/services/landing-page-client';
+import { LandingHeroBanner, LandingBottomBanner } from '@/components/landing/landing-banner';
 import { VIVELO_ZONES } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -107,8 +108,12 @@ export default async function ZonaLandingPage({ params }: Props) {
   }
 
   let categories: { slug: string; label: string }[] = [];
+  let banners: { hero: import('@/types/database').LandingPageBanner | null; mid_feed: import('@/types/database').LandingPageBanner | null; bottom: import('@/types/database').LandingPageBanner | null } = { hero: null, mid_feed: null, bottom: null };
   try {
-    categories = await getActiveCategoriesServer();
+    [categories, banners] = await Promise.all([
+      getActiveCategoriesServer(),
+      getLandingBannersServer({ zone: params.zona }),
+    ]);
   } catch { /* fallback empty */ }
 
   const otherZones = VIVELO_ZONES.filter(z => z.slug !== params.zona);
@@ -165,6 +170,8 @@ export default async function ZonaLandingPage({ params }: Props) {
           )}
         </div>
 
+        <LandingHeroBanner banner={banners.hero} />
+
         <LandingPageClient
           services={services}
           initialZone={zone.label}
@@ -172,12 +179,15 @@ export default async function ZonaLandingPage({ params }: Props) {
           emptyStateTitle={`Aun no hay servicios en ${zone.label}`}
           emptyStateSuggestions={zoneSuggestions}
           emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}
+          midFeedBanner={banners.mid_feed}
         />
 
         {/* SEO content */}
         <div className="mt-12 prose prose-gray max-w-none">
           <p className="text-muted-foreground">{zoneMeta.content}</p>
         </div>
+
+        <LandingBottomBanner banner={banners.bottom} />
 
         {/* Internal links: categories in this zone */}
         {categories.length > 0 && (

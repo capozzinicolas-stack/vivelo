@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import Link from 'next/link';
 import { ServiceFilters, defaultFilters, type Filters } from './service-filters';
 import { ServiceCard } from './service-card';
+import { LandingMidFeedBanner } from '@/components/landing/landing-banner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SlidersHorizontal } from 'lucide-react';
-import type { Service } from '@/types/database';
+import type { Service, LandingPageBanner } from '@/types/database';
 
 type SortOption = 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest';
 
@@ -29,6 +30,7 @@ interface LandingPageClientProps {
   emptyStateTitle?: string;
   emptyStateSuggestions?: EmptyStateSuggestion[];
   emptyStateCta?: { label: string; href: string };
+  midFeedBanner?: LandingPageBanner | null;
 }
 
 export function LandingPageClient({
@@ -41,6 +43,7 @@ export function LandingPageClient({
   emptyStateTitle,
   emptyStateSuggestions,
   emptyStateCta,
+  midFeedBanner,
 }: LandingPageClientProps) {
   const [filters, setFilters] = useState<Filters>({
     ...defaultFilters,
@@ -185,7 +188,14 @@ export function LandingPageClient({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {sorted.map(s => <ServiceCard key={s.id} service={s} />)}
+            {sorted.map((s, index) => (
+              <Fragment key={s.id}>
+                <ServiceCard service={s} />
+                {index === 5 && sorted.length > 6 && midFeedBanner && (
+                  <LandingMidFeedBanner banner={midFeedBanner} />
+                )}
+              </Fragment>
+            ))}
           </div>
         )}
       </div>

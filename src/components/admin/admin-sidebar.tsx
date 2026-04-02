@@ -24,6 +24,7 @@ import {
   Star,
   CircleUser,
   Receipt,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -36,6 +37,7 @@ const adminNavItems = [
   { label: 'Fiscal', href: '/dashboard/fiscal', icon: Receipt },
   { label: 'Finanzas', href: '/dashboard/finanzas', icon: DollarSign },
   { label: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+  { label: 'Banners', href: '/dashboard/banners', icon: ImageIcon },
   { label: 'Contenido', href: '/dashboard/contenido', icon: FileText },
   { label: 'Notificaciones', href: '/dashboard/notificaciones', icon: Bell },
   { label: 'Configuracion', href: '/dashboard/configuracion', icon: Settings },

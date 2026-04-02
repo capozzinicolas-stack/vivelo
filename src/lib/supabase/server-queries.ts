@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from './server';
 import { createAdminSupabaseClient } from './admin';
-import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner, CatalogCategory, CatalogZone } from '@/types/database';
+import type { Service, Profile, BlogPost, BlogPostLink, FeaturedPlacement, FeaturedSection, Campaign, CampaignSubscription, FeaturedProvider, ShowcaseItem, SiteBanner, CatalogCategory, CatalogZone, LandingPageBanner, LandingBannerPosition } from '@/types/database';
 
 /**
  * Server-side query functions for SSR pages.
@@ -499,4 +499,50 @@ export async function getActiveZonesServer(): Promise<CatalogZone[]> {
     return [];
   }
   return data || [];
+}
+
+// ─── LANDING PAGE BANNERS ────────────────────────────────
+
+export async function getLandingBannersServer(context: {
+  category?: string;
+  zone?: string;
+  eventType?: string;
+}): Promise<{ hero: LandingPageBanner | null; mid_feed: LandingPageBanner | null; bottom: LandingPageBanner | null }> {
+  const supabase = createServerSupabaseClient();
+  const { data: banners, error } = await supabase
+    .from('landing_page_banners')
+    .select('*, provider:profiles!provider_id(company_name, full_name, avatar_url, slug)')
+    .eq('is_active', true)
+    .order('priority', { ascending: false });
+  if (error || !banners) {
+    console.warn('[getLandingBannersServer] Query failed:', error?.message);
+    return { hero: null, mid_feed: null, bottom: null };
+  }
+  const now = new Date().toISOString();
+  // Filter by date range and context matching
+  const matching = (banners as LandingPageBanner[]).filter(b => {
+    if (b.start_date && b.start_date > now) return false;
+    if (b.end_date && b.end_date < now) return false;
+    const catMatch = !b.target_category || b.target_category === context.category;
+    const zoneMatch = !b.target_zone || b.target_zone === context.zone;
+    const eventMatch = !b.target_event_type || b.target_event_type === context.eventType;
+    return catMatch && zoneMatch && eventMatch;
+  });
+  const pickBest = (position: LandingBannerPosition): LandingPageBanner | null => {
+    const candidates = matching.filter(b => b.position === position);
+    if (candidates.length === 0) return null;
+    // More specific targets win over generic (NULL) ones
+    candidates.sort((a, b) => {
+      const specA = [a.target_category, a.target_zone, a.target_event_type].filter(Boolean).length;
+      const specB = [b.target_category, b.target_zone, b.target_event_type].filter(Boolean).length;
+      if (specB !== specA) return specB - specA;
+      return b.priority - a.priority;
+    });
+    return candidates[0];
+  };
+  return {
+    hero: pickBest('hero'),
+    mid_feed: pickBest('mid_feed'),
+    bottom: pickBest('bottom'),
+  };
 }

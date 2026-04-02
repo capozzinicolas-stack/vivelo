@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
+import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer, getLandingBannersServer } from '@/lib/supabase/server-queries';
 import { LandingPageClient } from '@/components/services/landing-page-client';
+import { LandingHeroBanner, LandingBottomBanner } from '@/components/landing/landing-banner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -51,10 +52,12 @@ export default async function CategoriaZonaLandingPage({ params, searchParams }:
 
   let allZones: { slug: string; label: string }[] = [];
   let allCategories: { slug: string; label: string }[] = [];
+  let banners: { hero: import('@/types/database').LandingPageBanner | null; mid_feed: import('@/types/database').LandingPageBanner | null; bottom: import('@/types/database').LandingPageBanner | null } = { hero: null, mid_feed: null, bottom: null };
   try {
-    [allZones, allCategories] = await Promise.all([
+    [allZones, allCategories, banners] = await Promise.all([
       getActiveZonesServer(),
       getActiveCategoriesServer(),
+      getLandingBannersServer({ category: params.categoria, zone: params.zona }),
     ]);
   } catch { /* fallback empty */ }
 
@@ -118,6 +121,8 @@ export default async function CategoriaZonaLandingPage({ params, searchParams }:
           )}
         </div>
 
+        <LandingHeroBanner banner={banners.hero} />
+
         <LandingPageClient
           services={services}
           initialCategory={params.categoria}
@@ -128,7 +133,10 @@ export default async function CategoriaZonaLandingPage({ params, searchParams }:
           emptyStateTitle={`Aun no hay ${category.label.toLowerCase()} en ${zone.label}`}
           emptyStateSuggestions={zoneSuggestions}
           emptyStateCta={{ label: `Ver todos ${category.label.toLowerCase()}`, href: `/servicios/categoria/${params.categoria}` }}
+          midFeedBanner={banners.mid_feed}
         />
+
+        <LandingBottomBanner banner={banners.bottom} />
 
         {/* Internal links: same category in other zones */}
         {otherZones.length > 0 && (

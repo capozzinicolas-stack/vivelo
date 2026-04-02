@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
+import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer, getLandingBannersServer } from '@/lib/supabase/server-queries';
 import { LandingPageClient } from '@/components/services/landing-page-client';
+import { LandingHeroBanner, LandingBottomBanner } from '@/components/landing/landing-banner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -52,10 +53,12 @@ export default async function EventoTipoPage({ params }: Props) {
 
   let categories: { slug: string; label: string }[] = [];
   let zones: { slug: string; label: string }[] = [];
+  let banners: { hero: import('@/types/database').LandingPageBanner | null; mid_feed: import('@/types/database').LandingPageBanner | null; bottom: import('@/types/database').LandingPageBanner | null } = { hero: null, mid_feed: null, bottom: null };
   try {
-    [categories, zones] = await Promise.all([
+    [categories, zones, banners] = await Promise.all([
       getActiveCategoriesServer(),
       getActiveZonesServer(),
+      getLandingBannersServer({ eventType: params.tipo }),
     ]);
   } catch { /* fallback empty */ }
 
@@ -111,17 +114,22 @@ export default async function EventoTipoPage({ params }: Props) {
           )}
         </div>
 
+        <LandingHeroBanner banner={banners.hero} />
+
         <LandingPageClient
           services={services}
           emptyStateTitle={`Aun no hay servicios para ${eventType.label.toLowerCase()}`}
           emptyStateSuggestions={categoryCounts.slice(0, 5)}
           emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}
+          midFeedBanner={banners.mid_feed}
         />
 
         {/* SEO content */}
         <div className="mt-12 prose prose-gray max-w-none">
           <p className="text-muted-foreground">{eventType.content}</p>
         </div>
+
+        <LandingBottomBanner banner={banners.bottom} />
 
         {/* Internal links: categories */}
         {categories.length > 0 && (

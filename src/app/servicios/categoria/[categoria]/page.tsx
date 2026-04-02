@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer } from '@/lib/supabase/server-queries';
+import { getActiveServicesServer, enrichServicesWithTagsServer, getActiveCategoriesServer, getActiveZonesServer, getLandingBannersServer } from '@/lib/supabase/server-queries';
 import { LandingPageClient } from '@/components/services/landing-page-client';
+import { LandingHeroBanner, LandingBottomBanner } from '@/components/landing/landing-banner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CollapsibleSection } from '@/components/ui/collapsible-section';
@@ -79,10 +80,12 @@ export default async function CategoriaLandingPage({ params, searchParams }: Pro
 
   let zones: { slug: string; label: string }[] = [];
   let categories: { slug: string; label: string }[] = [];
+  let banners: { hero: import('@/types/database').LandingPageBanner | null; mid_feed: import('@/types/database').LandingPageBanner | null; bottom: import('@/types/database').LandingPageBanner | null } = { hero: null, mid_feed: null, bottom: null };
   try {
-    [zones, categories] = await Promise.all([
+    [zones, categories, banners] = await Promise.all([
       getActiveZonesServer(),
       getActiveCategoriesServer(),
+      getLandingBannersServer({ category: params.categoria }),
     ]);
   } catch { /* fallback empty */ }
 
@@ -140,6 +143,8 @@ export default async function CategoriaLandingPage({ params, searchParams }: Pro
           )}
         </div>
 
+        <LandingHeroBanner banner={banners.hero} />
+
         <LandingPageClient
           services={services}
           initialCategory={params.categoria}
@@ -148,6 +153,7 @@ export default async function CategoriaLandingPage({ params, searchParams }: Pro
           emptyStateTitle={`Aun no hay servicios de ${fallback.label.toLowerCase()}`}
           emptyStateSuggestions={categorySuggestions}
           emptyStateCta={{ label: 'Ver todos los servicios', href: '/servicios' }}
+          midFeedBanner={banners.mid_feed}
         />
 
         {/* SEO content */}
@@ -156,6 +162,8 @@ export default async function CategoriaLandingPage({ params, searchParams }: Pro
             <p className="text-muted-foreground">{categoryContent.content}</p>
           </div>
         )}
+
+        <LandingBottomBanner banner={banners.bottom} />
 
         {/* Internal links: zones for this category */}
         {zones.length > 0 && (
