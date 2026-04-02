@@ -11,11 +11,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Pencil, Upload, X, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { useCatalog } from '@/providers/catalog-provider';
+import { useAuthContext } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
+import { uploadServiceMedia, deleteServiceMedia, validateFile } from '@/lib/supabase/storage';
 import type { LandingPageBanner, LandingBannerPosition } from '@/types/database';
 import { EVENT_TYPES } from '@/data/event-types';
+
+const IMAGE_SIZE_HINTS: Record<LandingBannerPosition, string> = {
+  hero: 'Recomendado: 1200 x 400 px (horizontal). Se muestra como fondo del banner con overlay oscuro.',
+  mid_feed: 'Recomendado: 400 x 400 px (cuadrada). Se muestra como thumbnail al lado del texto.',
+  bottom: 'Opcional. Este tipo de banner usa gradiente y no muestra imagen.',
+};
 
 const POSITION_LABELS: Record<LandingBannerPosition, string> = {
   hero: 'Hero (arriba)',
@@ -25,6 +34,7 @@ const POSITION_LABELS: Record<LandingBannerPosition, string> = {
 
 export default function AdminBannersPage() {
   const { categories, zones } = useCatalog();
+  const { user } = useAuthContext();
   const { toast } = useToast();
   const [banners, setBanners] = useState<LandingPageBanner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +56,37 @@ export default function AdminBannersPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [priority, setPriority] = useState(0);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const validationError = validateFile(file);
+    if (validationError) {
+      toast({ title: 'Error', description: validationError, variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = await uploadServiceMedia(user.id, file);
+      setImageUrl(url);
+    } catch {
+      toast({ title: 'Error', description: 'No se pudo subir la imagen', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!imageUrl) return;
+    try {
+      await deleteServiceMedia(imageUrl);
+    } catch {
+      // Ignore delete errors — the URL might be from an external source
+    }
+    setImageUrl('');
+  };
 
   const loadBanners = async () => {
     try {
@@ -230,18 +271,46 @@ export default function AdminBannersPage() {
                   <Input value={ctaUrl} onChange={e => setCtaUrl(e.target.value)} placeholder="/servicios" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>URL de imagen</Label>
-                  <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://..." />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Color de fondo</Label>
-                  <div className="flex gap-2">
-                    <Input value={bgColor} onChange={e => setBgColor(e.target.value)} placeholder="#43276c" />
-                    <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="h-10 w-10 rounded border cursor-pointer" />
+              <div className="grid gap-2">
+                <Label>Imagen del banner</Label>
+                {imageUrl ? (
+                  <div className="relative w-full h-40 rounded-lg overflow-hidden border bg-muted">
+                    <Image src={imageUrl} alt="Preview" fill className="object-cover" sizes="600px" />
+                    <button
+                      type="button"
+                      onClick={handleImageRemove}
+                      className="absolute top-2 right-2 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                      aria-label="Eliminar imagen"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors">
+                    {uploading ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Subiendo...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                        <Upload className="h-6 w-6" />
+                        <span className="text-sm font-medium">Click para subir imagen</span>
+                        <span className="text-xs">JPG, PNG o WebP (max 5MB)</span>
+                      </div>
+                    )}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+                  </label>
+                )}
+                <p className="text-xs text-muted-foreground">{IMAGE_SIZE_HINTS[position]}</p>
+              </div>
+              <div className="grid gap-2">
+                <Label>Color de fondo</Label>
+                <div className="flex gap-2">
+                  <Input value={bgColor} onChange={e => setBgColor(e.target.value)} placeholder="#43276c" />
+                  <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="h-10 w-10 rounded border cursor-pointer" />
                 </div>
+                <p className="text-xs text-muted-foreground">Se usa cuando no hay imagen, o como fallback.</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
