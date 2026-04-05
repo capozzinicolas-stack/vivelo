@@ -12,6 +12,8 @@ import { DollarSign, TrendingUp, CreditCard, Clock, Loader2, ArrowUpDown, ArrowU
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
 import { calculateRetentions, REGIMENES_FISCALES } from '@/lib/fiscal';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Booking, Profile, RegimenFiscal, PersonaType, FiscalStatus } from '@/types/database';
 
 const PERIODS = [
@@ -267,6 +269,34 @@ export default function AdminFinanzasPage() {
   const avgBookingValue = confirmed.length > 0 ? Math.round(totalRevenue / confirmed.length) : 0;
   const avgCommPerBooking = confirmed.length > 0 ? Math.round(totalCommissions / confirmed.length) : 0;
 
+  // Export column definitions
+  const monthlyExportCols: ExportColumn[] = [
+    { header: 'Mes', accessor: (r) => r.month },
+    { header: 'Reservas', accessor: 'bookings' },
+    { header: 'GMV', accessor: 'gmv' },
+    { header: 'Revenue Vivelo', accessor: 'commissions' },
+    { header: 'A Proveedores', accessor: 'providerPayouts' },
+    { header: 'Margen %', accessor: 'margin' },
+  ];
+  const monthlyExportData = months.map(([month, data]) => ({
+    month: formatMonth(month),
+    bookings: data.bookings,
+    gmv: data.revenue,
+    commissions: data.commissions,
+    providerPayouts: data.revenue - data.commissions,
+    margin: data.revenue > 0 ? (data.commissions / data.revenue * 100).toFixed(1) + '%' : '0%',
+  }));
+
+  const liquidationExportCols: ExportColumn[] = [
+    { header: 'Proveedor', accessor: 'name' },
+    { header: 'Regimen', accessor: (r) => r.hasFiscal ? (REGIMENES_FISCALES[r.regimen as RegimenFiscal] || '') : 'Sin datos fiscales' },
+    { header: 'Pago Neto', accessor: 'net' },
+    { header: 'ISR', accessor: (r) => r.hasFiscal ? r.isr_amount : '' },
+    { header: 'IVA', accessor: (r) => r.hasFiscal ? r.iva_amount : '' },
+    { header: 'Neto tras Retenciones', accessor: (r) => r.hasFiscal ? r.net_after_retentions : '' },
+    { header: 'Estado Fiscal', accessor: (r) => r.hasFiscal ? (r.fiscalStatus === 'approved' ? 'Aprobado' : r.fiscalStatus === 'pending_review' ? 'Pendiente' : r.fiscalStatus) : 'Sin datos' },
+  ];
+
   const toggleSort = (key: MonthlySortKey) => {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('desc'); }
@@ -362,7 +392,10 @@ export default function AdminFinanzasPage() {
 
       {/* Desglose Mensual (sortable, formatted) */}
       <Card>
-        <CardHeader><CardTitle>Desglose Mensual</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Desglose Mensual</CardTitle>
+          <ExportButton data={monthlyExportData} columns={monthlyExportCols} filename="finanzas-mensual" pdfTitle="Desglose Mensual" />
+        </CardHeader>
         <CardContent>
           {months.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">Sin datos aun</p>
@@ -506,11 +539,12 @@ export default function AdminFinanzasPage() {
       </div>
       {/* Liquidacion con Retenciones (display only) */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
             Liquidacion con Retenciones
           </CardTitle>
+          <ExportButton data={providerLiquidation} columns={liquidationExportCols} filename="liquidacion" pdfTitle="Liquidacion con Retenciones" />
         </CardHeader>
         <CardContent>
           {providerLiquidation.length === 0 ? (

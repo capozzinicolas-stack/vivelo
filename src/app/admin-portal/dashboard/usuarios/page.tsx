@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from '@/hooks/use-toast';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { CheckCircle, XCircle, Loader2, KeyRound, UserPlus, Pause, Play, Trash2, AlertTriangle, Copy, Lock } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Profile, UserRole } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -192,6 +194,14 @@ export default function AdminUsuariosPage() {
     toast({ title: 'Contrasena copiada al portapapeles' });
   };
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Nombre', accessor: 'full_name' },
+    { header: 'Email', accessor: 'email' },
+    { header: 'Rol', accessor: 'role' },
+    { header: 'Estado', accessor: (r) => r.verified ? 'Activo' : 'Inactivo' },
+    { header: 'Registro', accessor: (r) => new Date(r.created_at).toLocaleDateString('es-MX') },
+  ];
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando usuarios" /></div>;
 
   return (
@@ -199,6 +209,7 @@ export default function AdminUsuariosPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Gestion de Usuarios</h1>
         <div className="flex items-center gap-3">
+          <ExportButton data={filtered} columns={exportColumns} filename="usuarios" pdfTitle="Usuarios" />
           <p className="text-sm text-muted-foreground">{users.length} usuarios registrados</p>
           <Button size="sm" onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4 mr-1" />

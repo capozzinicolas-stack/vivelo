@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Star, Loader2, Check, X, Plus, Eye, Image as ImageIcon } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Review, Service } from '@/types/database';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -151,6 +153,16 @@ export default function AdminReviewsPage() {
 
   const pendingCount = reviews.filter(r => r.status === 'pending').length;
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Servicio', accessor: (r) => r.service?.title || '' },
+    { header: 'Cliente', accessor: (r) => r.client?.full_name || '' },
+    { header: 'Rating', accessor: 'rating' },
+    { header: 'Comentario', accessor: (r) => r.comment || '' },
+    { header: 'Fotos', accessor: (r) => r.photos?.length || 0 },
+    { header: 'Estado', accessor: (r) => STATUS_LABELS[r.status] || r.status },
+    { header: 'Fecha', accessor: (r) => new Date(r.created_at).toLocaleDateString('es-MX') },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -167,6 +179,7 @@ export default function AdminReviewsPage() {
 
       {/* Filters */}
       <div className="flex gap-2">
+        <ExportButton data={reviews} columns={exportColumns} filename="reviews" pdfTitle="Reviews" />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Filtrar por estado" />

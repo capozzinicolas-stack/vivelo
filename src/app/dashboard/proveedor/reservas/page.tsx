@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BookingDetailDialog } from '@/components/booking-detail-dialog';
 import { Loader2 } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Booking, BookingStatus } from '@/types/database';
 
 const tabs = ['all', 'pending', 'confirmed', 'completed'] as const;
@@ -29,6 +31,17 @@ export default function ProveedorReservasPage() {
 
   const filtered = tab === 'all' ? bookings : bookings.filter((b) => b.status === tab);
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Servicio', accessor: (r) => r.service?.title || '' },
+    { header: 'Cliente', accessor: (r) => r.client?.full_name || '' },
+    { header: 'Fecha', accessor: (r) => new Date(r.event_date).toLocaleDateString('es-MX') },
+    { header: 'Invitados', accessor: 'guest_count' },
+    { header: 'Venta', accessor: (r) => r.status === 'cancelled' && r.refund_amount ? r.total - r.refund_amount : r.total },
+    { header: 'Comision', accessor: 'commission' },
+    { header: 'Tu Pago', accessor: (r) => { const eff = r.status === 'cancelled' && r.refund_amount ? r.total - r.refund_amount : r.total; return eff - r.commission; } },
+    { header: 'Estado', accessor: (r) => BOOKING_STATUS_LABELS[r.status] || r.status },
+  ];
+
   const handleStatusChange = (id: string, status: BookingStatus) => {
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
@@ -37,7 +50,10 @@ export default function ProveedorReservasPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Gestion de Reservas</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Gestion de Reservas</h1>
+        <ExportButton data={filtered} columns={exportColumns} filename="mis-reservas" pdfTitle="Mis Reservas" />
+      </div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{tabs.map((s) => <TabsTrigger key={s} value={s}>{tabLabels[s]}</TabsTrigger>)}</TabsList>
         <TabsContent value={tab} className="mt-4">

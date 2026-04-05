@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus } from '@/types/database';
 
 const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', pending_review: 'Pendiente de aprobacion', paused: 'Pausado', archived: 'Archivado' };
@@ -65,12 +67,23 @@ export default function ProveedorServiciosPage() {
     }
   };
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Titulo', accessor: 'title' },
+    { header: 'Categoria', accessor: (r) => categoryMap[r.category]?.label || r.category },
+    { header: 'Precio', accessor: (r) => `$${r.base_price?.toLocaleString()} ${r.price_unit}` },
+    { header: 'Estado', accessor: (r) => statusLabels[r.status] || r.status },
+    { header: 'Rating', accessor: 'avg_rating' },
+  ];
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Mis Servicios</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Mis Servicios</h1>
+          <ExportButton data={services} columns={exportColumns} filename="mis-servicios" pdfTitle="Mis Servicios" />
+        </div>
         <Button asChild><Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Nuevo Servicio</Link></Button>
       </div>
       <div className="rounded-md border">

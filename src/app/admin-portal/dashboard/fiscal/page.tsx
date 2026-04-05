@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Loader2, Search, CheckCircle2, XCircle, Eye, ExternalLink, FileText, Receipt } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { ProviderFiscalData, FiscalStatus, RegimenFiscal, DireccionFiscal } from '@/types/database';
 
 const statusConfig: Record<FiscalStatus, { label: string; className: string }> = {
@@ -75,6 +77,16 @@ export default function AdminFiscalPage() {
   });
 
   const pendingCount = fiscalRecords.filter(r => r.fiscal_status === 'pending_review').length;
+
+  const exportColumns: ExportColumn[] = [
+    { header: 'Proveedor', accessor: 'provider_name' },
+    { header: 'Email', accessor: 'provider_email' },
+    { header: 'RFC', accessor: 'rfc' },
+    { header: 'Razon Social', accessor: 'razon_social' },
+    { header: 'Regimen', accessor: (r) => REGIMENES_FISCALES[r.regimen_fiscal as RegimenFiscal] || r.regimen_fiscal },
+    { header: 'Tipo', accessor: 'tipo_persona' },
+    { header: 'Estado', accessor: (r) => statusConfig[r.fiscal_status as FiscalStatus]?.label || r.fiscal_status },
+  ];
 
   const handleViewDetail = async (record: FiscalRow) => {
     setDetailLoading(true);
@@ -204,6 +216,7 @@ export default function AdminFiscalPage() {
             Limpiar filtro
           </Button>
         )}
+        <ExportButton data={filtered} columns={exportColumns} filename="datos-fiscales" pdfTitle="Datos Fiscales" />
       </div>
 
       {/* Table */}

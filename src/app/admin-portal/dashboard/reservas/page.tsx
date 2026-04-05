@@ -19,6 +19,8 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { getAvailableTransitions } from '@/lib/booking-state-machine';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale/es';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Booking, BookingStatus } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -105,6 +107,17 @@ export default function AdminReservasPage() {
   const totalIngresos = filtered.reduce((s, b) => s + getEffective(b), 0);
   const totalComisiones = filtered.reduce((s, b) => s + b.commission, 0);
   const ticketPromedio = filtered.length > 0 ? Math.round(totalIngresos / filtered.length) : 0;
+
+  const exportColumns: ExportColumn[] = [
+    { header: 'Servicio', accessor: (r) => r.service?.title || '' },
+    { header: 'Cliente', accessor: (r) => r.client?.full_name || '' },
+    { header: 'Proveedor', accessor: (r) => r.provider?.full_name || '' },
+    { header: 'Fecha', accessor: (r) => new Date(r.event_date).toLocaleDateString('es-MX') },
+    { header: 'Invitados', accessor: 'guest_count' },
+    { header: 'Total', accessor: (r) => getEffective(r) },
+    { header: 'Comision', accessor: 'commission' },
+    { header: 'Estado', accessor: (r) => BOOKING_STATUS_LABELS[r.status] || r.status },
+  ];
 
   const handleStatusChange = async (id: string, status: BookingStatus) => {
     try {
@@ -247,6 +260,7 @@ export default function AdminReservasPage() {
                 Limpiar filtros
               </Button>
             )}
+            <ExportButton data={filtered} columns={exportColumns} filename="reservas" pdfTitle="Reservas" />
           </div>
 
           {/* Table */}

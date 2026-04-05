@@ -654,6 +654,20 @@ grandTotal = Σ(effectiveTotal de bookings) + Σ(total de cart items)
 - `BOOKING_STATUS_LABELS/COLORS` — badges de status consistentes
 - Estilo amber para cart items (consistente con reservas)
 
+### Exportacion de Datos (CSV, XLSX, PDF)
+
+Sistema reutilizable de exportacion con `ExportButton` dropdown (CSV, Excel, PDF). Usa `xlsx` (SheetJS), `jspdf` + `jspdf-autotable`.
+
+**Archivos core:**
+- `src/lib/export.ts` — funciones `exportCSV()`, `exportXLSX()`, `exportPDF()` con columnas configurables
+- `src/components/ui/export-button.tsx` — dropdown con 3 formatos, acepta `data`, `columns`, `filename`, `pdfTitle`
+
+**Paginas con export:**
+- Admin: Reservas, Finanzas (mensual + liquidacion), Fiscal, Proveedores, Usuarios, Servicios, Reviews
+- Proveedor: Reservas, Servicios
+
+Cada pagina define `exportColumns: ExportColumn[]` con accessors que resuelven propiedades nested (ej: `r.service?.title`). Los datos filtrados/visibles se pasan directamente al boton.
+
 ### Relacion con "Por Evento" en Reservas
 
 La pagina de reservas (`/dashboard/cliente/reservas`) tiene un toggle "Por Evento" que agrupa bookings de manera similar. La pagina dedicada de eventos es mas completa (incluye gasto total, desglose detallado con horarios e invitados). Ambas coexisten sin conflicto.

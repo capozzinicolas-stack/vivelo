@@ -15,6 +15,8 @@ import { PaginationControls } from '@/components/ui/pagination-controls';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, Search, Landmark, XCircle, FileText, ExternalLink } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Profile, BankingStatus } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -116,6 +118,15 @@ export default function AdminProveedoresPage() {
     }
   };
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Proveedor', accessor: 'full_name' },
+    { header: 'Email', accessor: 'email' },
+    { header: 'Empresa', accessor: (r) => r.company_name || '' },
+    { header: 'Servicios', accessor: 'service_count' },
+    { header: 'Comision Prom.', accessor: (r) => ((providerAvgRates[r.id] ?? COMMISSION_RATE) * 100).toFixed(1) + '%' },
+    { header: 'Verificado', accessor: (r) => r.verified ? 'Si' : 'No' },
+  ];
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -175,14 +186,17 @@ export default function AdminProveedoresPage() {
           </div>
 
           {/* Search */}
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar proveedor..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar proveedor..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <ExportButton data={filtered} columns={exportColumns} filename="proveedores" pdfTitle="Proveedores" />
           </div>
 
           {/* Table */}

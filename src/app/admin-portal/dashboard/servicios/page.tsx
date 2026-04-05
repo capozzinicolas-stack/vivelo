@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react';
+import { ExportButton } from '@/components/ui/export-button';
+import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus } from '@/types/database';
 
 const PAGE_SIZE = 20;
@@ -178,6 +180,17 @@ export default function AdminServiciosPage() {
     }
   };
 
+  const exportColumns: ExportColumn[] = [
+    { header: 'Titulo', accessor: 'title' },
+    { header: 'Proveedor', accessor: (r) => r.provider?.full_name || '' },
+    { header: 'Categoria', accessor: (r) => categoryMap[r.category]?.label || r.category },
+    { header: 'Zona(s)', accessor: (r) => (r.zones || []).map((z: string) => getZoneLabel(z)).join(', ') },
+    { header: 'Precio', accessor: (r) => `$${r.base_price?.toLocaleString()} ${r.price_unit}` },
+    { header: 'Estado', accessor: 'status' },
+    { header: 'Rating', accessor: 'avg_rating' },
+    { header: 'Creado', accessor: (r) => new Date(r.created_at).toLocaleDateString('es-MX') },
+  ];
+
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
@@ -186,6 +199,7 @@ export default function AdminServiciosPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Moderacion de Servicios</h1>
           <span className="text-sm text-muted-foreground">{filtered.length} servicios</span>
+          <ExportButton data={filtered} columns={exportColumns} filename="servicios" pdfTitle="Servicios" />
         </div>
         <div className="flex items-center gap-2">
           {counts.pending_review > 0 && (
