@@ -73,7 +73,7 @@ export default async function ServiceDetailPage({ params }: Props) {
   // JSON-LD structured data
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Service',
+    '@type': 'Product',
     name: service.title,
     description: service.description,
     provider: {
