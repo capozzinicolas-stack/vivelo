@@ -25,6 +25,7 @@ import type { ServiceCategory, ServiceSubcategory, ServiceStatus, Extra, Cancell
 const statusOptions: { value: ServiceStatus; label: string }[] = [
   { value: 'active', label: 'Activo' },
   { value: 'paused', label: 'Pausado' },
+  { value: 'needs_revision', label: 'Necesita Ajustes' },
   { value: 'draft', label: 'Borrador' },
   { value: 'archived', label: 'Archivado' },
 ];

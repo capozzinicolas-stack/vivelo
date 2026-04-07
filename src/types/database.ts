@@ -46,7 +46,7 @@ export interface CatalogTag {
   sort_order: number;
   is_active: boolean;
 }
-export type ServiceStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'archived';
+export type ServiceStatus = 'draft' | 'pending_review' | 'needs_revision' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
 export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded';
@@ -120,6 +120,7 @@ export interface Service {
   buffer_after_minutes: number;
   buffer_before_days: number;
   buffer_after_days: number;
+  admin_notes: string | null;
   deletion_requested: boolean;
   deletion_requested_at: string | null;
   avg_rating: number;

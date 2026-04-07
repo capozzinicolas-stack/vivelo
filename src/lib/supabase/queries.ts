@@ -159,6 +159,7 @@ export async function createService(
       buffer_before_days: service.buffer_before_days ?? 0,
       buffer_after_days: service.buffer_after_days ?? 0,
       status: 'pending_review',
+      admin_notes: null,
       deletion_requested: false,
       deletion_requested_at: null,
       avg_rating: 0,
@@ -451,15 +452,45 @@ export async function approveService(id: string, providerId: string, serviceTitl
   });
 }
 
-export async function rejectService(id: string, providerId: string, serviceTitle: string): Promise<void> {
-  await updateServiceStatus(id, 'archived');
+export async function rejectService(id: string, providerId: string, serviceTitle: string, notes?: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const updateData: Record<string, unknown> = { status: 'archived' };
+  if (notes) updateData.admin_notes = notes;
+  const { error } = await supabase.from('services').update(updateData).eq('id', id);
+  if (error) throw error;
+  const message = notes
+    ? `Tu servicio "${serviceTitle}" no fue aprobado. Razon: ${notes.slice(0, 200)}`
+    : `Tu servicio "${serviceTitle}" no fue aprobado. Contacta a soporte para mas informacion.`;
   await createNotification({
     recipient_id: providerId,
     type: 'system',
     title: 'Servicio rechazado',
-    message: `Tu servicio "${serviceTitle}" no fue aprobado. Contacta a soporte para mas informacion.`,
+    message,
     link: '/dashboard/proveedor/servicios',
   });
+}
+
+export async function requestServiceRevision(id: string, providerId: string, serviceTitle: string, notes: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase.from('services').update({ status: 'needs_revision', admin_notes: notes }).eq('id', id);
+  if (error) throw error;
+  await createNotification({
+    recipient_id: providerId,
+    type: 'system',
+    title: 'Tu servicio requiere ajustes',
+    message: `Tu servicio "${serviceTitle}" necesita ajustes: ${notes.slice(0, 200)}`,
+    link: '/dashboard/proveedor/servicios',
+  });
+}
+
+export async function resubmitServiceForReview(id: string, serviceTitle: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase.from('services').update({ status: 'pending_review', admin_notes: null }).eq('id', id);
+  if (error) throw error;
+  await notifyAdminsOfNewService(serviceTitle);
 }
 
 export async function notifyAdminsOfNewService(serviceTitle: string): Promise<void> {

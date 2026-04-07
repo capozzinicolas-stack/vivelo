@@ -506,7 +506,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 
 | Modulo | Estado | Notas |
 |--------|--------|-------|
-| Alta de servicios (proveedor) | ✅ Terminado | CRUD completo con extras, precios, categorias. Flujo: Creacion → pending_review → (admin aprueba) → active ↔ paused / (admin rechaza) → archived |
+| Alta de servicios (proveedor) | ✅ Terminado | CRUD completo con extras, precios, categorias. Flujo: Creacion → pending_review → (admin aprueba) → active ↔ paused / (admin solicita ajustes) → needs_revision → (proveedor corrige y reenvia) → pending_review / (admin rechaza) → archived. Admin puede dejar notas en `admin_notes` al solicitar ajustes o rechazar. Proveedor ve las notas en lista y al editar, con boton "Guardar y Reenviar a Revision". |
 | Onboarding proveedor | ✅ Terminado | Banner persistente en dashboard hasta completar: datos de empresa (company_name, bio) + datos bancarios (RFC, CLABE, documento). Secciones en `/configuracion`. Helper: `getProviderOnboardingStatus()` |
 | Extras por servicio | ✅ Terminado | Logica de min/max, depends_on_guests/hours, imagen y descripcion (150 chars) |
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |

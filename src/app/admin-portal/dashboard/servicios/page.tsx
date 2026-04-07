@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { getAllServices, updateServiceStatus, approveDeletion, rejectDeletion, approveService, rejectService } from '@/lib/supabase/queries';
+import { getAllServices, updateServiceStatus, approveDeletion, rejectDeletion, approveService, rejectService, requestServiceRevision } from '@/lib/supabase/queries';
 import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react';
@@ -21,15 +22,16 @@ import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus } from '@/types/database';
 
 const PAGE_SIZE = 20;
-const statusTabs = ['all', 'pending_review', 'active', 'paused', 'archived', 'deletion'] as const;
-const tabLabels: Record<string, string> = { all: 'Todos', pending_review: 'Pendientes', active: 'Activos', paused: 'Pausados', archived: 'Archivados', deletion: 'Solicitudes de eliminacion' };
-const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
+const statusTabs = ['all', 'pending_review', 'needs_revision', 'active', 'paused', 'archived', 'deletion'] as const;
+const tabLabels: Record<string, string> = { all: 'Todos', pending_review: 'Pendientes', needs_revision: 'En Revision', active: 'Activos', paused: 'Pausados', archived: 'Archivados', deletion: 'Solicitudes de eliminacion' };
+const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', needs_revision: 'bg-orange-100 text-orange-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 const tabCounts = (services: Service[]) => {
   const deletion = services.filter(s => s.deletion_requested).length;
   return {
     all: services.length,
     pending_review: services.filter(s => s.status === 'pending_review').length,
+    needs_revision: services.filter(s => s.status === 'needs_revision').length,
     active: services.filter(s => s.status === 'active').length,
     paused: services.filter(s => s.status === 'paused').length,
     archived: services.filter(s => s.status === 'archived').length,
@@ -49,6 +51,9 @@ export default function AdminServiciosPage() {
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState<string>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [revisionService, setRevisionService] = useState<Service | null>(null);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [rejectNotes, setRejectNotes] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,11 +175,25 @@ export default function AdminServiciosPage() {
     }
   };
 
-  const handleReject = async (s: Service) => {
+  const handleReject = async (s: Service, notes?: string) => {
     try {
-      await rejectService(s.id, s.provider_id, s.title);
+      await rejectService(s.id, s.provider_id, s.title, notes || undefined);
       setServices(prev => prev.map(svc => svc.id === s.id ? { ...svc, status: 'archived' as ServiceStatus } : svc));
+      setRejectNotes('');
       toast({ title: 'Servicio rechazado', description: `"${s.title}" ha sido rechazado.` });
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleRequestRevision = async () => {
+    if (!revisionService || revisionNotes.trim().length < 10) return;
+    try {
+      await requestServiceRevision(revisionService.id, revisionService.provider_id, revisionService.title, revisionNotes.trim());
+      setServices(prev => prev.map(svc => svc.id === revisionService.id ? { ...svc, status: 'needs_revision' as ServiceStatus, admin_notes: revisionNotes.trim() } : svc));
+      toast({ title: 'Ajustes solicitados', description: `Se notifico al proveedor de "${revisionService.title}".` });
+      setRevisionService(null);
+      setRevisionNotes('');
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     }
@@ -223,6 +242,10 @@ export default function AdminServiciosPage() {
               {tabLabels[s]}
               {s === 'pending_review' && counts.pending_review > 0 ? (
                 <span className="ml-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-500 text-white text-[10px] font-bold">
+                  {counts[s]}
+                </span>
+              ) : s === 'needs_revision' && counts.needs_revision > 0 ? (
+                <span className="ml-1.5 inline-flex items-center justify-center h-5 w-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
                   {counts[s]}
                 </span>
               ) : s === 'deletion' && deletionRequests.length > 0 ? (
@@ -298,6 +321,9 @@ export default function AdminServiciosPage() {
                       <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700" onClick={() => handleApprove(s)}>
                         <CheckCircle className="h-3 w-3" /> Aprobar
                       </Button>
+                      <Button size="sm" variant="outline" className="gap-1 border-orange-300 text-orange-700 hover:bg-orange-50" onClick={() => { setRevisionService(s); setRevisionNotes(''); }}>
+                        <AlertTriangle className="h-3 w-3" /> Solicitar Ajustes
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="destructive" className="gap-1">
@@ -311,9 +337,15 @@ export default function AdminServiciosPage() {
                               Esto rechazara el servicio &quot;{s.title}&quot; y sera archivado. El proveedor recibira una notificacion.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
+                          <Textarea
+                            placeholder="Razon del rechazo (opcional)..."
+                            value={rejectNotes}
+                            onChange={(e) => setRejectNotes(e.target.value)}
+                            className="min-h-[80px]"
+                          />
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleReject(s)} className="bg-red-600 hover:bg-red-700">
+                            <AlertDialogCancel onClick={() => setRejectNotes('')}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => { handleReject(s, rejectNotes); }} className="bg-red-600 hover:bg-red-700">
                               Rechazar
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -457,6 +489,34 @@ export default function AdminServiciosPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Revision Dialog */}
+      <Dialog open={!!revisionService} onOpenChange={(open) => { if (!open) { setRevisionService(null); setRevisionNotes(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar ajustes</DialogTitle>
+            <DialogDescription>
+              Describe los ajustes necesarios para &quot;{revisionService?.title}&quot;. El proveedor recibira estas notas y podra corregir su servicio.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Describe que debe corregir el proveedor (minimo 10 caracteres)..."
+            value={revisionNotes}
+            onChange={(e) => setRevisionNotes(e.target.value)}
+            className="min-h-[120px]"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRevisionService(null); setRevisionNotes(''); }}>Cancelar</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={revisionNotes.trim().length < 10}
+              onClick={handleRequestRevision}
+            >
+              Solicitar Ajustes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>

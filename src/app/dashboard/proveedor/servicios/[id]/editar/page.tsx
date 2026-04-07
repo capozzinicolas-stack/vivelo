@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCatalog } from '@/providers/catalog-provider';
 import { PRICE_UNITS } from '@/lib/constants';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies, getServiceTags, setServiceTags } from '@/lib/supabase/queries';
+import { getServiceById, updateService, createExtra, updateExtra as updateExtraQuery, deleteExtra, getCancellationPolicies, getServiceTags, setServiceTags, resubmitServiceForReview } from '@/lib/supabase/queries';
 import { uploadServiceMedia, deleteServiceMedia, validateFile, getMediaType } from '@/lib/supabase/storage';
 import { generateServiceSku, generateExtraSku } from '@/lib/sku';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
-import { ArrowLeft, Loader2, Plus, Trash2, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, ImagePlus, X, AlertTriangle } from 'lucide-react';
 import type { ServiceCategory, ServiceSubcategory, Extra, CancellationPolicy } from '@/types/database';
 import Link from 'next/link';
 
@@ -62,6 +62,8 @@ export default function EditarServicioPage() {
   const [cancellationPolicies, setCancellationPolicies] = useState<CancellationPolicy[]>([]);
   const [cancellationPolicyId, setCancellationPolicyId] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [serviceStatus, setServiceStatus] = useState('');
+  const [adminNotes, setAdminNotes] = useState('');
 
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
@@ -99,6 +101,8 @@ export default function EditarServicioPage() {
       setCategoryDetails(s.category_details || {});
       setServiceExtras(s.extras || []);
       setCancellationPolicyId(s.cancellation_policy_id || '');
+      setServiceStatus(s.status);
+      setAdminNotes(s.admin_notes || '');
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -156,7 +160,12 @@ export default function EditarServicioPage() {
       if (cancellationPolicyId) updateData.cancellation_policy_id = cancellationPolicyId;
       await updateService(id, updateData);
       await setServiceTags(id, selectedTags);
-      toast({ title: 'Servicio actualizado!' });
+      if (serviceStatus === 'needs_revision') {
+        await resubmitServiceForReview(id, title);
+        toast({ title: 'Servicio reenviado a revision', description: 'Un admin revisara tus cambios.' });
+      } else {
+        toast({ title: 'Servicio actualizado!' });
+      }
       router.push('/dashboard/proveedor/servicios');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : JSON.stringify(err);
@@ -279,6 +288,16 @@ export default function EditarServicioPage() {
         <Button variant="ghost" size="sm" asChild><Link href="/dashboard/proveedor/servicios"><ArrowLeft className="h-4 w-4" /></Link></Button>
         <h1 className="text-2xl font-bold">Editar Servicio</h1>
       </div>
+      {serviceStatus === 'needs_revision' && adminNotes && (
+        <div className="flex gap-3 p-4 rounded-lg border border-orange-300 bg-orange-50">
+          <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-orange-800">Un administrador ha solicitado ajustes en tu servicio</p>
+            <p className="text-sm text-orange-700 mt-1">{adminNotes}</p>
+            <p className="text-xs text-orange-600 mt-2">Revisa las notas, haz los cambios necesarios y guarda para reenviar a revision.</p>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader><CardTitle>Informacion Basica</CardTitle></CardHeader>
@@ -472,8 +491,8 @@ export default function EditarServicioPage() {
           </Card>
         )}
 
-        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-          {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : 'Guardar Cambios'}
+        <Button type="submit" size="lg" className={`w-full ${serviceStatus === 'needs_revision' ? 'bg-orange-600 hover:bg-orange-700' : ''}`} disabled={submitting}>
+          {submitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : serviceStatus === 'needs_revision' ? 'Guardar y Reenviar a Revision' : 'Guardar Cambios'}
         </Button>
       </form>
 

@@ -12,13 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles } from 'lucide-react';
+import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles, AlertTriangle } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
 import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus } from '@/types/database';
 
-const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', pending_review: 'Pendiente de aprobacion', paused: 'Pausado', archived: 'Archivado' };
-const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
+const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', pending_review: 'Pendiente de aprobacion', needs_revision: 'Necesita Ajustes', paused: 'Pausado', archived: 'Archivado' };
+const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', needs_revision: 'bg-orange-100 text-orange-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
 
 export default function ProveedorServiciosPage() {
   const { categoryMap, getCategoryCommissionRate } = useCatalog();
@@ -121,6 +121,12 @@ export default function ProveedorServiciosPage() {
                     <div className="flex flex-col gap-1">
                       <Badge className={statusColors[s.status]}>{statusLabels[s.status]}</Badge>
                       {s.status === 'pending_review' && <span className="text-xs text-blue-600">Un admin revisara tu servicio</span>}
+                      {s.status === 'needs_revision' && s.admin_notes && (
+                        <span className="text-xs text-orange-700 flex items-start gap-1">
+                          <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span className="line-clamp-2">{s.admin_notes}</span>
+                        </span>
+                      )}
                       {s.deletion_requested && <Badge className="bg-red-100 text-red-800 text-[10px]">Eliminacion solicitada</Badge>}
                     </div>
                   </TableCell>
@@ -133,7 +139,7 @@ export default function ProveedorServiciosPage() {
                       <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Editar" asChild>
                         <Link href={`/dashboard/proveedor/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
                       </Button>
-                      {s.status !== 'pending_review' && s.status !== 'archived' && (
+                      {s.status !== 'pending_review' && s.status !== 'needs_revision' && s.status !== 'archived' && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -144,7 +150,7 @@ export default function ProveedorServiciosPage() {
                           {s.status === 'active' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                         </Button>
                       )}
-                      {!s.deletion_requested && s.status !== 'pending_review' && (
+                      {!s.deletion_requested && s.status !== 'pending_review' && s.status !== 'needs_revision' && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button size="sm" variant="outline" className="h-7 w-7 p-0 text-red-500" title="Solicitar eliminacion">
