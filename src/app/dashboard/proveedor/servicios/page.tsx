@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements } from '@/lib/supabase/queries';
+import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements, getCancellationPolicies } from '@/lib/supabase/queries';
 import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Button } from '@/components/ui/button';
@@ -12,11 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles, AlertTriangle, MessageSquare, Upload, Download, FileSpreadsheet } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
+import { ServiceImportDialog } from '@/components/dashboard/service-import-dialog';
+import { generateTemplate, exportServices, getCategoryValues } from '@/lib/service-import-export';
 import type { ExportColumn } from '@/lib/export';
-import type { Service, ServiceStatus } from '@/types/database';
+import type { Service, ServiceStatus, CancellationPolicy } from '@/types/database';
 
 const statusLabels: Record<string, string> = { active: 'Activo', draft: 'Borrador', pending_review: 'Pendiente de aprobacion', needs_revision: 'Necesita Ajustes', paused: 'Pausado', archived: 'Archivado' };
 const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-800', draft: 'bg-gray-100 text-gray-800', pending_review: 'bg-blue-100 text-blue-800', needs_revision: 'bg-orange-100 text-orange-800', paused: 'bg-yellow-100 text-yellow-800', archived: 'bg-red-100 text-red-800' };
@@ -33,16 +36,20 @@ export default function ProveedorServiciosPage() {
   const [preview, setPreview] = useState<Service | null>(null);
   const [tab, setTab] = useState<StatusTab>('all');
   const [notesService, setNotesService] = useState<Service | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [policies, setPolicies] = useState<CancellationPolicy[]>([]);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
       getServicesByProvider(user.id),
       getFeaturedPlacements(),
+      getCancellationPolicies(),
     ])
-      .then(([svcs, placements]) => {
+      .then(([svcs, placements, pols]) => {
         setServices(svcs);
         setFeaturedServiceIds(new Set(placements.map(p => p.service_id)));
+        setPolicies(pols);
       })
       .catch((err) => {
         console.error('[ProveedorServicios] Error loading services:', err);
@@ -50,6 +57,53 @@ export default function ProveedorServiciosPage() {
       })
       .finally(() => setLoading(false));
   }, [user, toast]);
+
+  const reloadServices = () => {
+    if (!user) return;
+    getServicesByProvider(user.id).then(setServices).catch(console.error);
+  };
+
+  const handleDownloadTemplate = (cat: string) => {
+    try {
+      const buffer = generateTemplate(cat, policies);
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plantilla-${cat.toLowerCase()}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Plantilla descargada' });
+    } catch {
+      toast({ title: 'Error generando plantilla', variant: 'destructive' });
+    }
+  };
+
+  const handleExportServices = () => {
+    if (services.length === 0) return;
+    // Group by category and export each
+    const byCategory: Record<string, Service[]> = {};
+    for (const s of services) {
+      if (!byCategory[s.category]) byCategory[s.category] = [];
+      byCategory[s.category].push(s);
+    }
+    for (const cat of Object.keys(byCategory)) {
+      const svcs = byCategory[cat];
+      try {
+        const buffer = exportServices(svcs, cat);
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `servicios-${cat.toLowerCase()}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        toast({ title: `Error exportando ${cat}`, variant: 'destructive' });
+      }
+    }
+    toast({ title: 'Servicios exportados' });
+  };
 
   const handleTogglePause = async (s: Service) => {
     const newStatus: ServiceStatus = s.status === 'active' ? 'paused' : 'active';
@@ -200,12 +254,43 @@ export default function ProveedorServiciosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Mis Servicios</h1>
           <ExportButton data={filtered} columns={exportColumns} filename="mis-servicios" pdfTitle="Mis Servicios" />
         </div>
-        <Button asChild><Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Nuevo Servicio</Link></Button>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />Plantillas
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="end">
+              <div className="text-xs font-medium text-muted-foreground px-2 py-1.5">Descargar plantilla Excel</div>
+              {getCategoryValues().map(c => (
+                <button
+                  key={c.value}
+                  onClick={() => handleDownloadTemplate(c.value)}
+                  className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 inline mr-2 text-muted-foreground" />{c.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />Importar
+          </Button>
+          {services.length > 0 && (
+            <Button variant="outline" size="sm" onClick={handleExportServices}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />Exportar
+            </Button>
+          )}
+          <Button asChild>
+            <Link href="/dashboard/proveedor/servicios/nuevo"><Plus className="h-4 w-4 mr-2" />Nuevo Servicio</Link>
+          </Button>
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as StatusTab)}>
@@ -356,6 +441,14 @@ export default function ProveedorServiciosPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Import Dialog */}
+      <ServiceImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        policies={policies}
+        onImportComplete={reloadServices}
+      />
     </div>
   );
 }
