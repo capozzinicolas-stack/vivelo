@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, Search, Landmark, XCircle, FileText, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle, Search, Landmark, XCircle, FileText, ExternalLink, LogIn } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
 import type { ExportColumn } from '@/lib/export';
 import type { Profile, BankingStatus } from '@/types/database';
@@ -118,6 +118,30 @@ export default function AdminProveedoresPage() {
     }
   };
 
+  const [impersonating, setImpersonating] = useState<string | null>(null);
+
+  const handleImpersonate = async (providerId: string) => {
+    setImpersonating(providerId);
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: 'Error', description: data.error || 'No se pudo generar el acceso', variant: 'destructive' });
+        return;
+      }
+      window.open(data.url, '_blank');
+      toast({ title: 'Acceso generado', description: 'Se abrio el dashboard del proveedor en una nueva ventana.' });
+    } catch {
+      toast({ title: 'Error', description: 'Error de conexion', variant: 'destructive' });
+    } finally {
+      setImpersonating(null);
+    }
+  };
+
   const exportColumns: ExportColumn[] = [
     { header: 'Proveedor', accessor: 'full_name' },
     { header: 'Email', accessor: 'email' },
@@ -210,12 +234,13 @@ export default function AdminProveedoresPage() {
                   <TableHead>Servicios</TableHead>
                   <TableHead>Comision Prom.</TableHead>
                   <TableHead>Verificado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No se encontraron proveedores
                     </TableCell>
                   </TableRow>
@@ -235,6 +260,23 @@ export default function AdminProveedoresPage() {
                           {p.verified
                             ? <CheckCircle className="h-4 w-4 text-green-500" />
                             : <span className="text-xs text-muted-foreground">No</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1"
+                            disabled={impersonating === p.id}
+                            onClick={() => handleImpersonate(p.id)}
+                            aria-label={`Acceder como ${p.full_name}`}
+                          >
+                            {impersonating === p.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <LogIn className="h-3 w-3" />
+                            )}
+                            Acceder
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );

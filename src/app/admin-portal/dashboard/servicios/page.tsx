@@ -165,11 +165,21 @@ export default function AdminServiciosPage() {
     }
   };
 
+  // Non-blocking email notification to provider
+  const sendStatusEmail = (providerId: string, serviceTitle: string, status: 'approved' | 'rejected' | 'needs_revision', notes?: string) => {
+    fetch('/api/admin/service-status-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId, serviceTitle, status, notes }),
+    }).catch(err => console.error('[Email] Service status email failed:', err));
+  };
+
   const handleApprove = async (s: Service) => {
     try {
       await approveService(s.id, s.provider_id, s.title);
       setServices(prev => prev.map(svc => svc.id === s.id ? { ...svc, status: 'active' as ServiceStatus } : svc));
       toast({ title: 'Servicio aprobado', description: `"${s.title}" ya esta visible para clientes.` });
+      sendStatusEmail(s.provider_id, s.title, 'approved');
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     }
@@ -181,6 +191,7 @@ export default function AdminServiciosPage() {
       setServices(prev => prev.map(svc => svc.id === s.id ? { ...svc, status: 'archived' as ServiceStatus } : svc));
       setRejectNotes('');
       toast({ title: 'Servicio rechazado', description: `"${s.title}" ha sido rechazado.` });
+      sendStatusEmail(s.provider_id, s.title, 'rejected', notes || undefined);
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     }
@@ -192,6 +203,7 @@ export default function AdminServiciosPage() {
       await requestServiceRevision(revisionService.id, revisionService.provider_id, revisionService.title, revisionNotes.trim());
       setServices(prev => prev.map(svc => svc.id === revisionService.id ? { ...svc, status: 'needs_revision' as ServiceStatus, admin_notes: revisionNotes.trim() } : svc));
       toast({ title: 'Ajustes solicitados', description: `Se notifico al proveedor de "${revisionService.title}".` });
+      sendStatusEmail(revisionService.provider_id, revisionService.title, 'needs_revision', revisionNotes.trim());
       setRevisionService(null);
       setRevisionNotes('');
     } catch {

@@ -227,3 +227,74 @@ export async function sendEventCodes(data: EventCodesEmailData) {
     console.error('[Email] Failed to send event codes:', error);
   }
 }
+
+interface ServiceStatusEmailData {
+  providerName: string;
+  providerEmail: string;
+  serviceTitle: string;
+  status: 'approved' | 'rejected' | 'needs_revision';
+  notes?: string;
+}
+
+export async function sendServiceStatusEmail(data: ServiceStatusEmailData) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping service status email');
+    return;
+  }
+
+  const config = {
+    approved: {
+      subject: `Tu servicio fue aprobado — ${data.serviceTitle}`,
+      heading: 'Servicio aprobado!',
+      message: `Tu servicio <strong>"${data.serviceTitle}"</strong> ha sido aprobado y ya esta visible para los clientes.`,
+      ctaText: 'Ver mis servicios',
+      ctaUrl: 'https://solovivelo.com/dashboard/proveedor/servicios',
+    },
+    rejected: {
+      subject: `Tu servicio no fue aprobado — ${data.serviceTitle}`,
+      heading: 'Servicio no aprobado',
+      message: `Tu servicio <strong>"${data.serviceTitle}"</strong> no fue aprobado.`,
+      ctaText: 'Ver mis servicios',
+      ctaUrl: 'https://solovivelo.com/dashboard/proveedor/servicios',
+    },
+    needs_revision: {
+      subject: `Tu servicio necesita ajustes — ${data.serviceTitle}`,
+      heading: 'Ajustes requeridos',
+      message: `Tu servicio <strong>"${data.serviceTitle}"</strong> necesita algunos ajustes antes de poder ser publicado.`,
+      ctaText: 'Editar servicio',
+      ctaUrl: 'https://solovivelo.com/dashboard/proveedor/servicios',
+    },
+  };
+
+  const c = config[data.status];
+
+  try {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: data.providerEmail,
+      subject: c.subject,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #43276c;">${c.heading}</h1>
+          <p>Hola ${data.providerName},</p>
+          <p>${c.message}</p>
+          ${data.notes ? `
+          <div style="background: #f9f7f4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <p style="font-size: 14px; color: #666; margin-bottom: 4px;"><strong>Notas del equipo:</strong></p>
+            <p style="margin: 0;">${data.notes}</p>
+          </div>
+          ` : ''}
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${c.ctaUrl}" style="background: #43276c; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">${c.ctaText}</a>
+          </div>
+          <p style="color: #666; font-size: 14px;">Si tienes alguna pregunta, no dudes en contactarnos.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">Vivelo - Servicios para Eventos en Mexico</p>
+        </div>
+      `,
+    });
+    console.log('[Email] Service status email sent to', data.providerEmail);
+  } catch (error) {
+    console.error('[Email] Failed to send service status email:', error);
+  }
+}
