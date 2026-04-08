@@ -342,7 +342,7 @@ export default function ProveedorServiciosPage() {
                   Ajustes solicitados para &quot;{notesService.title}&quot;
                 </DialogDescription>
               </DialogHeader>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm whitespace-pre-wrap">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm whitespace-pre-wrap break-words overflow-hidden">
                 {notesService.admin_notes}
               </div>
               <div className="flex justify-end">
