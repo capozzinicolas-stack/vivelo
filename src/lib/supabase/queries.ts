@@ -490,29 +490,22 @@ export async function resubmitServiceForReview(id: string, serviceTitle: string)
   const supabase = createClient();
   const { error } = await supabase.from('services').update({ status: 'pending_review', admin_notes: null }).eq('id', id);
   if (error) throw error;
-  await notifyAdminsOfNewService(serviceTitle);
+  // Notify admins via API (service-role bypasses RLS on notifications table)
+  fetch('/api/notify-admins', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ serviceTitle }),
+  }).catch(err => console.error('[Notify] Failed to notify admins:', err));
 }
 
 export async function notifyAdminsOfNewService(serviceTitle: string): Promise<void> {
   if (isMockMode()) return;
-
-  const supabase = createClient();
-  const { data: admins } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('role', 'admin');
-
-  if (!admins || admins.length === 0) return;
-
-  for (const admin of admins) {
-    await createNotification({
-      recipient_id: admin.id,
-      type: 'system',
-      title: 'Nuevo servicio pendiente de revision',
-      message: `El servicio "${serviceTitle}" esta esperando aprobacion.`,
-      link: '/admin-portal/dashboard/servicios',
-    });
-  }
+  // Use API route with service-role to bypass RLS on notifications table
+  fetch('/api/notify-admins', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ serviceTitle }),
+  }).catch(err => console.error('[Notify] Failed to notify admins:', err));
 }
 
 // ─── SERVICES BY PROVIDER ───────────────────────────────────
