@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const publicPaths = ['/', '/login', '/register', '/home', '/search', '/services', '/servicios', '/carrito', '/checkout', '/api/stripe/webhook', '/auth/callback', '/auth/magic-login', '/reset-password', '/politica-de-privacidad', '/politica-de-cancelaciones', '/quien-somos'];
+const publicPaths = ['/', '/login', '/register', '/home', '/search', '/services', '/servicios', '/carrito', '/checkout', '/api/stripe/webhook', '/auth/callback', '/auth/magic-login', '/reset-password', '/politica-de-privacidad', '/politica-de-cancelaciones', '/quien-somos', '/terminos-programas-proveedores'];
 
 function isPublicPath(pathname: string): boolean {
   return publicPaths.some(path =>

@@ -164,6 +164,7 @@ const WA_MESSAGE = encodeURIComponent('Hola, me interesa registrar mi negocio de
 export function LandingPage({ faqItems }: LandingPageProps) {
   const [scrolled, setScrolled] = useState(false);
   const [earlyAdopterOpen, setEarlyAdopterOpen] = useState(false);
+  const [referralOpen, setReferralOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -234,19 +235,35 @@ export function LandingPage({ faqItems }: LandingPageProps) {
         </div>
       </section>
 
-      {/* Early Adopter Banner */}
-      <section className="bg-[#ecbe38]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Programs Banner (Split) */}
+      <section className="grid grid-cols-1 md:grid-cols-2">
+        {/* Early Adopter — Left */}
+        <div className="bg-gradient-to-br from-[#43276c] to-[#5a3494] px-6 sm:px-10 py-10 flex flex-col justify-center">
+          <span className="text-[#ecbe38] text-xs font-bold tracking-widest uppercase mb-2">Exclusivo</span>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Early Adopter</h2>
+          <p className="text-white/80 text-sm leading-relaxed mb-6">Ser de los primeros tiene sus ventajas.</p>
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold text-[#43276c]">Early Adopter</h2>
-            <p className="text-[#43276c]/80 text-base mt-1">Ser de los primeros tiene sus ventajas.</p>
+            <button
+              onClick={() => setEarlyAdopterOpen(true)}
+              className="bg-[#ecbe38] hover:bg-[#d4a82e] text-[#43276c] font-semibold px-6 py-3 rounded-lg text-sm transition-colors"
+            >
+              Conoce
+            </button>
           </div>
-          <button
-            onClick={() => setEarlyAdopterOpen(true)}
-            className="shrink-0 bg-[#43276c] hover:bg-[#5a3a8a] text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
-          >
-            Conoce
-          </button>
+        </div>
+        {/* Referidos — Right */}
+        <div className="bg-[#ecbe38] px-6 sm:px-10 py-10 flex flex-col justify-center">
+          <span className="text-[#43276c]/60 text-xs font-bold tracking-widest uppercase mb-2">Invita y gana</span>
+          <h2 className="text-2xl md:text-3xl font-bold text-[#43276c] mb-2">Programa de Referidos</h2>
+          <p className="text-[#43276c]/70 text-sm leading-relaxed mb-6">Si conoces a alguien que pueda vender en Vivelo, invitalo con tu codigo unico.</p>
+          <div>
+            <button
+              onClick={() => setReferralOpen(true)}
+              className="bg-[#43276c] hover:bg-[#5a3a8a] text-white font-semibold px-6 py-3 rounded-lg text-sm transition-colors"
+            >
+              Conoce
+            </button>
+          </div>
         </div>
       </section>
 
@@ -260,44 +277,79 @@ export function LandingPage({ faqItems }: LandingPageProps) {
             <p>
               Si te unes a Vivelo antes de nuestro lanzamiento oficial, eres <strong>Early Adopter</strong> — y eso significa condiciones preferenciales desde el primer dia en que abramos las puertas al publico.
             </p>
-
             <div>
               <h3 className="font-semibold text-[#43276c] mb-1">Que incluye?</h3>
-              <p>
-                Durante los primeros 3 meses a partir de la fecha oficial de lanzamiento, todos los Early Adopters pagaran unicamente <strong>1/4 de la comision</strong> correspondiente a su categoria por cada venta completada.
-              </p>
+              <p>Durante los primeros 3 meses a partir de la fecha oficial de lanzamiento, todos los Early Adopters pagaran unicamente <strong>1/4 de la comision</strong> correspondiente a su categoria por cada venta completada.</p>
             </div>
-
             <div>
               <h3 className="font-semibold text-[#43276c] mb-1">Quien es Early Adopter?</h3>
-              <p>
-                Cualquier proveedor registrado en la plataforma antes del lanzamiento oficial. El lanzamiento ocurre cuando Vivelo alcanza los 100 proveedores activos. Aun no hay fecha definida, pero te avisaremos en cuanto suceda.
-              </p>
+              <p>Cualquier proveedor registrado en la plataforma antes del lanzamiento oficial. El lanzamiento ocurre cuando Vivelo alcanza los 100 proveedores activos. Aun no hay fecha definida, pero te avisaremos en cuanto suceda.</p>
             </div>
-
             <div>
               <h3 className="font-semibold text-[#43276c] mb-1">Cuando empieza y termina?</h3>
-              <p>
-                El periodo empieza el dia del lanzamiento oficial y termina exactamente 3 meses despues, para todos los Early Adopters por igual, sin importar cuando te registraste dentro de ese grupo.
-              </p>
+              <p>El periodo empieza el dia del lanzamiento oficial y termina exactamente 3 meses despues, para todos los Early Adopters por igual, sin importar cuando te registraste dentro de ese grupo.</p>
             </div>
-
             <div className="bg-[#43276c]/5 rounded-lg p-4 border border-[#43276c]/10">
-              <p>
-                <strong>Importante:</strong> tus servicios ya estan activos y cualquier usuario puede contratarlos desde hoy. El lanzamiento oficial es la fecha a partir de la cual Vivelo comienza a generar trafico activo hacia los proveedores.
-              </p>
+              <p><strong>Importante:</strong> tus servicios ya estan activos y cualquier usuario puede contratarlos desde hoy. El lanzamiento oficial es la fecha a partir de la cual Vivelo comienza a generar trafico activo hacia los proveedores.</p>
             </div>
-
             <div>
               <h3 className="font-semibold text-[#43276c] mb-1">Que pasa despues?</h3>
-              <p>
-                Al termino de los 3 meses, tu cuenta regresa automaticamente a la comision estandar de tu categoria. Te notificaremos con anticipacion. Y si participas en el Programa de Referidos, los beneficios que hayas acumulado arrancan justo al terminar tu periodo Early Adopter.
-              </p>
+              <p>Al termino de los 3 meses, tu cuenta regresa automaticamente a la comision estandar de tu categoria. Te notificaremos con anticipacion. Y si participas en el Programa de Referidos, los beneficios que hayas acumulado arrancan justo al terminar tu periodo Early Adopter.</p>
             </div>
-
             <p className="text-xs text-gray-500 pt-2 border-t">
               Esta condicion aplica unicamente a proveedores registrados antes de la fecha oficial de lanzamiento. Vivelo Tecnologia en Experiencias S.A.S. de C.V. se reserva el derecho de modificar o concluir este programa con previo aviso de al menos 15 dias naturales.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Referral Program Dialog */}
+      <Dialog open={referralOpen} onOpenChange={setReferralOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-[#43276c] text-xl">Programa de Referidos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+            <p>Mientras mas proveedores activos refieras, mayores son los beneficios que acumulas. <strong>Sin tope de referidos.</strong></p>
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Como funciona?</h3>
+              <p>Comparte tu codigo de referido — lo encuentras en tu perfil. Cada vez que alguien se registre con tu codigo y complete su primera venta, sumas un referido activo a tu cuenta. Dependiendo de cuantos referidos acumules, los beneficios van creciendo:</p>
+            </div>
+            <div className="space-y-3">
+              <div className="bg-[#43276c]/5 rounded-lg p-4 border border-[#43276c]/10">
+                <h4 className="font-semibold text-[#43276c] text-sm">Nivel 1 — de 1 a 3 referidos activos</h4>
+                <p className="mt-1">Ganas 3 ventas con <strong>50% de descuento</strong> en tu comision de categoria. Es decir, pagas unicamente 1/2 de tu comision en esas 3 ventas, sin importar cuando ocurran.</p>
+              </div>
+              <div className="bg-[#43276c]/5 rounded-lg p-4 border border-[#43276c]/10">
+                <h4 className="font-semibold text-[#43276c] text-sm">Nivel 2 — a partir del 4to referido</h4>
+                <p className="mt-1">Ganas 3 ventas adicionales con <strong>75% de descuento</strong> en tu comision de categoria. En esas ventas pagas unicamente 1/4 de tu comision.</p>
+              </div>
+              <div className="bg-[#43276c]/5 rounded-lg p-4 border border-[#43276c]/10">
+                <h4 className="font-semibold text-[#43276c] text-sm">Nivel 3 — por cada 8 referidos acumulados</h4>
+                <p className="mt-1">Ganas 3 ventas mas con <strong>75% de descuento</strong> en tu comision de categoria, mas <strong>3 meses de posicionamiento prioritario</strong> dentro de la plataforma.</p>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Cuando se activa cada beneficio?</h3>
+              <p>En cuanto tu referido completa su primera venta. Si en ese momento estas dentro de tu periodo Early Adopter, los beneficios se acumulan y arrancan automaticamente al termino de ese periodo.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Y el proveedor que yo refiero?</h3>
+              <p>Si se registra antes del lanzamiento oficial, entra automaticamente al programa Early Adopter con todas sus condiciones.</p>
+            </div>
+            <div className="pt-2 border-t space-y-2">
+              <p className="text-xs text-gray-500">
+                El beneficio se activa unicamente cuando el referido completa su primera venta. Vivelo Tecnologia en Experiencias S.A.S. de C.V. se reserva el derecho de modificar o concluir este programa con previo aviso de al menos 15 dias naturales.
+              </p>
+              <a
+                href="https://solovivelo.com/terminos-programas-proveedores"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs text-[#43276c] font-medium underline hover:text-[#5a3a8a]"
+              >
+                Ver terminos y condiciones completos
+              </a>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
