@@ -133,7 +133,10 @@ export default function AdminProveedoresPage() {
         toast({ title: 'Error', description: data.error || 'No se pudo generar el acceso', variant: 'destructive' });
         return;
       }
-      window.open(data.url, '_blank');
+      // URL is relative — open on main domain (not admin subdomain)
+      const mainDomain = window.location.hostname.replace('admin.', '');
+      const fullUrl = `${window.location.protocol}//${mainDomain}${data.url}`;
+      window.open(fullUrl, '_blank');
       toast({ title: 'Acceso generado', description: 'Se abrio el dashboard del proveedor en una nueva ventana.' });
     } catch {
       toast({ title: 'Error', description: 'Error de conexion', variant: 'destructive' });

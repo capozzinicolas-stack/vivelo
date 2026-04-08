@@ -32,26 +32,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'El usuario no es un proveedor' }, { status: 400 });
     }
 
-    // Generate magic link via admin API
-    // redirectTo must go through /auth/callback so the code gets exchanged for a session
+    // Generate magic link to extract hashed_token
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: provider.email,
-      options: {
-        redirectTo: 'https://solovivelo.com/auth/callback?next=/dashboard/proveedor',
-      },
     });
 
-    if (linkError || !linkData?.properties?.action_link) {
+    if (linkError || !linkData?.properties?.hashed_token) {
       console.error('[Admin Impersonate] Generate link error:', linkError);
       return NextResponse.json({ error: 'Error al generar link de acceso' }, { status: 500 });
     }
 
-    console.log(`[Admin Impersonate] Magic link generated for provider ${provider.email} by admin ${auth.user.email}`);
+    console.log(`[Admin Impersonate] Token generated for provider ${provider.email} by admin ${auth.user.email}`);
 
-    return NextResponse.json({
-      url: linkData.properties.action_link,
-    });
+    // Return URL to client-side page that will verify the token and establish session
+    const url = `/auth/magic-login?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=/dashboard/proveedor`;
+
+    return NextResponse.json({ url });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: 'Datos invalidos' }, { status: 400 });
