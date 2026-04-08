@@ -33,11 +33,12 @@ export async function POST(request: Request) {
     }
 
     // Generate magic link via admin API
+    // redirectTo must go through /auth/callback so the code gets exchanged for a session
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: provider.email,
       options: {
-        redirectTo: 'https://solovivelo.com/dashboard/proveedor',
+        redirectTo: 'https://solovivelo.com/auth/callback?next=/dashboard/proveedor',
       },
     });
 
