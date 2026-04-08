@@ -31,6 +31,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface FAQItem {
   question: string;
@@ -157,6 +163,7 @@ const WA_MESSAGE = encodeURIComponent('Hola, me interesa registrar mi negocio de
 
 export function LandingPage({ faqItems }: LandingPageProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [earlyAdopterOpen, setEarlyAdopterOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -226,6 +233,74 @@ export function LandingPage({ faqItems }: LandingPageProps) {
           </div>
         </div>
       </section>
+
+      {/* Early Adopter Banner */}
+      <section className="bg-[#ecbe38]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#43276c]">Early Adopter</h2>
+            <p className="text-[#43276c]/80 text-base mt-1">Ser de los primeros tiene sus ventajas.</p>
+          </div>
+          <button
+            onClick={() => setEarlyAdopterOpen(true)}
+            className="shrink-0 bg-[#43276c] hover:bg-[#5a3a8a] text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors"
+          >
+            Conoce
+          </button>
+        </div>
+      </section>
+
+      {/* Early Adopter Dialog */}
+      <Dialog open={earlyAdopterOpen} onOpenChange={setEarlyAdopterOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-[#43276c] text-xl">Early Adopter</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+            <p>
+              Si te unes a Vivelo antes de nuestro lanzamiento oficial, eres <strong>Early Adopter</strong> — y eso significa condiciones preferenciales desde el primer dia en que abramos las puertas al publico.
+            </p>
+
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Que incluye?</h3>
+              <p>
+                Durante los primeros 3 meses a partir de la fecha oficial de lanzamiento, todos los Early Adopters pagaran unicamente <strong>1/4 de la comision</strong> correspondiente a su categoria por cada venta completada.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Quien es Early Adopter?</h3>
+              <p>
+                Cualquier proveedor registrado en la plataforma antes del lanzamiento oficial. El lanzamiento ocurre cuando Vivelo alcanza los 100 proveedores activos. Aun no hay fecha definida, pero te avisaremos en cuanto suceda.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Cuando empieza y termina?</h3>
+              <p>
+                El periodo empieza el dia del lanzamiento oficial y termina exactamente 3 meses despues, para todos los Early Adopters por igual, sin importar cuando te registraste dentro de ese grupo.
+              </p>
+            </div>
+
+            <div className="bg-[#43276c]/5 rounded-lg p-4 border border-[#43276c]/10">
+              <p>
+                <strong>Importante:</strong> tus servicios ya estan activos y cualquier usuario puede contratarlos desde hoy. El lanzamiento oficial es la fecha a partir de la cual Vivelo comienza a generar trafico activo hacia los proveedores.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold text-[#43276c] mb-1">Que pasa despues?</h3>
+              <p>
+                Al termino de los 3 meses, tu cuenta regresa automaticamente a la comision estandar de tu categoria. Te notificaremos con anticipacion. Y si participas en el Programa de Referidos, los beneficios que hayas acumulado arrancan justo al terminar tu periodo Early Adopter.
+              </p>
+            </div>
+
+            <p className="text-xs text-gray-500 pt-2 border-t">
+              Esta condicion aplica unicamente a proveedores registrados antes de la fecha oficial de lanzamiento. Vivelo Tecnologia en Experiencias S.A.S. de C.V. se reserva el derecho de modificar o concluir este programa con previo aviso de al menos 15 dias naturales.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Benefits */}
       <section className="py-20 bg-white">
