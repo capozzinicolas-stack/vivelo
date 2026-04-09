@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer, getRelatedServicesServer } from '@/lib/supabase/server-queries';
+import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer, getRelatedServicesServer, getActiveCampaignForServiceServer } from '@/lib/supabase/server-queries';
 import { isUUID } from '@/lib/slug';
 import { ServiceDetailClient } from '@/components/services/service-detail-client';
 import { ServiceFaq } from '@/components/services/service-faq';
@@ -55,10 +55,11 @@ export default async function ServiceDetailPage({ params }: Props) {
   const service = await getServiceBySlugServer(idOrSlug);
   if (!service) notFound();
 
-  const [bookingCount, reviews, relatedServices] = await Promise.all([
+  const [bookingCount, reviews, relatedServices, activeCampaign] = await Promise.all([
     getServiceBookingCountServer(service.id),
     getReviewsByServiceServer(service.id),
     getRelatedServicesServer(service.category, service.id, 4),
+    getActiveCampaignForServiceServer(service.id),
   ]);
 
   // Ensure provider is loaded
@@ -129,6 +130,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         service={service}
         provider={provider}
         bookingCount={bookingCount}
+        activeCampaign={activeCampaign}
       />
 
       <div className="mt-10">

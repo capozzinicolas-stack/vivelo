@@ -1829,11 +1829,13 @@ export async function incrementServiceViewCount(serviceId: string): Promise<void
 }
 
 export async function getActiveCampaignsWithServices(): Promise<(Campaign & { subscriptions: CampaignSubscription[] })[]> {
+  const now = new Date().toISOString();
+
   if (isMockMode()) {
     const { mockCampaigns, mockCampaignSubscriptions } = await import('@/data/mock-marketing');
     const { mockServices } = await import('@/data/mock-services');
     return mockCampaigns
-      .filter(c => c.status === 'active')
+      .filter(c => c.status === 'active' && c.start_date <= now && c.end_date >= now)
       .map(c => ({
         ...c,
         subscriptions: mockCampaignSubscriptions
@@ -1847,6 +1849,8 @@ export async function getActiveCampaignsWithServices(): Promise<(Campaign & { su
     .from('campaigns')
     .select('*, subscriptions:campaign_subscriptions(*, service:services(*, provider:profiles!provider_id(*)))')
     .eq('status', 'active')
+    .lte('start_date', now)
+    .gte('end_date', now)
     .order('created_at', { ascending: false });
   if (error) {
     console.warn('[getActiveCampaignsWithServices] Query failed:', error.message);

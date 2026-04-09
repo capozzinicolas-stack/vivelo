@@ -137,7 +137,11 @@ discount_amount = Math.round(total × (discount_pct / 100))
 final_total = total - discount_amount
 ```
 
-La campana se obtiene via `getActiveCampaignForService(serviceId)` que verifica `campaign_subscriptions` + estado activo + rango de fechas.
+La campana se obtiene via `getActiveCampaignForService(serviceId)` (client-side) o `getActiveCampaignForServiceServer(serviceId)` (server-side, usada en el detalle de servicio SSR) que verifican `campaign_subscriptions` + estado activo + rango de fechas (`start_date <= now <= end_date`).
+
+**IMPORTANTE**: Toda query de campanas activas debe filtrar por `status='active'` **Y** por rango de fechas. Funciones afectadas: `getActiveCampaignForService`, `getActiveCampaignForServiceServer`, `getActiveCampaignsWithServices`, `getActiveCampaignsWithServicesServer`. La query admin `getCampaigns()` SI muestra todas (por diseno) para que admin vea draft/ended/cancelled.
+
+Cron `/api/cron/end-expired-campaigns` (diario 00:15 UTC) transiciona campanas vencidas de `active` → `ended` para mantener la DB consistente.
 
 ### Comision
 
@@ -423,7 +427,7 @@ src/
 │       ├── stripe/             create-payment-intent, webhook
 │       ├── bookings/           cancel, verify-code
 │       ├── google-calendar/    auth, callback, sync, cron-sync, status, disconnect
-│       ├── cron/               auto-complete, send-event-codes
+│       ├── cron/               auto-complete, send-event-codes, end-expired-campaigns
 │       ├── admin/              catalog, users, reviews, providers/commission
 │       ├── chat                Vivi AI (SSE streaming)
 │       ├── reviews             CRUD resenas
@@ -512,7 +516,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |
 | Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion con Google Places + validacion de zona |
 | Zonas geograficas | ✅ Terminado | 9 zonas, Google Places Autocomplete, fallback manual, validacion de cobertura en carrito |
-| Campanas/descuentos | ✅ Terminado | Proveedores crean campanas, se aplican en checkout |
+| Campanas/descuentos | ✅ Terminado | Admin crea campanas, proveedores inscriben servicios, descuento se aplica en detalle + checkout. Todas las queries de campanas activas validan `status='active'` + `start_date <= now <= end_date`. Cron `end-expired-campaigns` transiciona vencidas a `ended` diariamente. |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, contrasena temporal, perfil admin. Booking status updates usan API route con service-role (bypass RLS) |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
 | Checkout + Stripe | ⚠️ En progreso | Pago funciona pero bookings pueden perderse (ver Bugs Conocidos) |

@@ -343,16 +343,35 @@ export async function getFeaturedPlacementsServer(section?: FeaturedSection): Pr
 
 export async function getActiveCampaignsWithServicesServer(): Promise<(Campaign & { subscriptions: CampaignSubscription[] })[]> {
   const supabase = createServerSupabaseClient();
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('campaigns')
     .select('*, subscriptions:campaign_subscriptions(*, service:services(*, provider:profiles!provider_id(*)))')
     .eq('status', 'active')
+    .lte('start_date', now)
+    .gte('end_date', now)
     .order('created_at', { ascending: false });
   if (error) {
     console.warn('[getActiveCampaignsWithServicesServer] Query failed:', error.message);
     return [];
   }
   return (data || []) as (Campaign & { subscriptions: CampaignSubscription[] })[];
+}
+
+export async function getActiveCampaignForServiceServer(serviceId: string): Promise<Campaign | null> {
+  const supabase = createServerSupabaseClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('campaign_subscriptions')
+    .select('campaign:campaigns(*)')
+    .eq('service_id', serviceId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error || !data?.campaign) return null;
+
+  const campaign = data.campaign as unknown as Campaign;
+  if (campaign.status !== 'active' || campaign.start_date > now || campaign.end_date < now) return null;
+  return campaign;
 }
 
 export async function getActiveFeaturedProvidersServer(): Promise<FeaturedProvider[]> {
