@@ -4,7 +4,7 @@ Guia completa para trabajar con el codigo de Vivelo. Este archivo documenta toda
 
 ## Descripcion del Proyecto
 
-Vivelo es un marketplace mexicano de servicios para eventos que conecta clientes con proveedores (catering, audio, decoracion, foto/video, staff, mobiliario) en 9 zonas. Stack: Next.js 14 App Router, Supabase (auth + DB + storage), Stripe (pagos en MXN), Google Calendar (sync del proveedor), Anthropic Claude (asistente Vivi). Desplegado en Vercel: `solovivelo.com` (consumidor) y `admin.solovivelo.com` (admin).
+Vivelo es un marketplace mexicano de servicios para eventos que conecta clientes con proveedores (catering, audio, decoracion, foto/video, staff, belleza, mobiliario) en 9 zonas. Stack: Next.js 14 App Router, Supabase (auth + DB + storage), Stripe (pagos en MXN), Google Calendar (sync del proveedor), Anthropic Claude (asistente Vivi). Desplegado en Vercel: `solovivelo.com` (consumidor) y `admin.solovivelo.com` (admin).
 
 ## Comandos
 
@@ -551,6 +551,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Datos Fiscales Proveedores (UI Proveedor) | ✅ Terminado | Pagina `/dashboard/proveedor/datos-fiscales` con formulario completo: tipo persona, RFC (validacion por tipo), razon social, regimen fiscal (filtrado por tipo persona), uso CFDI, direccion fiscal (calle, numeros, colonia, CP, municipio, estado), datos bancarios (banco, CLABE), upload de constancia y estado de cuenta. Badge de estado fiscal. Datos aprobados son inmutables (formulario deshabilitado). Link "Datos Fiscales" con icono Receipt en sidebar del proveedor. |
 | Datos Fiscales Proveedores (UI Admin) | ✅ Terminado | Pagina `/admin-portal/dashboard/fiscal` con tabla de todos los proveedores con datos fiscales, filtro por estado, busqueda por nombre/email/RFC. Dialog de detalle con toda la info fiscal, direccion, banco, documentos (URLs firmadas). Botones aprobar/rechazar con notas de admin. API `GET /api/admin/fiscal/list` para listar todos. Link "Fiscal" con icono Receipt en admin sidebar. |
 | Datos Fiscales (Retenciones en Finanzas) | ✅ Terminado | Card "Liquidacion con Retenciones" en `/admin-portal/dashboard/finanzas`. Muestra por proveedor: pago neto, ISR, IVA, neto tras retenciones, regimen fiscal y estado. Usa `calculateRetentions()` de `fiscal.ts`. Si proveedor no tiene datos fiscales → "Sin datos fiscales". Fetch read-only a `/api/admin/fiscal/list`. NO modifica ningun calculo financiero existente. |
+| Import/Export Masivo de Servicios | ✅ Terminado | Proveedores pueden importar hasta 50 servicios via Excel (.xlsx) con plantillas por categoria. Plantillas con dropdowns reales (fflate XML injection). Validacion client-side + server-side. Descarga async de imagenes desde URLs. Servicios creados como `pending_review`. Export de servicios existentes a formato plantilla. Archivos: `src/lib/service-import-export.ts`, `src/app/api/provider/services/import/route.ts`, `src/app/api/provider/services/download-images/route.ts`, `src/components/dashboard/service-import-dialog.tsx`. |
+| Categoria BEAUTY | ✅ Terminado | Categoria de belleza (maquillaje, peinado, uñas, spa, barberia). Campos especificos en `category-fields-config.ts`: tipo_servicio, productos_marcas, incluye_prueba, tiempo_por_persona, que_incluye, requerimientos_sitio, not_included. Iconos beauty en icon-registry (Eye, Droplets, Flower). Subcategorias y tags se gestionan desde admin panel (DB-driven). |
 
 ---
 

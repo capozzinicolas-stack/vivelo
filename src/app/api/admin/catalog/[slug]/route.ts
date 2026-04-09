@@ -128,6 +128,12 @@ export async function DELETE(
           { status: 409 }
         );
       }
+      // Nullify category on archived services to avoid FK constraint blocking deletion
+      await supabaseAdmin
+        .from('services')
+        .update({ category: null })
+        .eq('category', slug)
+        .eq('status', 'archived');
       const { error } = await supabaseAdmin.from('service_categories').delete().eq('slug', slug);
       if (error) throw error;
       return NextResponse.json({ success: true });
@@ -145,6 +151,12 @@ export async function DELETE(
           { status: 409 }
         );
       }
+      // Nullify subcategory on archived services to avoid FK constraint blocking deletion
+      await supabaseAdmin
+        .from('services')
+        .update({ subcategory: null })
+        .eq('subcategory', slug)
+        .eq('status', 'archived');
       const { error } = await supabaseAdmin.from('service_subcategories').delete().eq('slug', slug);
       if (error) throw error;
       return NextResponse.json({ success: true });

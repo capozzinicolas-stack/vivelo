@@ -3,7 +3,7 @@
  * This file is kept as fallback data for mock mode and initial load.
  * It will be removed in a future iteration.
  */
-import { UtensilsCrossed, Music, Flower2, Camera, Users, Armchair } from 'lucide-react';
+import { UtensilsCrossed, Music, Flower2, Camera, Users, Armchair, Sparkles } from 'lucide-react';
 import { ServiceCategory, ServiceSubcategory } from '@/types/database';
 import { LucideIcon } from 'lucide-react';
 
@@ -103,6 +103,21 @@ export const categories: CategoryInfo[] = [
       { value: 'SEGURIDAD', label: 'Seguridad' },
       { value: 'VALET_PARKING', label: 'Valet parking' },
       { value: 'NINERA', label: 'Ninera' },
+    ],
+  },
+  {
+    value: 'BEAUTY',
+    label: 'Belleza',
+    description: 'Maquillaje, peinado, uñas, spa y estilismo para eventos',
+    icon: Sparkles,
+    color: 'bg-rose-100 text-rose-600',
+    subcategories: [
+      { value: 'MAQUILLAJE', label: 'Maquillaje' },
+      { value: 'PEINADO_ESTILISMO', label: 'Peinado y Estilismo' },
+      { value: 'MAQUILLAJE_PEINADO', label: 'Maquillaje y Peinado' },
+      { value: 'UNAS', label: 'Uñas' },
+      { value: 'BARBERIA', label: 'Barbería' },
+      { value: 'SPA_MASAJES', label: 'Spa y Masajes' },
     ],
   },
   {

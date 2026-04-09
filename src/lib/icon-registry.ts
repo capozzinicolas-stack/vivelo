@@ -62,6 +62,9 @@ import {
   Projector,
   PlugZap,
   Thermometer,
+  Eye,
+  Droplets,
+  Flower,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -130,6 +133,9 @@ const iconMap: Record<string, LucideIcon> = {
   Projector,
   PlugZap,
   Thermometer,
+  Eye,
+  Droplets,
+  Flower,
 };
 
 export function getIcon(name: string): LucideIcon {
