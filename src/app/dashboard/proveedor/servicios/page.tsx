@@ -27,7 +27,7 @@ const statusColors: Record<string, string> = { active: 'bg-green-100 text-green-
 type StatusTab = 'all' | 'active' | 'pending_review' | 'needs_revision' | 'paused' | 'draft';
 
 export default function ProveedorServiciosPage() {
-  const { categoryMap, getCategoryCommissionRate } = useCatalog();
+  const { categoryMap, getCategoryCommissionRate, getFieldsForCategory } = useCatalog();
   const { user } = useAuthContext();
   const { toast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
@@ -65,7 +65,8 @@ export default function ProveedorServiciosPage() {
 
   const handleDownloadTemplate = (cat: string) => {
     try {
-      const buffer = generateTemplate(cat, policies);
+      const fields = getFieldsForCategory(cat);
+      const buffer = generateTemplate(cat, policies, fields);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -90,7 +91,8 @@ export default function ProveedorServiciosPage() {
     for (const cat of Object.keys(byCategory)) {
       const svcs = byCategory[cat];
       try {
-        const buffer = exportServices(svcs, cat);
+        const catFields = getFieldsForCategory(cat);
+        const buffer = exportServices(svcs, cat, catFields);
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

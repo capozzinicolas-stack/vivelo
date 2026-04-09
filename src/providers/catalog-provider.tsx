@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from 'react';
-import type { CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag } from '@/types/database';
+import type { CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag, CategoryFieldDefinition } from '@/types/database';
+import type { CategoryFieldConfig } from '@/data/category-fields-config';
+import { getFieldsForCategory as getHardcodedFields } from '@/data/category-fields-config';
 import type { LucideIcon } from 'lucide-react';
 import { getIcon } from '@/lib/icon-registry';
 
@@ -10,12 +12,14 @@ interface CatalogContextValue {
   subcategories: CatalogSubcategory[];
   zones: CatalogZone[];
   tags: CatalogTag[];
+  fieldDefinitions: CategoryFieldDefinition[];
   loading: boolean;
   categoryMap: Record<string, CatalogCategory>;
   subcategoryMap: Record<string, CatalogSubcategory & { parentCategory: string }>;
   getCategoryBySlug: (slug: string) => CatalogCategory | undefined;
   getSubcategoriesByCategory: (categorySlug: string) => CatalogSubcategory[];
   getTagsByCategory: (categorySlug: string) => CatalogTag[];
+  getFieldsForCategory: (slug: string) => CategoryFieldConfig[];
   getZoneLabel: (slug: string) => string;
   getCategoryIcon: (slug: string) => LucideIcon;
   getSubcategoryIcon: (slug: string) => LucideIcon;
@@ -32,6 +36,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const [subcategories, setSubcategories] = useState<CatalogSubcategory[]>([]);
   const [zones, setZones] = useState<CatalogZone[]>([]);
   const [tags, setTags] = useState<CatalogTag[]>([]);
+  const [fieldDefinitions, setFieldDefinitions] = useState<CategoryFieldDefinition[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCatalog = async () => {
@@ -43,6 +48,17 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
         setSubcategories(data.subcategories || []);
         setZones(data.zones || []);
         setTags(data.tags || []);
+
+        // Fetch field definitions in parallel (non-blocking)
+        try {
+          const fieldsRes = await fetch('/api/admin/catalog/fields');
+          if (fieldsRes.ok) {
+            const fieldsData = await fieldsRes.json();
+            setFieldDefinitions(fieldsData.fields || []);
+          }
+        } catch {
+          // Field definitions fetch failure is non-critical — fallback to hardcoded
+        }
       } else {
         // Fallback to static data if API fails
         const { categories: staticCats } = await import('@/data/categories');
@@ -160,17 +176,51 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     return categoryMap[slug]?.commission_rate ?? 0.12;
   };
 
+  const getFieldsForCategory = useMemo(() => {
+    // Build a map of category_slug -> CategoryFieldConfig[]
+    const dbFieldsByCategory: Record<string, CategoryFieldConfig[]> = {};
+    for (const def of fieldDefinitions) {
+      if (!dbFieldsByCategory[def.category_slug]) {
+        dbFieldsByCategory[def.category_slug] = [];
+      }
+      dbFieldsByCategory[def.category_slug].push({
+        key: def.key,
+        label: def.label,
+        type: def.type,
+        instruction: def.instruction,
+        options: def.options?.length ? def.options : undefined,
+        unit: def.unit || undefined,
+        switchLabel: def.switch_label || undefined,
+        numberLabel: def.number_label || undefined,
+        columns: def.columns?.length ? def.columns : undefined,
+        columnLabel: def.column_label || undefined,
+        rows: def.rows?.length ? def.rows : undefined,
+      });
+    }
+
+    return (slug: string): CategoryFieldConfig[] => {
+      // If DB has fields for this category, use them
+      if (dbFieldsByCategory[slug]?.length) {
+        return dbFieldsByCategory[slug];
+      }
+      // Fallback to hardcoded fields
+      return getHardcodedFields(slug);
+    };
+  }, [fieldDefinitions]);
+
   const value: CatalogContextValue = {
     categories,
     subcategories,
     zones,
     tags,
+    fieldDefinitions,
     loading,
     categoryMap,
     subcategoryMap,
     getCategoryBySlug,
     getSubcategoriesByCategory,
     getTagsByCategory,
+    getFieldsForCategory,
     getZoneLabel,
     getCategoryIcon,
     getSubcategoryIcon,

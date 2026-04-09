@@ -20,6 +20,7 @@ import type {
   ParsedService,
   ParsedExtra,
 } from '@/lib/service-import-export';
+import { useCatalog } from '@/providers/catalog-provider';
 import type { ServiceCategory, CancellationPolicy } from '@/types/database';
 
 interface ServiceImportDialogProps {
@@ -33,6 +34,7 @@ type Step = 'category' | 'upload' | 'errors' | 'progress';
 
 export function ServiceImportDialog({ open, onOpenChange, policies, onImportComplete }: ServiceImportDialogProps) {
   const { toast } = useToast();
+  const { getFieldsForCategory } = useCatalog();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>('category');
@@ -65,7 +67,8 @@ export function ServiceImportDialog({ open, onOpenChange, policies, onImportComp
   const handleDownloadTemplate = () => {
     if (!category) return;
     try {
-      const buffer = generateTemplate(category as ServiceCategory, policies);
+      const fields = getFieldsForCategory(category);
+      const buffer = generateTemplate(category as ServiceCategory, policies, fields);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -93,7 +96,8 @@ export function ServiceImportDialog({ open, onOpenChange, policies, onImportComp
         return;
       }
 
-      const result = validateImportData(services, extras, category as ServiceCategory, policies);
+      const catFields = getFieldsForCategory(category);
+      const result = validateImportData(services, extras, category as ServiceCategory, policies, catFields);
       setValidServices(result.valid);
       setValidExtras(result.validExtras);
       setErrors(result.errors);

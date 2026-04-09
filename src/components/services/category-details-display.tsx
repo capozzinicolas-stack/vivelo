@@ -1,7 +1,7 @@
 'use client';
 
-import { getFieldsForCategory, type CategoryFieldConfig } from '@/data/category-fields-config';
-import type { ServiceCategory } from '@/types/database';
+import type { CategoryFieldConfig } from '@/data/category-fields-config';
+import { useCatalog } from '@/providers/catalog-provider';
 import { Badge } from '@/components/ui/badge';
 
 interface CategoryDetailsDisplayProps {
@@ -10,7 +10,8 @@ interface CategoryDetailsDisplayProps {
 }
 
 export function CategoryDetailsDisplay({ category, details }: CategoryDetailsDisplayProps) {
-  const fields = getFieldsForCategory(category as ServiceCategory);
+  const { getFieldsForCategory } = useCatalog();
+  const fields = getFieldsForCategory(category);
 
   // Filter to only fields that have non-empty values
   const fieldsWithValues = fields.filter((field) => {

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { getFieldsForCategory, type CategoryFieldConfig } from '@/data/category-fields-config';
+import type { CategoryFieldConfig } from '@/data/category-fields-config';
 import { useCatalog } from '@/providers/catalog-provider';
-import type { ServiceCategory } from '@/types/database';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -19,8 +18,8 @@ interface CategoryFieldsFormProps {
 }
 
 export function CategoryFieldsForm({ category, values, onChange }: CategoryFieldsFormProps) {
-  const { categoryMap } = useCatalog();
-  const fields = getFieldsForCategory(category as ServiceCategory);
+  const { categoryMap, getFieldsForCategory } = useCatalog();
+  const fields = getFieldsForCategory(category);
   const catInfo = categoryMap[category];
   const catLabel = catInfo?.label || category;
 

@@ -138,11 +138,11 @@ const CORE_COLUMNS: ColumnDef[] = [
 
 // ─── Column generation ─────────────────────────────────────
 
-function getCategoryDetailColumns(category: ServiceCategory): ColumnDef[] {
-  const fields = getFieldsForCategory(category);
+function getCategoryDetailColumns(category: ServiceCategory, fields?: CategoryFieldConfig[]): ColumnDef[] {
+  const resolvedFields = fields || getFieldsForCategory(category);
   const cols: ColumnDef[] = [];
 
-  for (const field of fields) {
+  for (const field of resolvedFields) {
     if (field.type === 'matrix_select') {
       for (const col of field.columns || []) {
         cols.push({
@@ -197,7 +197,7 @@ function getCategoryDetailColumns(category: ServiceCategory): ColumnDef[] {
   return cols;
 }
 
-export function getTemplateColumns(category: ServiceCategory): ColumnDef[] {
+export function getTemplateColumns(category: ServiceCategory, fields?: CategoryFieldConfig[]): ColumnDef[] {
   const subcats = subcategoriesByCategory[category] || [];
   const core = CORE_COLUMNS.map(c => {
     if (c.key === 'subcategoria') {
@@ -205,7 +205,7 @@ export function getTemplateColumns(category: ServiceCategory): ColumnDef[] {
     }
     return c;
   });
-  return [...core, ...getCategoryDetailColumns(category)];
+  return [...core, ...getCategoryDetailColumns(category, fields)];
 }
 
 // ─── Template generation ───────────────────────────────────
@@ -213,9 +213,10 @@ export function getTemplateColumns(category: ServiceCategory): ColumnDef[] {
 export function generateTemplate(
   category: ServiceCategory,
   policies: CancellationPolicy[],
+  fields?: CategoryFieldConfig[],
 ): ArrayBuffer {
   const wb = XLSX.utils.book_new();
-  const columns = getTemplateColumns(category);
+  const columns = getTemplateColumns(category, fields);
 
   // Update policy column options
   const policyNames = policies.map(p => p.name);
@@ -245,7 +246,7 @@ export function generateTemplate(
   // Sheet 3: Instrucciones
   const catInfo = categories.find(c => c.value === category);
   const subcats = subcategoriesByCategory[category] || [];
-  const detailFields = getFieldsForCategory(category);
+  const detailFields = fields || getFieldsForCategory(category);
 
   const instrRows: (string | number)[][] = [
     ['INSTRUCCIONES PARA IMPORTAR SERVICIOS'],
@@ -525,6 +526,7 @@ export function validateImportData(
   extras: RawExtraRow[],
   category: ServiceCategory,
   policies: CancellationPolicy[],
+  fields?: CategoryFieldConfig[],
 ): { valid: ParsedService[]; validExtras: ParsedExtra[]; errors: ImportError[] } {
   const errors: ImportError[] = [];
   const valid: ParsedService[] = [];
@@ -533,7 +535,7 @@ export function validateImportData(
   const subcatLabels = subcats.map(s => s.label);
   const subcatMap = Object.fromEntries(subcats.map(s => [s.label, s.value]));
   const policyMap = Object.fromEntries(policies.map(p => [p.name, p.id]));
-  const detailFields = getFieldsForCategory(category);
+  const detailFields = fields || getFieldsForCategory(category);
 
   if (services.length > 50) {
     errors.push({ row: 0, sheet: 'Servicios', field: 'general', message: 'Maximo 50 servicios por archivo' });
@@ -836,11 +838,12 @@ export function exportServices(
     }>;
   }>,
   category: ServiceCategory,
+  fields?: CategoryFieldConfig[],
 ): ArrayBuffer {
-  const columns = getTemplateColumns(category);
+  const columns = getTemplateColumns(category, fields);
   const subcats = subcategoriesByCategory[category] || [];
   const subcatLabelMap = Object.fromEntries(subcats.map(s => [s.value, s.label]));
-  const detailFields = getFieldsForCategory(category);
+  const detailFields = fields || getFieldsForCategory(category);
   const wb = XLSX.utils.book_new();
 
   // Sheet 1: Servicios

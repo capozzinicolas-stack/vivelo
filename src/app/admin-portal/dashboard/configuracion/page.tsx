@@ -18,8 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Percent, MapPin, Tag, FileText, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
-import type { CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag } from '@/types/database';
+import { Percent, MapPin, Tag, FileText, Plus, Pencil, Trash2, Loader2, Settings2, ArrowUp, ArrowDown } from 'lucide-react';
+import type { CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CatalogTag, CategoryFieldDefinition } from '@/types/database';
 
 const COLOR_PRESETS = [
   { value: 'bg-orange-100 text-orange-600', label: 'Naranja' },
@@ -110,6 +110,33 @@ export default function AdminConfiguracionPage() {
   const [editingTagSlug, setEditingTagSlug] = useState('');
   const [tagFilterCategory, setTagFilterCategory] = useState('');
 
+  // Field definitions
+  const [allFieldDefs, setAllFieldDefs] = useState<CategoryFieldDefinition[]>([]);
+  const [fieldFilterCategory, setFieldFilterCategory] = useState('');
+  const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [editingField, setEditingField] = useState<CategoryFieldDefinition | null>(null);
+  const [fieldSaving, setFieldSaving] = useState(false);
+  const [deleteFieldTarget, setDeleteFieldTarget] = useState<CategoryFieldDefinition | null>(null);
+  const [fieldForm, setFieldForm] = useState({
+    category_slug: '',
+    key: '',
+    label: '',
+    type: 'text_short' as CategoryFieldDefinition['type'],
+    instruction: '',
+    options: [] as string[],
+    unit: '',
+    switch_label: '',
+    number_label: '',
+    columns: [] as string[],
+    column_label: '',
+    rows: [] as string[],
+    sort_order: 0,
+    is_active: true,
+  });
+  const [newOption, setNewOption] = useState('');
+  const [newColumn, setNewColumn] = useState('');
+  const [newRow, setNewRow] = useState('');
+
   const loadPolicies = useCallback(async () => {
     try {
       const data = await getCancellationPolicies();
@@ -122,6 +149,207 @@ export default function AdminConfiguracionPage() {
   }, [toast]);
 
   useEffect(() => { loadPolicies(); }, [loadPolicies]);
+
+  // Load field definitions
+  const loadFieldDefinitions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/catalog/fields');
+      if (res.ok) {
+        const data = await res.json();
+        setAllFieldDefs(data.fields || []);
+      }
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
+  useEffect(() => { loadFieldDefinitions(); }, [loadFieldDefinitions]);
+
+  const FIELD_TYPES_OPTIONS: { value: CategoryFieldDefinition['type']; label: string }[] = [
+    { value: 'text_short', label: 'Texto corto' },
+    { value: 'text_long', label: 'Texto largo' },
+    { value: 'number', label: 'Numero' },
+    { value: 'currency', label: 'Moneda ($)' },
+    { value: 'dropdown', label: 'Dropdown' },
+    { value: 'multi_select', label: 'Multi seleccion' },
+    { value: 'switch', label: 'Switch (Si/No)' },
+    { value: 'switch_number', label: 'Switch + Numero' },
+    { value: 'matrix_select', label: 'Matriz' },
+  ];
+
+  const filteredFieldDefs = fieldFilterCategory && fieldFilterCategory !== 'all'
+    ? allFieldDefs.filter(f => f.category_slug === fieldFilterCategory)
+    : allFieldDefs;
+
+  const resetFieldForm = () => {
+    setFieldForm({
+      category_slug: fieldFilterCategory || '',
+      key: '',
+      label: '',
+      type: 'text_short',
+      instruction: '',
+      options: [],
+      unit: '',
+      switch_label: '',
+      number_label: '',
+      columns: [],
+      column_label: '',
+      rows: [],
+      sort_order: filteredFieldDefs.length,
+      is_active: true,
+    });
+    setNewOption('');
+    setNewColumn('');
+    setNewRow('');
+  };
+
+  const openCreateField = () => {
+    setEditingField(null);
+    resetFieldForm();
+    setFieldDialogOpen(true);
+  };
+
+  const openEditField = (field: CategoryFieldDefinition) => {
+    setEditingField(field);
+    setFieldForm({
+      category_slug: field.category_slug,
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      instruction: field.instruction,
+      options: field.options || [],
+      unit: field.unit || '',
+      switch_label: field.switch_label || '',
+      number_label: field.number_label || '',
+      columns: field.columns || [],
+      column_label: field.column_label || '',
+      rows: field.rows || [],
+      sort_order: field.sort_order,
+      is_active: field.is_active,
+    });
+    setNewOption('');
+    setNewColumn('');
+    setNewRow('');
+    setFieldDialogOpen(true);
+  };
+
+  const handleSaveField = async () => {
+    if (!fieldForm.label.trim()) {
+      toast({ title: 'El label es requerido', variant: 'destructive' });
+      return;
+    }
+    if (!editingField && !fieldForm.key.trim()) {
+      toast({ title: 'La key es requerida', variant: 'destructive' });
+      return;
+    }
+    if (!fieldForm.category_slug) {
+      toast({ title: 'Selecciona una categoria', variant: 'destructive' });
+      return;
+    }
+
+    setFieldSaving(true);
+    try {
+      const payload = {
+        ...fieldForm,
+        unit: fieldForm.unit || null,
+        switch_label: fieldForm.switch_label || null,
+        number_label: fieldForm.number_label || null,
+        column_label: fieldForm.column_label || null,
+      };
+
+      if (editingField) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { category_slug, key, ...updateData } = payload;
+        const res = await fetch(`/api/admin/catalog/fields/${editingField.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Error actualizando campo');
+        }
+        toast({ title: 'Campo actualizado' });
+      } else {
+        const res = await fetch('/api/admin/catalog/fields', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Error creando campo');
+        }
+        toast({ title: 'Campo creado' });
+      }
+
+      setFieldDialogOpen(false);
+      await loadFieldDefinitions();
+      await refreshCatalog();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Error guardando campo', variant: 'destructive' });
+    } finally {
+      setFieldSaving(false);
+    }
+  };
+
+  const handleDeleteField = async () => {
+    if (!deleteFieldTarget) return;
+    try {
+      const res = await fetch(`/api/admin/catalog/fields/${deleteFieldTarget.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error eliminando campo');
+      toast({ title: 'Campo eliminado' });
+      setDeleteFieldTarget(null);
+      await loadFieldDefinitions();
+      await refreshCatalog();
+    } catch {
+      toast({ title: 'Error eliminando campo', variant: 'destructive' });
+    }
+  };
+
+  const handleToggleFieldActive = async (field: CategoryFieldDefinition) => {
+    try {
+      const res = await fetch(`/api/admin/catalog/fields/${field.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !field.is_active }),
+      });
+      if (!res.ok) throw new Error('Error actualizando campo');
+      await loadFieldDefinitions();
+      await refreshCatalog();
+    } catch {
+      toast({ title: 'Error actualizando campo', variant: 'destructive' });
+    }
+  };
+
+  const handleReorderField = async (field: CategoryFieldDefinition, direction: 'up' | 'down') => {
+    const categoryFields = allFieldDefs
+      .filter(f => f.category_slug === field.category_slug)
+      .sort((a, b) => a.sort_order - b.sort_order);
+    const idx = categoryFields.findIndex(f => f.id === field.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= categoryFields.length) return;
+
+    const other = categoryFields[swapIdx];
+    try {
+      await Promise.all([
+        fetch(`/api/admin/catalog/fields/${field.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sort_order: other.sort_order }),
+        }),
+        fetch(`/api/admin/catalog/fields/${other.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sort_order: field.sort_order }),
+        }),
+      ]);
+      await loadFieldDefinitions();
+      await refreshCatalog();
+    } catch {
+      toast({ title: 'Error reordenando', variant: 'destructive' });
+    }
+  };
 
   // ─── Cancellation Policy handlers ─────────────────────────
 
@@ -608,6 +836,90 @@ export default function AdminConfiguracionPage() {
         </CardContent>
       </Card>
 
+      {/* Category Field Definitions */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Campos de Categoria</CardTitle>
+            <CardDescription>Campos dinamicos que aparecen en el formulario de creacion de servicios por categoria</CardDescription>
+          </div>
+          <Button onClick={openCreateField} size="sm"><Plus className="h-4 w-4 mr-1" />Agregar Campo</Button>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">
+            <Select value={fieldFilterCategory} onValueChange={setFieldFilterCategory}>
+              <SelectTrigger className="max-w-xs">
+                <SelectValue placeholder="Filtrar por categoria..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorias</SelectItem>
+                {activeCategories.map(c => (
+                  <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredFieldDefs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {fieldFilterCategory && fieldFilterCategory !== 'all' ? 'No hay campos para esta categoria.' : 'No hay campos definidos.'}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="w-[60px]">Activo</TableHead>
+                  <TableHead className="w-[140px]">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredFieldDefs
+                  .sort((a, b) => a.category_slug.localeCompare(b.category_slug) || a.sort_order - b.sort_order)
+                  .map((field) => {
+                    const catLabel = categories.find(c => c.slug === field.category_slug)?.label || field.category_slug;
+                    return (
+                      <TableRow key={field.id} className={!field.is_active ? 'opacity-50' : ''}>
+                        <TableCell className="font-mono text-xs">{field.sort_order}</TableCell>
+                        <TableCell className="font-mono text-xs">{field.key}</TableCell>
+                        <TableCell className="text-sm">{field.label}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{field.type}</Badge></TableCell>
+                        <TableCell className="text-xs">{catLabel}</TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={field.is_active}
+                            onCheckedChange={() => handleToggleFieldActive(field)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleReorderField(field, 'up')} aria-label="Subir">
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleReorderField(field, 'down')} aria-label="Bajar">
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => openEditField(field)} aria-label="Editar">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteFieldTarget(field)} aria-label="Eliminar">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Cancellation Policies CRUD */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -955,6 +1267,292 @@ export default function AdminConfiguracionPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteCatalog} className="bg-red-600 hover:bg-red-700">Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Field Definition Create/Edit Dialog */}
+      <Dialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingField ? 'Editar Campo' : 'Agregar Campo de Categoria'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Categoria *</Label>
+              <Select
+                value={fieldForm.category_slug}
+                onValueChange={v => setFieldForm(prev => ({ ...prev, category_slug: v }))}
+                disabled={!!editingField}
+              >
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona categoria" /></SelectTrigger>
+                <SelectContent>
+                  {activeCategories.map(c => (
+                    <SelectItem key={c.slug} value={c.slug}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {!editingField && (
+              <div>
+                <Label>Key * (inmutable)</Label>
+                <Input
+                  value={fieldForm.key}
+                  onChange={e => setFieldForm(prev => ({ ...prev, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') }))}
+                  placeholder="Ej: espacio_minimo"
+                  className="mt-1 font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">snake_case, no se puede cambiar despues</p>
+              </div>
+            )}
+
+            <div>
+              <Label>Label *</Label>
+              <Input
+                value={fieldForm.label}
+                onChange={e => setFieldForm(prev => ({ ...prev, label: e.target.value }))}
+                placeholder="Ej: Espacio minimo requerido"
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label>Tipo *</Label>
+              <Select
+                value={fieldForm.type}
+                onValueChange={v => setFieldForm(prev => ({ ...prev, type: v as CategoryFieldDefinition['type'] }))}
+              >
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FIELD_TYPES_OPTIONS.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Instruccion</Label>
+              <Textarea
+                value={fieldForm.instruction}
+                onChange={e => setFieldForm(prev => ({ ...prev, instruction: e.target.value }))}
+                placeholder="Texto de ayuda para el proveedor"
+                className="mt-1"
+                rows={2}
+              />
+            </div>
+
+            {/* Conditional fields based on type */}
+            {(fieldForm.type === 'number' || fieldForm.type === 'currency') && (
+              <div>
+                <Label>Unidad</Label>
+                <Input
+                  value={fieldForm.unit}
+                  onChange={e => setFieldForm(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="Ej: m², min, dias"
+                  className="mt-1"
+                />
+              </div>
+            )}
+
+            {(fieldForm.type === 'multi_select' || fieldForm.type === 'dropdown') && (
+              <div>
+                <Label>Opciones</Label>
+                <div className="space-y-2 mt-1">
+                  {fieldForm.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-sm flex-1 truncate">{opt}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFieldForm(prev => ({ ...prev, options: prev.options.filter((_, idx) => idx !== i) }))}
+                      >
+                        <Trash2 className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Input
+                      value={newOption}
+                      onChange={e => setNewOption(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newOption.trim()) {
+                          e.preventDefault();
+                          setFieldForm(prev => ({ ...prev, options: [...prev.options, newOption.trim()] }));
+                          setNewOption('');
+                        }
+                      }}
+                      placeholder="Agregar opcion..."
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (newOption.trim()) {
+                          setFieldForm(prev => ({ ...prev, options: [...prev.options, newOption.trim()] }));
+                          setNewOption('');
+                        }
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {fieldForm.type === 'switch_number' && (
+              <>
+                <div>
+                  <Label>Label del switch</Label>
+                  <Input
+                    value={fieldForm.switch_label}
+                    onChange={e => setFieldForm(prev => ({ ...prev, switch_label: e.target.value }))}
+                    placeholder="Ej: Incluye prueba"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Label del numero</Label>
+                  <Input
+                    value={fieldForm.number_label}
+                    onChange={e => setFieldForm(prev => ({ ...prev, number_label: e.target.value }))}
+                    placeholder="Ej: Cantidad"
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            )}
+
+            {fieldForm.type === 'matrix_select' && (
+              <>
+                <div>
+                  <Label>Label de columnas</Label>
+                  <Input
+                    value={fieldForm.column_label}
+                    onChange={e => setFieldForm(prev => ({ ...prev, column_label: e.target.value }))}
+                    placeholder="Ej: Invitados"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Columnas</Label>
+                  <div className="space-y-1 mt-1">
+                    {fieldForm.columns.map((col, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-sm flex-1">{col}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFieldForm(prev => ({ ...prev, columns: prev.columns.filter((_, idx) => idx !== i) }))}>
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <Input
+                        value={newColumn}
+                        onChange={e => setNewColumn(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newColumn.trim()) {
+                            e.preventDefault();
+                            setFieldForm(prev => ({ ...prev, columns: [...prev.columns, newColumn.trim()] }));
+                            setNewColumn('');
+                          }
+                        }}
+                        placeholder="Agregar columna..."
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        if (newColumn.trim()) {
+                          setFieldForm(prev => ({ ...prev, columns: [...prev.columns, newColumn.trim()] }));
+                          setNewColumn('');
+                        }
+                      }}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Filas (valores posibles)</Label>
+                  <div className="space-y-1 mt-1">
+                    {fieldForm.rows.map((row, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-sm flex-1">{row}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFieldForm(prev => ({ ...prev, rows: prev.rows.filter((_, idx) => idx !== i) }))}>
+                          <Trash2 className="h-3 w-3 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="flex gap-2">
+                      <Input
+                        value={newRow}
+                        onChange={e => setNewRow(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newRow.trim()) {
+                            e.preventDefault();
+                            setFieldForm(prev => ({ ...prev, rows: [...prev.rows, newRow.trim()] }));
+                            setNewRow('');
+                          }
+                        }}
+                        placeholder="Agregar fila..."
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                        if (newRow.trim()) {
+                          setFieldForm(prev => ({ ...prev, rows: [...prev.rows, newRow.trim()] }));
+                          setNewRow('');
+                        }
+                      }}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div>
+              <Label>Orden</Label>
+              <Input
+                type="number"
+                value={fieldForm.sort_order}
+                onChange={e => setFieldForm(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
+                className="mt-1 max-w-[100px]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={fieldForm.is_active}
+                onCheckedChange={v => setFieldForm(prev => ({ ...prev, is_active: v }))}
+              />
+              <Label>Activo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFieldDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveField} disabled={fieldSaving}>
+              {fieldSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando...</> : editingField ? 'Guardar Cambios' : 'Crear Campo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Field Definition Confirmation */}
+      <AlertDialog open={!!deleteFieldTarget} onOpenChange={(open) => !open && setDeleteFieldTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar campo &ldquo;{deleteFieldTarget?.label}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta accion no se puede deshacer. Los servicios existentes conservaran sus datos pero el campo ya no aparecera en formularios.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteField} className="bg-red-600 hover:bg-red-700">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

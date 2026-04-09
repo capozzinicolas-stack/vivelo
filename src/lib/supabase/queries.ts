@@ -1,6 +1,6 @@
 import { createClient } from './client';
 import { generateSlug } from '@/lib/slug';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogPostLink, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogPostLink, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CategoryFieldDefinition } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -2735,4 +2735,31 @@ export async function getZoneServiceCount(zone: string): Promise<number> {
     .neq('status', 'archived');
   if (error) throw new Error(`Error contando servicios: ${error.message}`);
   return count || 0;
+}
+
+// ─── CATEGORY FIELD DEFINITIONS ────────────────────────────
+
+export async function getCategoryFieldDefinitions(
+  categorySlug?: string
+): Promise<CategoryFieldDefinition[]> {
+  if (isMockMode()) return [];
+
+  const supabase = createClient();
+  let query = supabase
+    .from('category_field_definitions')
+    .select('*')
+    .eq('is_active', true)
+    .order('category_slug')
+    .order('sort_order');
+
+  if (categorySlug) {
+    query = query.eq('category_slug', categorySlug);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('[getCategoryFieldDefinitions] Error:', error.message);
+    return [];
+  }
+  return (data || []) as CategoryFieldDefinition[];
 }

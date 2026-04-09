@@ -46,6 +46,24 @@ export interface CatalogTag {
   sort_order: number;
   is_active: boolean;
 }
+
+export interface CategoryFieldDefinition {
+  id: string;
+  category_slug: string;
+  key: string;
+  label: string;
+  type: 'text_long' | 'text_short' | 'number' | 'currency' | 'multi_select' | 'dropdown' | 'switch' | 'switch_number' | 'matrix_select';
+  instruction: string;
+  options: string[];
+  unit: string | null;
+  switch_label: string | null;
+  number_label: string | null;
+  columns: string[];
+  column_label: string | null;
+  rows: string[];
+  sort_order: number;
+  is_active: boolean;
+}
 export type ServiceStatus = 'draft' | 'pending_review' | 'needs_revision' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';

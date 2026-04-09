@@ -169,6 +169,42 @@ export const UpdateFiscalStatusSchema = z.object({
   admin_notes: z.string().max(1000, 'Notas muy largas').optional().nullable(),
 });
 
+// ─── Category Field Definition Schemas ───────────────────
+
+const FIELD_TYPES = ['text_long','text_short','number','currency','multi_select','dropdown','switch','switch_number','matrix_select'] as const;
+
+export const CreateFieldDefinitionSchema = z.object({
+  category_slug: z.string().min(1, 'category_slug es requerido'),
+  key: z.string().min(1, 'key es requerido').regex(/^[a-z_][a-z0-9_]*$/, 'key debe ser snake_case'),
+  label: z.string().min(1, 'label es requerido'),
+  type: z.enum(FIELD_TYPES, { message: 'type invalido' }),
+  instruction: z.string().default(''),
+  options: z.array(z.string()).default([]),
+  unit: z.string().nullable().default(null),
+  switch_label: z.string().nullable().default(null),
+  number_label: z.string().nullable().default(null),
+  columns: z.array(z.string()).default([]),
+  column_label: z.string().nullable().default(null),
+  rows: z.array(z.string()).default([]),
+  sort_order: z.number().int().default(0),
+  is_active: z.boolean().default(true),
+});
+
+export const UpdateFieldDefinitionSchema = z.object({
+  label: z.string().min(1).optional(),
+  type: z.enum(FIELD_TYPES).optional(),
+  instruction: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  unit: z.string().nullable().optional(),
+  switch_label: z.string().nullable().optional(),
+  number_label: z.string().nullable().optional(),
+  columns: z.array(z.string()).optional(),
+  column_label: z.string().nullable().optional(),
+  rows: z.array(z.string()).optional(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
+
 // ─── Landing Banner Schemas ──────────────────────────────
 
 export const CreateLandingBannerSchema = z.object({
