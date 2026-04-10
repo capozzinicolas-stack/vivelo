@@ -48,6 +48,7 @@ export interface CartItem {
   discount_pct?: number;
   discount_amount?: number;
   original_total?: number;
+  coupon_code?: string;
 }
 
 interface CartContextType {

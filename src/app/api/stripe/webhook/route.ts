@@ -71,6 +71,28 @@ export async function POST(request: NextRequest) {
             .eq('status', 'pending')
             .select('*, service:services(title)');
 
+          // Increment used_count atomically for each unique campaign used in this order.
+          // Idempotent via stripe_webhook_events table check above — if this webhook runs
+          // twice for the same event, the outer idempotency guard short-circuits.
+          if (orderBookings && orderBookings.length > 0) {
+            const campaignIds = orderBookings
+              .map(b => (b as { campaign_id?: string | null }).campaign_id)
+              .filter((id): id is string => !!id);
+            const uniqueCampaignIds = Array.from(new Set(campaignIds));
+            for (const campaignId of uniqueCampaignIds) {
+              try {
+                const { error: rpcErr } = await supabaseAdmin.rpc('increment_campaign_usage', {
+                  p_campaign_id: campaignId,
+                });
+                if (rpcErr) {
+                  console.error(`[Stripe Webhook] increment_campaign_usage failed for ${campaignId}:`, rpcErr);
+                }
+              } catch (err) {
+                console.error(`[Stripe Webhook] increment_campaign_usage exception for ${campaignId}:`, err);
+              }
+            }
+          }
+
           // Push each confirmed booking to Google Calendar (non-blocking)
           if (orderBookings && orderBookings.length > 0) {
             try {

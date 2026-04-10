@@ -358,6 +358,10 @@ export async function getActiveCampaignsWithServicesServer(): Promise<(Campaign 
   return (data || []) as (Campaign & { subscriptions: CampaignSubscription[] })[];
 }
 
+/**
+ * Active ADMIN campaign auto-applied to a service. Provider promotions
+ * (source='provider') are NEVER auto-applied — they require a coupon.
+ */
 export async function getActiveCampaignForServiceServer(serviceId: string): Promise<Campaign | null> {
   const supabase = createServerSupabaseClient();
   const now = new Date().toISOString();
@@ -365,13 +369,104 @@ export async function getActiveCampaignForServiceServer(serviceId: string): Prom
     .from('campaign_subscriptions')
     .select('campaign:campaigns(*)')
     .eq('service_id', serviceId)
+    .eq('status', 'active');
+  if (error || !data) return null;
+
+  for (const row of data) {
+    const campaign = row.campaign as unknown as Campaign | null;
+    if (!campaign) continue;
+    if ((campaign.source ?? 'admin') !== 'admin') continue;
+    if (campaign.status !== 'active') continue;
+    if (campaign.start_date > now || campaign.end_date < now) continue;
+    return campaign;
+  }
+  return null;
+}
+
+/**
+ * Server-side coupon validation. Used by SSR pages (e.g. service detail
+ * with ?coupon=XYZ in the URL) and by API routes that need to verify
+ * a coupon under the user's RLS context.
+ *
+ * Logic:
+ *   1. Lookup campaign by upper(coupon_code), source='provider'
+ *   2. Verify status='active' and current date in [start_date, end_date]
+ *   3. Verify service is subscribed to this campaign
+ *   4. Verify used_count < usage_limit (when defined)
+ *   5. Verify NO active admin campaign exists for this service (no stacking)
+ */
+export async function validateCouponServer(
+  serviceId: string,
+  couponCode: string
+): Promise<{ valid: true; campaign: Campaign } | { valid: false; error: string }> {
+  const supabase = createServerSupabaseClient();
+  const now = new Date().toISOString();
+  const code = couponCode.trim();
+  if (!code) return { valid: false, error: 'Codigo vacio' };
+
+  // 1. Lookup campaign by coupon_code (case-insensitive via ilike on stored value)
+  const { data: campaigns, error: cErr } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('source', 'provider')
+    .ilike('coupon_code', code)
+    .limit(1);
+  if (cErr) {
+    console.warn('[validateCouponServer] lookup failed:', cErr.message);
+    return { valid: false, error: 'Cupon no encontrado' };
+  }
+  const campaign = (campaigns?.[0] || null) as Campaign | null;
+  if (!campaign) return { valid: false, error: 'Cupon no encontrado' };
+
+  // 2. Status + dates
+  if (campaign.status !== 'active') return { valid: false, error: 'Este cupon no esta activo' };
+  if (campaign.start_date > now) return { valid: false, error: 'Este cupon aun no esta vigente' };
+  if (campaign.end_date < now) return { valid: false, error: 'Este cupon ya expiro' };
+
+  // 3. Subscription check
+  const { data: sub, error: sErr } = await supabase
+    .from('campaign_subscriptions')
+    .select('id')
+    .eq('campaign_id', campaign.id)
+    .eq('service_id', serviceId)
     .eq('status', 'active')
     .maybeSingle();
-  if (error || !data?.campaign) return null;
+  if (sErr || !sub) return { valid: false, error: 'Este cupon no aplica para este servicio' };
 
-  const campaign = data.campaign as unknown as Campaign;
-  if (campaign.status !== 'active' || campaign.start_date > now || campaign.end_date < now) return null;
-  return campaign;
+  // 4. Usage limit
+  if (campaign.usage_limit != null && campaign.used_count >= campaign.usage_limit) {
+    return { valid: false, error: 'Este cupon ya alcanzo su limite de usos' };
+  }
+
+  // 5. Conflict with active admin campaign on the same service
+  const adminCampaign = await getActiveCampaignForServiceServer(serviceId);
+  if (adminCampaign) {
+    return { valid: false, error: 'Este servicio ya tiene un descuento activo y no es compatible con cupones' };
+  }
+
+  return { valid: true, campaign };
+}
+
+/**
+ * SSR helper used by the service detail page. If a coupon was passed in
+ * the URL (?coupon=XYZ), validates it; otherwise falls back to the
+ * legacy admin auto-discovery. Returns the campaign + the coupon code
+ * used (so the client component can render the badge / persist the
+ * code in the cart item).
+ */
+export async function getActiveCampaignForServiceWithCouponServer(
+  serviceId: string,
+  couponCode?: string | null
+): Promise<{ campaign: Campaign | null; couponCode: string | null }> {
+  if (couponCode && couponCode.trim()) {
+    const result = await validateCouponServer(serviceId, couponCode.trim());
+    if (result.valid) {
+      return { campaign: result.campaign, couponCode: result.campaign.coupon_code };
+    }
+    // Invalid coupon: fall through to admin auto-discovery (so the page still renders)
+  }
+  const adminCampaign = await getActiveCampaignForServiceServer(serviceId);
+  return { campaign: adminCampaign, couponCode: null };
 }
 
 export async function getActiveFeaturedProvidersServer(): Promise<FeaturedProvider[]> {

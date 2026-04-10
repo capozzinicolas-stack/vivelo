@@ -64,6 +64,17 @@ export const FEATURED_SECTION_LABELS: Record<string, string> = {
   mas_vendidos: 'Mas Vendidos',
 };
 
+export const PROVIDER_PROMO_LIMITS = {
+  MAX_ACTIVE_PROMOS_PER_PROVIDER: 5,
+  MAX_DISCOUNT_PCT: 50,
+  MIN_DISCOUNT_PCT: 5,
+  MIN_DAYS_DURATION: 1,
+  MAX_DAYS_DURATION: 90,
+  COUPON_CODE_MIN_LENGTH: 4,
+  COUPON_CODE_MAX_LENGTH: 16,
+  COUPON_CODE_REGEX: /^[A-Z0-9]+$/,
+} as const;
+
 export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
   active: 'Activa',

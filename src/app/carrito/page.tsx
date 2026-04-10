@@ -18,6 +18,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { AddressAutocomplete } from '@/components/address-autocomplete';
+import { CouponInput } from '@/components/cart/coupon-input';
 import { serviceCoversZone, type ViveloZoneSlug } from '@/lib/zone-mapping';
 import { ShoppingCart, Trash2, Pencil, X, CalendarIcon, Users, Clock, ArrowLeft, ArrowRight, ShoppingBag, PartyPopper, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -73,6 +74,12 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
 
     // Recalculate extras total (keep same extras, just recalc subtotals if needed)
     const extrasTotal = item.selected_extras.reduce((sum, ext) => sum + ext.subtotal, 0);
+    const newBaseTotal = baseTotal + extrasTotal;
+
+    // If a discount is applied, re-apply it over the new total
+    const hasDiscount = !!item.campaign_id && !!item.discount_pct;
+    const newDiscountAmount = hasDiscount ? Math.round(newBaseTotal * (item.discount_pct! / 100)) : 0;
+    const newTotal = newBaseTotal - newDiscountAmount;
 
     onUpdate({
       event_date: format(editDate, 'yyyy-MM-dd'),
@@ -81,7 +88,11 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
       event_hours: eventHours,
       guest_count: editGuests,
       base_total: baseTotal,
-      total: baseTotal + extrasTotal,
+      total: newTotal,
+      ...(hasDiscount ? {
+        discount_amount: newDiscountAmount,
+        original_total: newBaseTotal,
+      } : {}),
     });
     setEditing(false);
   };
@@ -183,8 +194,23 @@ function CartItemCard({ item, onRemove, onUpdate, showAddressInput }: { item: Ca
                 Base: ${item.base_total.toLocaleString()}
                 {item.extras_total > 0 && ` + Extras: $${item.extras_total.toLocaleString()}`}
               </span>
-              <span className="font-bold text-lg">${item.total.toLocaleString()}</span>
+              <div className="flex flex-col items-end">
+                {item.discount_amount && item.original_total ? (
+                  <>
+                    <span className="text-xs text-muted-foreground line-through">
+                      ${item.original_total.toLocaleString()}
+                    </span>
+                    <span className="font-bold text-lg text-red-600">
+                      ${item.total.toLocaleString()}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-bold text-lg">${item.total.toLocaleString()}</span>
+                )}
+              </div>
             </div>
+
+            <CouponInput item={item} onApply={(updates) => onUpdate(updates)} />
 
             {showAddressInput && (
               <div className="mt-3">
@@ -372,12 +398,32 @@ export default function CarritoPage() {
               <h2 className="font-semibold text-lg">Resumen del pedido</h2>
               <div className="space-y-2 text-sm">
                 {items.map(item => (
-                  <div key={item.id} className="flex justify-between">
-                    <span className="truncate mr-2">{item.service_snapshot.title}</span>
+                  <div key={item.id} className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate">{item.service_snapshot.title}</div>
+                      {item.coupon_code && (
+                        <div className="text-xs text-green-700">
+                          Cupon {item.coupon_code} (-{item.discount_pct}%)
+                        </div>
+                      )}
+                    </div>
                     <span className="shrink-0">${item.total.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
+              {items.some(i => i.discount_amount && i.original_total) && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>${items.reduce((s, i) => s + (i.original_total ?? i.total), 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Descuentos</span>
+                    <span>-${items.reduce((s, i) => s + (i.discount_amount ?? 0), 0).toLocaleString()}</span>
+                  </div>
+                </>
+              )}
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span>

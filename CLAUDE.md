@@ -516,7 +516,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Calculo de precios (detalle) | ✅ Terminado | Todos los price_unit, extras, descuentos |
 | Carrito | ✅ Terminado | Edicion, recalculo, persistencia localStorage, agrupacion por evento, direccion con Google Places + validacion de zona |
 | Zonas geograficas | ✅ Terminado | 9 zonas, Google Places Autocomplete, fallback manual, validacion de cobertura en carrito |
-| Campanas/descuentos | ✅ Terminado | Admin crea campanas, proveedores inscriben servicios, descuento se aplica en detalle + checkout. Todas las queries de campanas activas validan `status='active'` + `start_date <= now <= end_date`. Cron `end-expired-campaigns` transiciona vencidas a `ended` diariamente. |
+| Campanas (admin) y Promociones (proveedor) | ✅ Terminado | Admin crea campanas, proveedores inscriben servicios, descuento se aplica en detalle + checkout. Todas las queries de campanas activas validan `status='active'` + `start_date <= now <= end_date`. Cron `end-expired-campaigns` transiciona vencidas a `ended` diariamente. Proveedores pueden crear sus propias promociones con cupones compartibles (absorben 100% del descuento, comision Vivelo intacta). Ver seccion "Promociones del Proveedor". |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, contrasena temporal, perfil admin. Booking status updates usan API route con service-role (bypass RLS) |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
 | Checkout + Stripe | ⚠️ En progreso | Pago funciona pero bookings pueden perderse (ver Bugs Conocidos) |
@@ -594,6 +594,87 @@ calculateRetentions(netAmount, regimen, tipoPersona) → { isr_amount, iva_amoun
 ```
 
 Tasas varian por regimen: RESICO (626) = 1.25% ISR, Plataformas (625) = 1% ISR + 8% IVA, PFAE (612) = 10% ISR. Redondeo: `Math.round(valor × 100) / 100`.
+
+---
+
+## Promociones del Proveedor (Cupones)
+
+Sistema donde proveedores crean promociones propias con codigos de cupon compartibles. **El proveedor absorbe el 100% del descuento**; la comision de Vivelo no cambia.
+
+### Decision arquitectonica clave
+
+Reutiliza la tabla `campaigns` (no crea tabla nueva). Solo se extiende con: `source` ('admin'|'provider'), `owner_provider_id`, `coupon_code`, `usage_limit`, `used_count`, `max_uses_per_user`. Esto permite reutilizar el 80% del codigo de checkout existente sin cambios.
+
+### Reglas inquebrantables
+
+1. **NO se toca** `commission.ts`, `cancellation.ts`, ni el patron de snapshots
+2. **NO se toca** la matematica de checkout — solo cambia _que_ campana se fetchea, no _como_ se aplica el descuento
+3. **NO hay stacking**: una reserva tiene 1 sola `campaign_id` (admin O proveedor, nunca ambas)
+4. **`used_count` se incrementa solo despues de pago confirmado** en webhook (idempotente via `stripe_webhook_events` + RPC `increment_campaign_usage`)
+5. CHECK constraint en DB obliga: `source='provider'` ⇒ `provider_absorbs_pct=100`, `vivelo_absorbs_pct=0`, `commission_reduction_pct=0`
+
+### Limites anti-abuso (`PROVIDER_PROMO_LIMITS` en `src/lib/constants.ts`)
+
+- Max 5 promos activas por proveedor
+- Descuento 5-50%
+- Duracion 1-90 dias
+- Coupon code 4-16 chars `[A-Z0-9]+`, unico global (case-insensitive)
+
+### Diferencia financiera vs admin campaigns
+
+| Caso | total | discount | client paga | commission | provider neto | vivelo neto |
+|------|-------|----------|-------------|------------|---------------|-------------|
+| Sin promo | 1000 | 0 | 1000 | 120 (12%) | 880 | 120 |
+| Admin campaign 10% off + commission_reduction 5% | 1000 | 100 | 900 | 63 (7% sobre 900) | 837 | 63 |
+| **Provider promo 10% off** | **1000** | **100** | **900** | **120 (12% sobre 1000)** | **780** | **120** |
+
+En caso 3 el proveedor absorbe los 100 del descuento completo (880 - 780 = 100), y la comision Vivelo permanece en 120 (calculada sobre `item.total` original, NO sobre `bookingTotal`). Esto sucede automaticamente porque `commission_reduction_pct=0` hace que el bloque `if (campaign.commission_reduction_pct > 0)` en `checkout/page.tsx` no se ejecute.
+
+### Flujo completo
+
+1. **Crear promo**: Proveedor en `/dashboard/proveedor/promociones` → click "Crear" → llena form (nombre, descuento, codigo, fechas, servicios) → POST `/api/provider/promotions` → valida ownership de servicios + limites + unicidad de coupon_code
+2. **Compartir**: Proveedor copia link `solovivelo.com/servicios/{slug}?coupon=XYZ` y lo difunde
+3. **Cliente con URL**: `servicios/[id]/page.tsx` (Server Component) lee `searchParams.coupon`, valida via `getActiveCampaignForServiceWithCouponServer()`, pasa al detail client
+4. **Cliente sin URL**: En `/carrito` ingresa codigo via `<CouponInput>`, valida via `/api/coupons/validate`, actualiza el cart item con `campaign_id`/`discount_pct`/`discount_amount`/`original_total`/`coupon_code`
+5. **Checkout** (`createBookingsForOrder`): si item tiene `campaign_id`, fetch by id + revalidar via `isCampaignStillValid()`. Si no, auto-discovery legacy admin-only (`getActiveCampaignForService` filtra `source='admin'`)
+6. **Validacion server-side** en `/api/stripe/create-payment-intent`: re-fetch cada campana por id, verificar status/dates/usage_limit/subscription/coupon_code match
+7. **Webhook** `payment_intent.succeeded`: tras confirmar bookings, llama RPC `increment_campaign_usage` por cada campaign_id unico
+8. **Snapshot**: `bookings.coupon_code` se guarda inmutable junto a `campaign_id`/`discount_amount`/`discount_pct`
+
+### Conflicto admin vs. proveedor
+
+Un servicio que ya tiene una campana de admin activa **rechaza** cupones de proveedor (mensaje: _"Este servicio ya tiene un descuento activo y no es compatible con cupones."_). Validado en `validateCouponServer()`.
+
+### Archivos clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00112_provider_promotions_and_coupons.sql` | Tabla extension + CHECK constraint + RLS + RPC `increment_campaign_usage` |
+| `src/types/database.ts` | `Campaign` extendida con 6 campos + `Booking.coupon_code` + `CartItem.coupon_code` |
+| `src/lib/constants.ts` | `PROVIDER_PROMO_LIMITS` |
+| `src/lib/validations/api-schemas.ts` | `CreateProviderPromotionSchema`, `UpdateProviderPromotionSchema`, `ValidateCouponSchema` |
+| `src/lib/supabase/queries.ts` | `getCampaignById`, `isCampaignStillValid`, `validateCouponClient`, `createProviderPromotion`, `getProviderPromotions`, etc. `getActiveCampaignForService` filtra `source='admin'` |
+| `src/lib/supabase/server-queries.ts` | `validateCouponServer`, `getActiveCampaignForServiceWithCouponServer` |
+| `src/app/api/provider/promotions/route.ts` | GET (lista propias) + POST (crear) |
+| `src/app/api/provider/promotions/[id]/route.ts` | PATCH + DELETE (con soft-cancel si used_count > 0) |
+| `src/app/api/coupons/validate/route.ts` | POST publico (sin auth) — clientes invitados pueden previsualizar |
+| `src/app/dashboard/proveedor/promociones/page.tsx` | UI proveedor: lista, crear, editar, pausar, eliminar, copiar link |
+| `src/components/dashboard/promotion-form-dialog.tsx` | Dialog reutilizable (create/edit, content-locked si used_count > 0) |
+| `src/components/cart/coupon-input.tsx` | Input de cupon en carrito por item sin descuento |
+| `src/app/checkout/page.tsx` | Logica modificada en `createBookingsForOrder`: si `item.campaign_id` → fetch by id + revalidate, sino → auto-discovery admin-only |
+| `src/app/api/stripe/create-payment-intent/route.ts` | Validacion server-side: fetch by id, verifica status/dates/usage/subscription/coupon match |
+| `src/app/api/stripe/webhook/route.ts` | Tras confirmar bookings de la orden, llama `increment_campaign_usage` por cada campaign_id unico (try/catch per-RPC, no bloqueante) |
+| `src/app/admin-portal/dashboard/marketing/page.tsx` | Tab Campanas con filtro source (todas/admin/proveedor), columnas Origen/Cupon/Usos/Owner, accion "Pausar" para provider campaigns activas |
+| `src/components/dashboard/sidebar.tsx` | Link "Mis Promociones" con icono Tag entre "Campanas" y "Notificaciones" |
+
+### NO se toca
+
+- `src/lib/commission.ts` (formula intacta)
+- `src/lib/cancellation.ts` (refunds intactos)
+- `src/lib/booking-state-machine.ts`
+- Snapshot pattern en checkout (solo se agrega `coupon_code` al snapshot)
+- `getActiveCampaignsWithServices` (sigue retornando solo activas con dates validas)
+- `/api/cron/end-expired-campaigns` (cubre tanto admin como provider campaigns por fecha)
 
 ---
 

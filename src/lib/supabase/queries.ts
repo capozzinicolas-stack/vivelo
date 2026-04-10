@@ -625,6 +625,7 @@ export async function createBooking(booking: {
   campaign_id?: string | null;
   discount_amount?: number;
   discount_pct?: number;
+  coupon_code?: string | null;
 }): Promise<Booking> {
   if (isMockMode()) {
     const newBooking: Booking = {
@@ -695,6 +696,7 @@ export async function createBooking(booking: {
     ...(booking.campaign_id ? { campaign_id: booking.campaign_id } : {}),
     ...(booking.discount_amount ? { discount_amount: booking.discount_amount } : {}),
     ...(booking.discount_pct ? { discount_pct: booking.discount_pct } : {}),
+    ...(booking.coupon_code ? { coupon_code: booking.coupon_code } : {}),
   };
 
   const { data, error } = await supabase
@@ -1689,6 +1691,12 @@ export async function createCampaign(campaign: {
       ...campaign,
       description: campaign.description ?? null,
       status: campaign.status ?? 'draft',
+      source: 'admin',
+      owner_provider_id: null,
+      coupon_code: null,
+      usage_limit: null,
+      used_count: 0,
+      max_uses_per_user: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -1729,19 +1737,26 @@ export async function updateCampaign(id: string, updates: Partial<Campaign>): Pr
   if (error) throw new Error(`Error actualizando campana: ${error.message}`);
 }
 
+/**
+ * Returns the active ADMIN campaign auto-applied to a service.
+ * Provider promotions are NEVER auto-applied — they require a coupon code.
+ */
 export async function getActiveCampaignForService(serviceId: string): Promise<Campaign | null> {
   if (isMockMode()) {
     const { mockCampaigns, mockCampaignSubscriptions } = await import('@/data/mock-marketing');
     const now = new Date().toISOString();
-    const sub = mockCampaignSubscriptions.find(s =>
+    const subs = mockCampaignSubscriptions.filter(s =>
       s.service_id === serviceId && s.status === 'active'
     );
-    if (!sub) return null;
-    const campaign = mockCampaigns.find(c =>
-      c.id === sub.campaign_id && c.status === 'active' &&
-      c.start_date <= now && c.end_date >= now
-    );
-    return campaign || null;
+    for (const sub of subs) {
+      const campaign = mockCampaigns.find(c =>
+        c.id === sub.campaign_id && c.status === 'active' &&
+        (c.source ?? 'admin') === 'admin' &&
+        c.start_date <= now && c.end_date >= now
+      );
+      if (campaign) return campaign;
+    }
+    return null;
   }
 
   const supabase = createClient();
@@ -1750,13 +1765,136 @@ export async function getActiveCampaignForService(serviceId: string): Promise<Ca
     .from('campaign_subscriptions')
     .select('campaign:campaigns(*)')
     .eq('service_id', serviceId)
-    .eq('status', 'active')
-    .single();
-  if (error || !data?.campaign) return null;
+    .eq('status', 'active');
+  if (error || !data) return null;
 
-  const campaign = data.campaign as unknown as Campaign;
-  if (campaign.status !== 'active' || campaign.start_date > now || campaign.end_date < now) return null;
-  return campaign;
+  for (const row of data) {
+    const campaign = row.campaign as unknown as Campaign | null;
+    if (!campaign) continue;
+    if ((campaign.source ?? 'admin') !== 'admin') continue;
+    if (campaign.status !== 'active') continue;
+    if (campaign.start_date > now || campaign.end_date < now) continue;
+    return campaign;
+  }
+  return null;
+}
+
+/**
+ * Fetch a campaign by id (no filters). Used during checkout revalidation
+ * when the cart item already carries a campaign_id (e.g. applied coupon).
+ */
+export async function getCampaignById(id: string): Promise<Campaign | null> {
+  if (isMockMode()) {
+    const { mockCampaigns } = await import('@/data/mock-marketing');
+    return mockCampaigns.find(c => c.id === id) || null;
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    console.warn('[getCampaignById] Query failed:', error.message);
+    return null;
+  }
+  return data as Campaign | null;
+}
+
+/**
+ * Re-validate a campaign at checkout time against the current snapshot.
+ * Checks: status=active, date range, usage_limit, subscription to service.
+ * For provider promos also verifies coupon_code matches.
+ */
+export async function isCampaignStillValid(
+  campaign: Campaign | null,
+  couponCode: string | undefined,
+  serviceId: string
+): Promise<boolean> {
+  if (!campaign) return false;
+  const now = new Date().toISOString();
+  if (campaign.status !== 'active') return false;
+  if (campaign.start_date > now || campaign.end_date < now) return false;
+  if (campaign.usage_limit != null && campaign.used_count >= campaign.usage_limit) return false;
+
+  // Provider promos: coupon must match
+  if ((campaign.source ?? 'admin') === 'provider') {
+    if (!couponCode) return false;
+    if (!campaign.coupon_code) return false;
+    if (couponCode.toUpperCase() !== campaign.coupon_code.toUpperCase()) return false;
+  }
+
+  // Verify subscription for this service exists & is active
+  if (isMockMode()) {
+    const { mockCampaignSubscriptions } = await import('@/data/mock-marketing');
+    const sub = mockCampaignSubscriptions.find(s =>
+      s.campaign_id === campaign.id && s.service_id === serviceId && s.status === 'active'
+    );
+    return !!sub;
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('campaign_subscriptions')
+    .select('id')
+    .eq('campaign_id', campaign.id)
+    .eq('service_id', serviceId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error || !data) return false;
+  return true;
+}
+
+// ─── PROVIDER PROMOTIONS (Coupons) ─────────────────────────
+
+export async function getProviderPromotions(
+  providerId: string,
+  statusFilter?: CampaignStatus
+): Promise<Campaign[]> {
+  if (isMockMode()) {
+    const { mockCampaigns } = await import('@/data/mock-marketing');
+    let results = mockCampaigns.filter(c => c.owner_provider_id === providerId && (c.source ?? 'admin') === 'provider');
+    if (statusFilter) results = results.filter(c => c.status === statusFilter);
+    return results;
+  }
+
+  const supabase = createClient();
+  let query = supabase
+    .from('campaigns')
+    .select('*')
+    .eq('source', 'provider')
+    .eq('owner_provider_id', providerId)
+    .order('created_at', { ascending: false });
+  if (statusFilter) query = query.eq('status', statusFilter);
+  const { data, error } = await query;
+  if (error) {
+    console.warn('[getProviderPromotions] Query failed:', error.message);
+    return [];
+  }
+  return (data || []) as Campaign[];
+}
+
+/**
+ * Client-side coupon validation via the /api/coupons/validate endpoint.
+ */
+export async function validateCouponClient(
+  serviceId: string,
+  couponCode: string,
+  userId?: string
+): Promise<{ valid: true; campaign: Campaign; discount_amount?: number } | { valid: false; error: string }> {
+  try {
+    const res = await fetch('/api/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: serviceId, coupon_code: couponCode, user_id: userId }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.valid) {
+      return { valid: false, error: data.error || 'Cupon invalido' };
+    }
+    return { valid: true, campaign: data.campaign, discount_amount: data.discount_amount };
+  } catch (err) {
+    return { valid: false, error: err instanceof Error ? err.message : 'Error validando cupon' };
+  }
 }
 
 export async function getReviewsByService(serviceId: string): Promise<Review[]> {

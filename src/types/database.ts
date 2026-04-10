@@ -218,6 +218,7 @@ export interface Booking {
   campaign_id?: string | null;
   discount_amount?: number;
   discount_pct?: number;
+  coupon_code?: string | null;
   start_code?: string | null;
   end_code?: string | null;
   start_code_used_at?: string | null;
@@ -333,6 +334,8 @@ export interface FeaturedPlacement {
   service?: Service;
 }
 
+export type CampaignSource = 'admin' | 'provider';
+
 export interface Campaign {
   id: string;
   internal_name: string;
@@ -346,10 +349,19 @@ export interface Campaign {
   end_date: string;
   exposure_channels: string[];
   status: CampaignStatus;
+  // Provider promotions (added in 00112)
+  source: CampaignSource;
+  owner_provider_id: string | null;
+  coupon_code: string | null;
+  usage_limit: number | null;
+  used_count: number;
+  max_uses_per_user: number | null;
   created_at: string;
   updated_at: string;
   // Joined data
   subscriptions?: CampaignSubscription[];
+  owner_provider?: Profile | null;
+  subscribed_services?: Service[];
 }
 
 export interface CampaignSubscription {

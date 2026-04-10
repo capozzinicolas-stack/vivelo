@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer, getRelatedServicesServer, getActiveCampaignForServiceServer } from '@/lib/supabase/server-queries';
+import { getServiceByIdServer, getServiceBySlugServer, getProfileByIdServer, getServiceBookingCountServer, getReviewsByServiceServer, getRelatedServicesServer, getActiveCampaignForServiceWithCouponServer } from '@/lib/supabase/server-queries';
 import { isUUID } from '@/lib/slug';
 import { ServiceDetailClient } from '@/components/services/service-detail-client';
 import { ServiceFaq } from '@/components/services/service-faq';
@@ -14,6 +14,7 @@ import { ArrowLeft } from 'lucide-react';
 
 interface Props {
   params: { id: string };
+  searchParams?: { coupon?: string };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -41,8 +42,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ServiceDetailPage({ params }: Props) {
+export default async function ServiceDetailPage({ params, searchParams }: Props) {
   const idOrSlug = params.id;
+  const couponParam = searchParams?.coupon?.trim() || null;
 
   // If UUID, redirect permanently to slug URL
   if (isUUID(idOrSlug)) {
@@ -55,12 +57,14 @@ export default async function ServiceDetailPage({ params }: Props) {
   const service = await getServiceBySlugServer(idOrSlug);
   if (!service) notFound();
 
-  const [bookingCount, reviews, relatedServices, activeCampaign] = await Promise.all([
+  const [bookingCount, reviews, relatedServices, campaignResult] = await Promise.all([
     getServiceBookingCountServer(service.id),
     getReviewsByServiceServer(service.id),
     getRelatedServicesServer(service.category, service.id, 4),
-    getActiveCampaignForServiceServer(service.id),
+    getActiveCampaignForServiceWithCouponServer(service.id, couponParam),
   ]);
+  const activeCampaign = campaignResult.campaign;
+  const couponCode = campaignResult.couponCode;
 
   // Ensure provider is loaded
   let provider = service.provider || null;
@@ -131,6 +135,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         provider={provider}
         bookingCount={bookingCount}
         activeCampaign={activeCampaign}
+        couponCode={couponCode}
       />
 
       <div className="mt-10">

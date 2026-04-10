@@ -45,9 +45,10 @@ interface ServiceDetailClientProps {
   provider: Profile | null;
   bookingCount: number;
   activeCampaign?: Campaign | null;
+  couponCode?: string | null;
 }
 
-export function ServiceDetailClient({ service, provider, bookingCount, activeCampaign }: ServiceDetailClientProps) {
+export function ServiceDetailClient({ service, provider, bookingCount, activeCampaign, couponCode }: ServiceDetailClientProps) {
   const router = useRouter();
   const { user } = useAuthContext();
   const { items, addItem } = useCart();
@@ -257,6 +258,13 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
       event_address: null,
       event_zone: null,
       added_at: new Date().toISOString(),
+      ...(activeCampaign && discountPct > 0 ? {
+        campaign_id: activeCampaign.id,
+        discount_pct: discountPct,
+        discount_amount: discountAmount,
+        original_total: total,
+        ...(couponCode ? { coupon_code: couponCode } : {}),
+      } : {}),
     });
 
     toast({ title: 'Agregado al carrito', description: `"${service.title}" fue agregado a tu carrito.` });
@@ -312,9 +320,17 @@ export function ServiceDetailClient({ service, provider, bookingCount, activeCam
           )}
 
           {activeCampaign && discountPct > 0 && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge className="bg-red-100 text-red-700 border-red-200">{discountPct}% OFF</Badge>
-              <span className="text-sm text-muted-foreground">{activeCampaign.external_name}</span>
+              <span className="text-sm text-muted-foreground">
+                {activeCampaign.external_name}
+                {couponCode && (
+                  <>
+                    {' '}·{' '}
+                    <span className="font-mono font-semibold text-deep-purple">Cupon {couponCode}</span>
+                  </>
+                )}
+              </span>
             </div>
           )}
 

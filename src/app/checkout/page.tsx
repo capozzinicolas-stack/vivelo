@@ -7,7 +7,7 @@ import { useAuthContext } from '@/providers/auth-provider';
 import { useCart } from '@/providers/cart-provider';
 import { StripeProvider } from '@/providers/stripe-provider';
 import { StripePaymentForm } from '@/components/checkout/stripe-payment-form';
-import { createOrder, createBooking, createSubBookings, checkVendorAvailability, getCancellationPolicyById, getActiveCampaignForService, getRelatedServices } from '@/lib/supabase/queries';
+import { createOrder, createBooking, createSubBookings, checkVendorAvailability, getCancellationPolicyById, getActiveCampaignForService, getCampaignById, isCampaignStillValid, getRelatedServices } from '@/lib/supabase/queries';
 import { calculateEffectiveTimes, resolveBuffers } from '@/lib/availability';
 import { getServiceById } from '@/lib/supabase/queries';
 import { ServiceCard } from '@/components/services/service-card';
@@ -234,20 +234,40 @@ export default function CheckoutPage() {
         }
       }
 
-      // Check for active campaign discount
+      // Check for active campaign discount.
+      // Priority:
+      //   1. If item has explicit campaign_id (provider promo via coupon, or pre-applied admin),
+      //      fetch by id and re-validate.
+      //   2. Otherwise, fallback to auto-discovery for admin campaigns only
+      //      (getActiveCampaignForService filters source='admin').
+      // Note: item.total already has the discount subtracted (applied in cart/service detail),
+      // so we recompute the "pre-discount" value (original_total) and re-apply.
       let campaignId: string | undefined;
       let discountAmount = 0;
       let discountPct = 0;
       let bookingTotal = item.total;
       try {
-        const campaign = await getActiveCampaignForService(item.service_id);
+        let campaign = null as Awaited<ReturnType<typeof getCampaignById>>;
+        if (item.campaign_id) {
+          campaign = await getCampaignById(item.campaign_id);
+          const stillValid = await isCampaignStillValid(campaign, item.coupon_code, item.service_id);
+          if (!stillValid) campaign = null;
+        } else {
+          campaign = await getActiveCampaignForService(item.service_id);
+        }
+
         if (campaign && campaign.discount_pct > 0) {
           campaignId = campaign.id;
           discountPct = campaign.discount_pct;
-          discountAmount = Math.round(item.total * (discountPct / 100));
-          bookingTotal = item.total - discountAmount;
+          // If item.total already reflects the discount, use original_total as the base.
+          // Otherwise (auto-discovery path), use item.total as the pre-discount base.
+          const preDiscountTotal = item.original_total ?? item.total;
+          discountAmount = Math.round(preDiscountTotal * (discountPct / 100));
+          bookingTotal = preDiscountTotal - discountAmount;
 
-          // Adjust commission with campaign's commission_reduction_pct
+          // Adjust commission with campaign's commission_reduction_pct.
+          // For provider promos this is 0 (enforced by CHECK constraint), so the block
+          // is a no-op and itemCommission stays at categoryRate × item.total (Vivelo intact).
           if (campaign.commission_reduction_pct > 0) {
             const adjustedRate = Math.max(0, categoryRate - (campaign.commission_reduction_pct / 100));
             itemCommission = calculateCommission(bookingTotal, adjustedRate);
@@ -284,7 +304,12 @@ export default function CheckoutPage() {
         billing_type_snapshot: item.service_snapshot.price_unit,
         order_id: orderIdParam,
         cancellation_policy_snapshot,
-        ...(campaignId ? { campaign_id: campaignId, discount_amount: discountAmount, discount_pct: discountPct } : {}),
+        ...(campaignId ? {
+          campaign_id: campaignId,
+          discount_amount: discountAmount,
+          discount_pct: discountPct,
+          ...(item.coupon_code ? { coupon_code: item.coupon_code } : {}),
+        } : {}),
       });
 
       // Create sub-bookings for extras

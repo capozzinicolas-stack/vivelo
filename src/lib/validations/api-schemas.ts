@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PROVIDER_PROMO_LIMITS } from '@/lib/constants';
 
 export const CancelBookingSchema = z.object({
   bookingId: z.string().uuid('bookingId debe ser un UUID valido'),
@@ -241,6 +242,58 @@ export const UpdateLandingBannerSchema = z.object({
   end_date: z.string().nullable().optional(),
   priority: z.number().int().min(0).optional(),
   provider_id: z.string().uuid().nullable().optional(),
+});
+
+// ─── Provider Promotions (Coupons) ────────────────────────
+
+const CouponCodeSchema = z.string()
+  .min(PROVIDER_PROMO_LIMITS.COUPON_CODE_MIN_LENGTH, `El codigo debe tener al menos ${PROVIDER_PROMO_LIMITS.COUPON_CODE_MIN_LENGTH} caracteres`)
+  .max(PROVIDER_PROMO_LIMITS.COUPON_CODE_MAX_LENGTH, `El codigo no puede exceder ${PROVIDER_PROMO_LIMITS.COUPON_CODE_MAX_LENGTH} caracteres`)
+  .regex(PROVIDER_PROMO_LIMITS.COUPON_CODE_REGEX, 'El codigo solo puede contener mayusculas y numeros');
+
+export const CreateProviderPromotionSchema = z.object({
+  internal_name: z.string().min(1, 'Nombre interno requerido').max(200),
+  external_name: z.string().min(1, 'Nombre publico requerido').max(200),
+  description: z.string().max(1000).optional().nullable(),
+  discount_pct: z.number()
+    .min(PROVIDER_PROMO_LIMITS.MIN_DISCOUNT_PCT, `Descuento minimo ${PROVIDER_PROMO_LIMITS.MIN_DISCOUNT_PCT}%`)
+    .max(PROVIDER_PROMO_LIMITS.MAX_DISCOUNT_PCT, `Descuento maximo ${PROVIDER_PROMO_LIMITS.MAX_DISCOUNT_PCT}%`),
+  start_date: z.string().min(1, 'Fecha de inicio requerida'),
+  end_date: z.string().min(1, 'Fecha de fin requerida'),
+  coupon_code: CouponCodeSchema,
+  usage_limit: z.number().int().positive().nullable().optional(),
+  max_uses_per_user: z.number().int().positive().nullable().optional(),
+  service_ids: z.array(z.string().uuid()).min(1, 'Selecciona al menos un servicio'),
+  status: z.enum(['draft', 'active']).default('active'),
+}).refine(
+  (data) => new Date(data.start_date) < new Date(data.end_date),
+  { message: 'La fecha de inicio debe ser anterior a la fecha de fin', path: ['end_date'] }
+).refine(
+  (data) => {
+    const days = (new Date(data.end_date).getTime() - new Date(data.start_date).getTime()) / (1000 * 60 * 60 * 24);
+    return days >= PROVIDER_PROMO_LIMITS.MIN_DAYS_DURATION && days <= PROVIDER_PROMO_LIMITS.MAX_DAYS_DURATION;
+  },
+  { message: `La duracion debe ser entre ${PROVIDER_PROMO_LIMITS.MIN_DAYS_DURATION} y ${PROVIDER_PROMO_LIMITS.MAX_DAYS_DURATION} dias`, path: ['end_date'] }
+);
+
+export const UpdateProviderPromotionSchema = z.object({
+  external_name: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).nullable().optional(),
+  discount_pct: z.number()
+    .min(PROVIDER_PROMO_LIMITS.MIN_DISCOUNT_PCT)
+    .max(PROVIDER_PROMO_LIMITS.MAX_DISCOUNT_PCT)
+    .optional(),
+  end_date: z.string().optional(),
+  usage_limit: z.number().int().positive().nullable().optional(),
+  max_uses_per_user: z.number().int().positive().nullable().optional(),
+  service_ids: z.array(z.string().uuid()).min(1).optional(),
+  status: z.enum(['active', 'cancelled', 'draft']).optional(),
+});
+
+export const ValidateCouponSchema = z.object({
+  service_id: z.string().uuid('service_id debe ser un UUID valido'),
+  coupon_code: z.string().min(1, 'Codigo requerido').max(32),
+  user_id: z.string().uuid().optional(),
 });
 
 export async function validateBody<T>(

@@ -89,6 +89,9 @@ export default function AdminMarketingPage() {
   const [cEndDate, setCEndDate] = useState('');
   const [cChannels, setCChannels] = useState('');
 
+  // Campaign source filter
+  const [campaignSourceFilter, setCampaignSourceFilter] = useState<'all' | 'admin' | 'provider'>('all');
+
   useEffect(() => {
     loadData();
   }, []);
@@ -581,7 +584,18 @@ export default function AdminMarketingPage() {
         </TabsContent>
 
         <TabsContent value="campanas" className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Filtrar por origen</Label>
+              <Select value={campaignSourceFilter} onValueChange={(v) => setCampaignSourceFilter(v as 'all' | 'admin' | 'provider')}>
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="admin">Admin (Vivelo)</SelectItem>
+                  <SelectItem value="provider">Proveedor (cupones)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Dialog open={campaignDialogOpen} onOpenChange={setCampaignDialogOpen}>
               <DialogTrigger asChild>
                 <Button><Plus className="h-4 w-4 mr-2" />Nueva Campana</Button>
@@ -646,43 +660,79 @@ export default function AdminMarketingPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Origen</TableHead>
                     <TableHead>Nombre Interno</TableHead>
-                    <TableHead>Nombre Externo</TableHead>
+                    <TableHead>Cupon / Owner</TableHead>
                     <TableHead>Descuento</TableHead>
+                    <TableHead>Usos</TableHead>
                     <TableHead>Fechas</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {campaigns.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Sin campanas</TableCell></TableRow>
-                  ) : campaigns.map(c => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.internal_name}</TableCell>
-                      <TableCell>{c.external_name}</TableCell>
-                      <TableCell>{c.discount_pct}%</TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(c.start_date).toLocaleDateString('es-MX')} - {new Date(c.end_date).toLocaleDateString('es-MX')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={CAMPAIGN_STATUS_COLORS[c.status]}>{CAMPAIGN_STATUS_LABELS[c.status]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {c.status === 'draft' && (
-                            <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'active')}>Activar</Button>
-                          )}
-                          {c.status === 'active' && (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'ended')}>Finalizar</Button>
-                              <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'cancelled')}>Cancelar</Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {(() => {
+                    const filtered = campaigns.filter(c => campaignSourceFilter === 'all' || (c.source ?? 'admin') === campaignSourceFilter);
+                    if (filtered.length === 0) {
+                      return <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sin campanas</TableCell></TableRow>;
+                    }
+                    return filtered.map(c => {
+                      const isProvider = c.source === 'provider';
+                      const owner = isProvider && c.owner_provider_id ? providers.find(p => p.id === c.owner_provider_id) : null;
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell>
+                            <Badge variant={isProvider ? 'outline' : 'default'} className={isProvider ? 'border-deep-purple text-deep-purple' : ''}>
+                              {isProvider ? 'Proveedor' : 'Admin'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div>{c.internal_name}</div>
+                            <div className="text-xs text-muted-foreground">{c.external_name}</div>
+                          </TableCell>
+                          <TableCell>
+                            {isProvider ? (
+                              <div className="space-y-0.5">
+                                {c.coupon_code && <div className="font-mono text-xs font-semibold">{c.coupon_code}</div>}
+                                <div className="text-xs text-muted-foreground truncate max-w-[160px]">{owner?.company_name || owner?.full_name || c.owner_provider_id?.slice(0, 8) || '—'}</div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{c.discount_pct}%</TableCell>
+                          <TableCell className="text-sm">
+                            {c.usage_limit != null ? `${c.used_count ?? 0}/${c.usage_limit}` : (c.used_count ?? 0)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(c.start_date).toLocaleDateString('es-MX')} - {new Date(c.end_date).toLocaleDateString('es-MX')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={CAMPAIGN_STATUS_COLORS[c.status]}>{CAMPAIGN_STATUS_LABELS[c.status]}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {!isProvider && c.status === 'draft' && (
+                                <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'active')}>Activar</Button>
+                              )}
+                              {!isProvider && c.status === 'active' && (
+                                <>
+                                  <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'ended')}>Finalizar</Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'cancelled')}>Cancelar</Button>
+                                </>
+                              )}
+                              {isProvider && c.status === 'active' && (
+                                <Button size="sm" variant="outline" onClick={() => handleCampaignAction(c.id, 'cancelled')}>Pausar</Button>
+                              )}
+                              {isProvider && c.status !== 'active' && (
+                                <span className="text-xs text-muted-foreground">Solo lectura</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
             </CardContent>

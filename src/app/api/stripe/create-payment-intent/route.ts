@@ -22,27 +22,55 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Orden no encontrada o no autorizada' }, { status: 403 });
       }
 
-      // Validate campaign discounts server-side
+      // Validate campaign discounts server-side.
+      // For each booking with a campaign_id snapshotted:
+      //   - Fetch the actual campaign by id (not by service lookup, to cover provider promos)
+      //   - Verify status='active', dates in range, usage_limit not exceeded
+      //   - Verify the service is still subscribed to the campaign
+      //   - For provider promos, verify coupon_code matches the snapshot
       if (order.discount_total && order.discount_total > 0) {
         const { data: bookings } = await supabase
           .from('bookings')
-          .select('service_id, campaign_id')
+          .select('service_id, campaign_id, coupon_code')
           .eq('order_id', orderId)
           .not('campaign_id', 'is', null);
 
         if (bookings && bookings.length > 0) {
           const now = new Date().toISOString();
           for (const b of bookings) {
+            const { data: campaign } = await supabase
+              .from('campaigns')
+              .select('*')
+              .eq('id', b.campaign_id)
+              .maybeSingle();
+
+            if (!campaign) {
+              return NextResponse.json({ error: 'Una campana de descuento ya no existe. Vuelve a crear la orden.' }, { status: 400 });
+            }
+            if (campaign.status !== 'active' || campaign.start_date > now || campaign.end_date < now) {
+              return NextResponse.json({ error: 'Una campana de descuento ya no es valida. Vuelve a crear la orden.' }, { status: 400 });
+            }
+            if (campaign.usage_limit != null && (campaign.used_count ?? 0) >= campaign.usage_limit) {
+              return NextResponse.json({ error: 'Un cupon ya alcanzo su limite de usos. Vuelve a crear la orden.' }, { status: 400 });
+            }
+
+            // Verify subscription still active for this service
             const { data: sub } = await supabase
               .from('campaign_subscriptions')
-              .select('campaign:campaigns(*)')
+              .select('id')
+              .eq('campaign_id', campaign.id)
               .eq('service_id', b.service_id)
               .eq('status', 'active')
-              .single();
+              .maybeSingle();
+            if (!sub) {
+              return NextResponse.json({ error: 'Un descuento ya no aplica a uno de tus servicios. Vuelve a crear la orden.' }, { status: 400 });
+            }
 
-            const campaign = sub?.campaign as { status?: string; start_date?: string; end_date?: string } | null;
-            if (!campaign || campaign.status !== 'active' || !campaign.start_date || !campaign.end_date || campaign.start_date > now || campaign.end_date < now) {
-              return NextResponse.json({ error: 'Una campana de descuento ya no es valida. Vuelve a crear la orden.' }, { status: 400 });
+            // Provider promos: verify coupon code matches
+            if (campaign.source === 'provider') {
+              if (!b.coupon_code || !campaign.coupon_code || b.coupon_code.toUpperCase() !== campaign.coupon_code.toUpperCase()) {
+                return NextResponse.json({ error: 'El cupon ya no es valido. Vuelve a crear la orden.' }, { status: 400 });
+              }
             }
           }
         }
