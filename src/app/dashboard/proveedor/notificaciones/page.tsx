@@ -96,12 +96,12 @@ export default function ProviderNotificacionesPage() {
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className={`font-medium text-sm ${!n.read ? '' : 'text-muted-foreground'}`}>{n.title}</p>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className={`font-medium text-sm break-words ${!n.read ? '' : 'text-muted-foreground'}`}>{n.title}</p>
                       <Badge variant="secondary" className="text-xs">{NOTIFICATION_TYPE_LABELS[n.type]}</Badge>
                       {!n.read && <Badge className="text-xs">Nueva</Badge>}
                     </div>
-                    <p className="text-sm text-muted-foreground">{n.message}</p>
+                    <p className="text-sm text-muted-foreground break-words">{n.message}</p>
                     <p className="text-xs text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString('es-MX')}</p>
                   </div>
                 </CardContent>

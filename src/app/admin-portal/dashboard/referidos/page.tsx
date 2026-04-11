@@ -32,6 +32,12 @@ import {
   Clock,
   RotateCcw,
   Trophy,
+  X,
+  BarChart3,
+  Star,
+  Package,
+  CalendarCheck,
+  DollarSign,
 } from 'lucide-react';
 import {
   REFERRAL_BENEFIT_LABELS,
@@ -76,6 +82,38 @@ interface ProviderDetailData {
   summary: ReferralTierSummary;
 }
 
+interface ProviderSummaryData {
+  profile: {
+    id: string;
+    full_name: string;
+    company_name: string | null;
+    email: string;
+    phone: string | null;
+    bio: string | null;
+    verified: boolean;
+    commission_rate: number;
+    created_at: string;
+    early_adopter_ends_at: string | null;
+  };
+  services: {
+    total: number;
+    by_status: Record<string, number>;
+  };
+  bookings: {
+    total: number;
+    by_status: Record<string, number>;
+    total_revenue: number;
+    total_commission: number;
+    net_to_provider: number;
+    total_refunded: number;
+    last_booking_date: string | null;
+  };
+  reviews: {
+    count: number;
+    avg_rating: number;
+  };
+}
+
 const tierColors: Record<0 | 1 | 2 | 3, string> = {
   0: 'bg-gray-100 text-gray-700',
   1: 'bg-amber-100 text-amber-800',
@@ -114,6 +152,11 @@ export default function AdminReferidosPage() {
   const [eaTarget, setEaTarget] = useState<ProviderRow | null>(null);
   const [eaDate, setEaDate] = useState('');
   const [eaLoading, setEaLoading] = useState(false);
+
+  // Provider summary dialog
+  const [summaryTarget, setSummaryTarget] = useState<ProviderRow | null>(null);
+  const [summaryData, setSummaryData] = useState<ProviderSummaryData | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const loadProviders = useCallback(async () => {
     setLoading(true);
@@ -196,6 +239,25 @@ export default function AdminReferidosPage() {
       toast({ title: 'Error', description: 'Error de red', variant: 'destructive' });
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  const handleOpenSummary = async (row: ProviderRow) => {
+    setSummaryTarget(row);
+    setSummaryData(null);
+    setSummaryLoading(true);
+    try {
+      const res = await fetch(`/api/admin/providers/${row.provider_id}/summary`);
+      if (res.ok) {
+        const data = await res.json();
+        setSummaryData(data as ProviderSummaryData);
+      } else {
+        toast({ title: 'Error', description: 'No se pudo cargar el resumen', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Error de red', variant: 'destructive' });
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -411,8 +473,18 @@ export default function AdminReferidosPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handleOpenSummary(p)}
+                          aria-label="Ver resumen del proveedor"
+                          title="Ver resumen del proveedor"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleOpenDetail(p)}
-                          aria-label="Ver detalle"
+                          aria-label="Ver referidos"
+                          title="Ver referidos"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -428,6 +500,7 @@ export default function AdminReferidosPage() {
                             );
                           }}
                           aria-label="Early Adopter"
+                          title="Early Adopter"
                         >
                           <Clock className="h-4 w-4" />
                         </Button>
@@ -612,24 +685,20 @@ export default function AdminReferidosPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">ID del referidor (proveedor A)</label>
-              <Input
-                value={assignReferrerId}
-                onChange={e => setAssignReferrerId(e.target.value)}
-                placeholder="uuid"
-                className="font-mono text-xs"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">ID del referido (proveedor B)</label>
-              <Input
-                value={assignReferredId}
-                onChange={e => setAssignReferredId(e.target.value)}
-                placeholder="uuid"
-                className="font-mono text-xs"
-              />
-            </div>
+            <ProviderPicker
+              label="Referidor (proveedor A)"
+              providers={providers}
+              value={assignReferrerId}
+              onChange={setAssignReferrerId}
+              excludeId={assignReferredId}
+            />
+            <ProviderPicker
+              label="Referido (proveedor B)"
+              providers={providers}
+              value={assignReferredId}
+              onChange={setAssignReferredId}
+              excludeId={assignReferrerId}
+            />
             <div>
               <label className="text-sm font-medium">Notas (opcional)</label>
               <Textarea
@@ -647,9 +716,6 @@ export default function AdminReferidosPage() {
               />
               Activar inmediatamente (status=active_sale + recomputar beneficios)
             </label>
-            <p className="text-xs text-muted-foreground">
-              Los IDs se copian de la pagina de proveedores o de la tabla de usuarios del admin.
-            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignOpen(false)} disabled={assignLoading}>
@@ -696,15 +762,257 @@ export default function AdminReferidosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Provider summary dialog */}
+      <Dialog open={!!summaryTarget} onOpenChange={open => !open && setSummaryTarget(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Resumen del proveedor
+            </DialogTitle>
+            <DialogDescription>
+              Informacion general, servicios, reservas y desempeno.
+            </DialogDescription>
+          </DialogHeader>
+
+          {summaryLoading ? (
+            <div className="py-12 text-center">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+            </div>
+          ) : summaryData ? (
+            <div className="space-y-5">
+              {/* Profile info */}
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-lg font-semibold">
+                      {summaryData.profile.company_name || summaryData.profile.full_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{summaryData.profile.email}</p>
+                    {summaryData.profile.phone && (
+                      <p className="text-sm text-muted-foreground">{summaryData.profile.phone}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {summaryData.profile.verified ? (
+                      <Badge className="bg-green-100 text-green-800">Verificado</Badge>
+                    ) : (
+                      <Badge variant="outline">No verificado</Badge>
+                    )}
+                    {summaryData.profile.early_adopter_ends_at &&
+                      new Date(summaryData.profile.early_adopter_ends_at).getTime() > Date.now() && (
+                        <Badge className="bg-amber-100 text-amber-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Early Adopter
+                        </Badge>
+                      )}
+                    <p className="text-xs text-muted-foreground">
+                      Comision: {(summaryData.profile.commission_rate * 100).toFixed(0)}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Miembro desde {new Date(summaryData.profile.created_at).toLocaleDateString('es-MX')}
+                    </p>
+                  </div>
+                </div>
+                {summaryData.profile.bio && (
+                  <p className="text-sm text-muted-foreground border-t pt-2">{summaryData.profile.bio}</p>
+                )}
+              </div>
+
+              {/* KPI grid */}
+              <div className="grid gap-3 sm:grid-cols-4">
+                <SummaryCell
+                  icon={<Package className="h-4 w-4" />}
+                  label="Servicios totales"
+                  value={String(summaryData.services.total)}
+                />
+                <SummaryCell
+                  icon={<CalendarCheck className="h-4 w-4" />}
+                  label="Reservas totales"
+                  value={String(summaryData.bookings.total)}
+                />
+                <SummaryCell
+                  icon={<Star className="h-4 w-4" />}
+                  label="Resenas"
+                  value={
+                    summaryData.reviews.count > 0
+                      ? `${summaryData.reviews.avg_rating.toFixed(1)} (${summaryData.reviews.count})`
+                      : '—'
+                  }
+                />
+                <SummaryCell
+                  icon={<DollarSign className="h-4 w-4" />}
+                  label="Ingresos brutos"
+                  value={`$${summaryData.bookings.total_revenue.toLocaleString('es-MX')}`}
+                />
+              </div>
+
+              {/* Services breakdown */}
+              <div>
+                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Servicios por estado
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(summaryData.services.by_status).map(([status, count]) => (
+                    <Badge key={status} variant="outline" className="text-xs">
+                      {status}: {count}
+                    </Badge>
+                  ))}
+                  {summaryData.services.total === 0 && (
+                    <p className="text-sm text-muted-foreground">Sin servicios.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Bookings breakdown */}
+              <div>
+                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4" />
+                  Reservas por estado
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(summaryData.bookings.by_status).map(([status, count]) => (
+                    <Badge key={status} variant="outline" className="text-xs">
+                      {status}: {count}
+                    </Badge>
+                  ))}
+                  {summaryData.bookings.total === 0 && (
+                    <p className="text-sm text-muted-foreground">Sin reservas.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Financial summary */}
+              <div>
+                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Resumen financiero
+                </h3>
+                <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                  <div className="flex justify-between border rounded-md px-3 py-2">
+                    <span className="text-muted-foreground">Ingresos brutos</span>
+                    <span className="font-semibold">${summaryData.bookings.total_revenue.toLocaleString('es-MX')}</span>
+                  </div>
+                  <div className="flex justify-between border rounded-md px-3 py-2">
+                    <span className="text-muted-foreground">Comision Vivelo</span>
+                    <span className="font-semibold">${summaryData.bookings.total_commission.toLocaleString('es-MX')}</span>
+                  </div>
+                  <div className="flex justify-between border rounded-md px-3 py-2">
+                    <span className="text-muted-foreground">Neto al proveedor</span>
+                    <span className="font-semibold text-green-700">${summaryData.bookings.net_to_provider.toLocaleString('es-MX')}</span>
+                  </div>
+                  <div className="flex justify-between border rounded-md px-3 py-2">
+                    <span className="text-muted-foreground">Reembolsos</span>
+                    <span className="font-semibold text-amber-700">${summaryData.bookings.total_refunded.toLocaleString('es-MX')}</span>
+                  </div>
+                </div>
+                {summaryData.bookings.last_booking_date && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Ultima reserva: {new Date(summaryData.bookings.last_booking_date).toLocaleDateString('es-MX')}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function SummaryCell({ label, value, small }: { label: string; value: string; small?: boolean }) {
+function SummaryCell({ label, value, small, icon }: { label: string; value: string; small?: boolean; icon?: React.ReactNode }) {
   return (
     <div className="rounded-lg border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={small ? 'text-sm font-mono font-semibold mt-1' : 'text-lg font-bold'}>{value}</p>
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        {icon}
+        <p className="text-xs">{label}</p>
+      </div>
+      <p className={small ? 'text-sm font-mono font-semibold mt-1' : 'text-lg font-bold mt-0.5'}>{value}</p>
+    </div>
+  );
+}
+
+function ProviderPicker({
+  label,
+  providers,
+  value,
+  onChange,
+  excludeId,
+}: {
+  label: string;
+  providers: ProviderRow[];
+  value: string;
+  onChange: (id: string) => void;
+  excludeId?: string;
+}) {
+  const [query, setQuery] = useState('');
+  const selected = providers.find(p => p.provider_id === value);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = !selected && normalizedQuery
+    ? providers
+        .filter(p => p.provider_id !== excludeId)
+        .filter(p =>
+          p.provider_name.toLowerCase().includes(normalizedQuery) ||
+          p.provider_email.toLowerCase().includes(normalizedQuery)
+        )
+        .slice(0, 8)
+    : [];
+
+  return (
+    <div>
+      <label className="text-sm font-medium">{label}</label>
+      {selected ? (
+        <div className="flex items-center justify-between rounded-md border px-3 py-2 mt-1">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{selected.provider_name}</p>
+            <p className="text-xs text-muted-foreground truncate">{selected.provider_email}</p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onChange('');
+              setQuery('');
+            }}
+            aria-label="Quitar seleccion"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="relative mt-1">
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar por nombre o email..."
+          />
+          {filtered.length > 0 && (
+            <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg">
+              {filtered.map(p => (
+                <button
+                  key={p.provider_id}
+                  type="button"
+                  onClick={() => {
+                    onChange(p.provider_id);
+                    setQuery('');
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-muted border-b last:border-b-0"
+                >
+                  <p className="text-sm font-medium truncate">{p.provider_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{p.provider_email}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          {normalizedQuery && filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-1">Sin resultados.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
