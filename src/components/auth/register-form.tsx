@@ -70,43 +70,52 @@ export function RegisterForm() {
     try {
       await signUp(email, password, fullName, role, digitsOnly);
 
-      // Record terms acceptance for providers (non-blocking)
+      // Post-signup side effects for providers (terms acceptance + referral apply)
+      // V1 referrals scope: only provider-to-provider. Clients ignore any stored code.
       if (role === 'provider') {
         try {
           const { createClient } = await import('@/lib/supabase/client');
           const supabase = createClient();
           const { data: { user: authUser } } = await supabase.auth.getUser();
           if (authUser) {
-            await fetch('/api/terms/accept', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: authUser.id,
-                termsType: 'provider',
-                termsVersion: '1.0',
-                fullName,
-                email,
-              }),
-            });
+            // 1. Record terms acceptance (non-blocking)
+            try {
+              await fetch('/api/terms/accept', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: authUser.id,
+                  termsType: 'provider',
+                  termsVersion: '1.0',
+                  fullName,
+                  email,
+                }),
+              });
+            } catch {
+              // Non-blocking
+            }
+
+            // 2. Apply referral code (non-blocking, uses authUser.id, not email)
+            const storedRef = localStorage.getItem('vivelo-referral-code');
+            if (storedRef) {
+              try {
+                await fetch('/api/referrals/apply', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ code: storedRef, referredUserId: authUser.id }),
+                });
+                localStorage.removeItem('vivelo-referral-code');
+              } catch {
+                // Non-blocking
+              }
+            }
           }
         } catch {
-          // Non-blocking: terms recording failure shouldn't block registration
+          // Non-blocking: side-effect failures shouldn't block registration
         }
-      }
-
-      // Apply referral code after successful signup
-      const storedRef = localStorage.getItem('vivelo-referral-code');
-      if (storedRef) {
-        try {
-          await fetch('/api/referrals/apply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: storedRef, referredUserId: email }),
-          });
-          localStorage.removeItem('vivelo-referral-code');
-        } catch {
-          // Non-blocking: referral apply failure shouldn't block registration
-        }
+      } else {
+        // Client signup: discard any stored referral code (V1 excludes clients)
+        localStorage.removeItem('vivelo-referral-code');
       }
 
       window.location.href = redirectTo || '/dashboard';

@@ -108,6 +108,109 @@ export async function POST(request: NextRequest) {
               console.error('[Stripe Webhook] Google Calendar integration error:', err);
             }
           }
+
+          // Provider Referrals V2: activate pending_signup referrals when
+          // a provider completes their first confirmed sale. Non-blocking.
+          // Idempotent via stripe_webhook_events guard above + unique index on benefits.
+          if (orderBookings && orderBookings.length > 0) {
+            try {
+              const providerFirstBooking = new Map<string, { id: string }>();
+              for (const b of orderBookings) {
+                const pid = (b as { provider_id?: string | null }).provider_id;
+                if (pid && !providerFirstBooking.has(pid)) {
+                  providerFirstBooking.set(pid, { id: b.id });
+                }
+              }
+              const providerIds = Array.from(providerFirstBooking.keys());
+
+              if (providerIds.length > 0) {
+                const { data: pendingRewards } = await supabaseAdmin
+                  .from('referral_rewards')
+                  .select('id, referrer_id, referred_id')
+                  .in('referred_id', providerIds)
+                  .eq('status', 'pending_signup');
+
+                if (pendingRewards && pendingRewards.length > 0) {
+                  const { computeExpectedBenefits, diffBenefitsToInsert, initialBenefitStatus } = await import('@/lib/referrals');
+                  const referrersToRecompute = new Set<string>();
+
+                  for (const reward of pendingRewards) {
+                    const first = providerFirstBooking.get(reward.referred_id);
+                    if (!first) continue;
+
+                    const { error: activateErr } = await supabaseAdmin
+                      .from('referral_rewards')
+                      .update({
+                        status: 'active_sale',
+                        activated_at: new Date().toISOString(),
+                        first_booking_id: first.id,
+                      })
+                      .eq('id', reward.id)
+                      .eq('status', 'pending_signup');
+
+                    if (activateErr) {
+                      console.error(`[Stripe Webhook] Failed to activate referral ${reward.id}:`, activateErr);
+                      continue;
+                    }
+                    referrersToRecompute.add(reward.referrer_id);
+                  }
+
+                  // Recompute benefits for each affected referrer (insert delta only)
+                  for (const referrerId of Array.from(referrersToRecompute)) {
+                    try {
+                      const { count: activeCount } = await supabaseAdmin
+                        .from('referral_rewards')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('referrer_id', referrerId)
+                        .eq('status', 'active_sale');
+
+                      const { data: profileRow } = await supabaseAdmin
+                        .from('profiles')
+                        .select('early_adopter_ends_at')
+                        .eq('id', referrerId)
+                        .single();
+
+                      const { data: existingBenefits } = await supabaseAdmin
+                        .from('provider_referral_benefits')
+                        .select('benefit_type, triggered_by_referral_count')
+                        .eq('provider_id', referrerId);
+
+                      const expected = computeExpectedBenefits(activeCount || 0);
+                      const toInsert = diffBenefitsToInsert(expected, existingBenefits || []);
+
+                      if (toInsert.length > 0) {
+                        const status = initialBenefitStatus(
+                          (profileRow as { early_adopter_ends_at?: string | null } | null)?.early_adopter_ends_at || null
+                        );
+                        const rows = toInsert.map(b => ({
+                          provider_id: referrerId,
+                          benefit_type: b.benefit_type,
+                          tier_level: b.tier_level,
+                          triggered_by_referral_count: b.triggered_by_referral_count,
+                          total_sales_granted: b.total_sales_granted,
+                          sales_consumed: 0,
+                          status,
+                          activated_at: status === 'active' ? new Date().toISOString() : null,
+                        }));
+                        const { error: insertErr } = await supabaseAdmin
+                          .from('provider_referral_benefits')
+                          .insert(rows);
+                        if (insertErr) {
+                          console.error(`[Stripe Webhook] Failed to insert benefits for ${referrerId}:`, insertErr);
+                        } else {
+                          console.log(`[Stripe Webhook] Generated ${rows.length} benefits for referrer ${referrerId}`);
+                        }
+                      }
+                    } catch (err) {
+                      console.error(`[Stripe Webhook] Benefit recompute failed for ${referrerId}:`, err);
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('[Stripe Webhook] Provider referrals activation error:', err);
+            }
+          }
         } else if (bookingId) {
           // Legacy single-booking flow (backwards compatible, idempotent)
           const { data: updatedLegacy } = await supabaseAdmin

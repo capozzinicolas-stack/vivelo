@@ -33,7 +33,8 @@ const navByRole: Record<UserRole, { label: string; href: string; icon: React.Ele
     { label: 'Mis Eventos', href: '/dashboard/cliente/eventos', icon: FolderOpen },
     { label: 'Mis Reservas', href: '/dashboard/cliente/reservas', icon: CalendarCheck },
     { label: 'Mi Perfil', href: '/dashboard/cliente/perfil', icon: UserCircle },
-    { label: 'Referidos', href: '/dashboard/cliente/referidos', icon: Gift },
+    // Referidos (cliente) oculto en V1 — solo proveedor→proveedor
+    // { label: 'Referidos', href: '/dashboard/cliente/referidos', icon: Gift },
   ],
   provider: [
     { label: 'Resumen', href: '/dashboard/proveedor', icon: LayoutDashboard },

@@ -327,6 +327,42 @@ export const UpdateCommentReadStateSchema = z.object({
   message: 'Se requiere is_read o resolved',
 });
 
+// ─── Referrals V2 (Provider) ────────────────────────────────
+export const ApplyReferralCodeSchema = z.object({
+  code: z.string().min(1, 'code es requerido').max(64, 'code muy largo'),
+  referredUserId: z.string().uuid('referredUserId debe ser un UUID valido'),
+});
+
+export const AssignReferralManualSchema = z.object({
+  referrerId: z.string().uuid('referrerId debe ser un UUID valido'),
+  referredId: z.string().uuid('referredId debe ser un UUID valido'),
+  activate: z.boolean().default(false),
+  adminNotes: z.string().max(500).optional(),
+}).refine(d => d.referrerId !== d.referredId, {
+  message: 'referrerId y referredId no pueden ser iguales',
+});
+
+export const UpdateRewardStatusSchema = z.object({
+  rewardId: z.string().uuid('rewardId debe ser un UUID valido'),
+  status: z.enum(['pending_signup', 'active_sale', 'expired', 'revoked']),
+  adminNotes: z.string().max(500).optional(),
+});
+
+export const UpdateBenefitSchema = z.object({
+  benefitId: z.string().uuid('benefitId debe ser un UUID valido'),
+  salesConsumed: z.number().int().min(0).optional(),
+  status: z.enum(['pending', 'active', 'consumed', 'expired']).optional(),
+  adminNotes: z.string().max(500).optional(),
+}).refine(
+  d => d.salesConsumed !== undefined || d.status !== undefined || d.adminNotes !== undefined,
+  { message: 'Se requiere al menos un campo a actualizar' }
+);
+
+export const SetEarlyAdopterSchema = z.object({
+  providerId: z.string().uuid('providerId debe ser un UUID valido'),
+  earlyAdopterEndsAt: z.string().datetime({ message: 'Fecha ISO invalida' }).nullable(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

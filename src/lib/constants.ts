@@ -176,6 +176,61 @@ export const SERVICE_COMMENT_LIMITS = {
   MAX_LENGTH: 2000,
 } as const;
 
+// ============================================================================
+// Provider Referrals V2 — tier rules from T&C 2.4
+// ============================================================================
+export const REFERRAL_TIERS = {
+  // Nivel 1: 1 a 3 referidos => 3 ventas con 50% off de comision
+  LEVEL_1_MIN_REFERRALS: 1,
+  LEVEL_1_SALES: 3,
+  LEVEL_1_COMMISSION_OFF_PCT: 50,
+
+  // Nivel 2: 4+ referidos => 3 ventas adicionales con 75% off
+  LEVEL_2_MIN_REFERRALS: 4,
+  LEVEL_2_SALES: 3,
+  LEVEL_2_COMMISSION_OFF_PCT: 75,
+
+  // Nivel 3: cada multiplo de 8 referidos => 3 ventas con 75% off + 3 meses de prioridad
+  LEVEL_3_EVERY_N_REFERRALS: 8,
+  LEVEL_3_SALES: 3,
+  LEVEL_3_COMMISSION_OFF_PCT: 75,
+  LEVEL_3_PRIORITY_MONTHS: 3,
+} as const;
+
+export const REFERRAL_BENEFIT_LABELS: Record<string, string> = {
+  commission_50_off: 'Comision 50% off',
+  commission_75_off: 'Comision 75% off',
+  priority_placement_3m: '3 meses de prioridad',
+};
+
+export const REFERRAL_BENEFIT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  active: 'Activo',
+  consumed: 'Consumido',
+  expired: 'Expirado',
+};
+
+export const REFERRAL_BENEFIT_STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  active: 'bg-green-100 text-green-800',
+  consumed: 'bg-blue-100 text-blue-800',
+  expired: 'bg-gray-100 text-gray-800',
+};
+
+export const REFERRAL_REWARD_STATUS_LABELS: Record<string, string> = {
+  pending_signup: 'Registrado',
+  active_sale: 'Activado',
+  expired: 'Expirado',
+  revoked: 'Revocado',
+};
+
+export const REFERRAL_REWARD_STATUS_COLORS: Record<string, string> = {
+  pending_signup: 'bg-yellow-100 text-yellow-800',
+  active_sale: 'bg-green-100 text-green-800',
+  expired: 'bg-gray-100 text-gray-800',
+  revoked: 'bg-red-100 text-red-800',
+};
+
 export const BANNER_KEY_LABELS: Record<string, string> = {
   showcase_promo: 'Tarjeta Promo Showcase',
   cashback_banner: 'Banner Cashback',

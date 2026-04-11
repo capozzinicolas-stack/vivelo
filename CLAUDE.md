@@ -558,6 +558,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Import/Export Masivo de Servicios | ✅ Terminado | Proveedores pueden importar hasta 50 servicios via Excel (.xlsx) con plantillas por categoria. Plantillas con dropdowns reales (fflate XML injection). Validacion client-side + server-side. Descarga async de imagenes desde URLs. Servicios creados como `pending_review`. Export de servicios existentes a formato plantilla. Archivos: `src/lib/service-import-export.ts`, `src/app/api/provider/services/import/route.ts`, `src/app/api/provider/services/download-images/route.ts`, `src/components/dashboard/service-import-dialog.tsx`. |
 | Categoria BEAUTY | ✅ Terminado | Categoria de belleza (maquillaje, peinado, uñas, spa, barberia). Campos especificos en `category-fields-config.ts`: tipo_servicio, productos_marcas, incluye_prueba, tiempo_por_persona, que_incluye, requerimientos_sitio, not_included. Iconos beauty en icon-registry (Eye, Droplets, Flower). Subcategorias y tags se gestionan desde admin panel (DB-driven). |
 | Comentarios Admin→Proveedor (servicios) | ✅ Terminado | Sistema de comentarios one-way donde admins envian notas categorizadas a proveedores sobre sus servicios activos. 5 categorias (sugerencia, reconocimiento, aviso, oportunidad, recordatorio). Tabla aislada `service_admin_comments` (no toca services.admin_notes). Admin puede editar/eliminar propios. Proveedor puede marcar como leido y resuelto. Notificacion in-app + email al crear. Ver seccion "Comentarios Admin → Proveedor". |
+| Referidos V1 (proveedor→proveedor) | ✅ Terminado V1 | Sistema de referidos con tiers automaticos segun T&C Seccion 2.4 (Nivel 1: 3 ventas 50% off; Nivel 2: +3 ventas 75% off; Nivel 3: +3 ventas 75% off + 3 meses priority cada 8 referidos). Solo proveedores refieren proveedores — los referidos cliente estan ocultos en V1 (codigo preservado en git). Aplicacion de beneficios es **MANUAL** desde admin (admin revisa y aplica las reducciones de comision en liquidacion). Admin puede asignar referidos manualmente, cambiar status (active/revoked), ajustar sales_consumed, marcar Early Adopter (beneficios en estado `pending` hasta que vence). Ver seccion "Referidos V1 — Proveedor→Proveedor". |
 
 ---
 
@@ -767,6 +768,98 @@ Template con brand color `#43276c`, borde izquierdo con accent color por categor
 - `src/lib/booking-state-machine.ts`
 - `src/lib/commission.ts`
 - `notifications` (solo se agrega un row de tipo `'system'` al crear comentario)
+
+---
+
+## Referidos V1 — Proveedor→Proveedor
+
+Sistema scoped-down basado en los T&C de `nuevosproveedores.solovivelo.com` (Seccion 2.4). Solo proveedores refieren proveedores. Los referidos cliente estan ocultos en V1 (codigo preservado en git).
+
+### Reglas inquebrantables
+
+1. **NO se toca** `commission.ts`, `cancellation.ts`, checkout flow, ni el patron de snapshots
+2. **Aplicacion de beneficios es MANUAL** — V1 NO automatiza la reduccion de comision. Admin revisa y ajusta `sales_consumed` manualmente en liquidacion
+3. **Solo proveedores**: tanto referrer como referred deben ser `role='provider'`. Validado en `register-form` y APIs de admin
+4. **Activacion automatica**: primer booking confirmado del referido dispara `status: 'pending_signup' → 'active_sale'` via webhook Stripe (idempotente via `stripe_webhook_events`)
+5. **Generacion de beneficios idempotente**: unique index `(provider_id, benefit_type, triggered_by_referral_count)` + funcion pura `diffBenefitsToInsert()` que calcula delta
+6. **Early Adopter**: beneficios generados durante el periodo quedan en `status='pending'` (se activan cuando vence `early_adopter_ends_at`). Marcado manual desde admin
+7. **Eventos side-effect NO bloqueantes** en webhook: try/catch por bloque, no fallan la confirmacion del pago
+8. **NO rollback automatico**: al revocar un reward, los beneficios asociados NO se eliminan automaticamente. Admin debe ajustar manualmente (prevencion de perdida de datos)
+
+### Tiers (definidos en `src/lib/constants.ts`)
+
+```ts
+REFERRAL_TIERS = {
+  LEVEL_1: { min: 1, max: 3, commission_50_off_sales: 3 },        // 1-3 referidos activos: 3 ventas 50% off
+  LEVEL_2: { min: 4, max: 7, commission_75_off_sales: 3 },        // 4-7: +3 ventas 75% off
+  LEVEL_3_EVERY: 8,                                               // cada 8: +3 ventas 75% off + 3 meses priority
+}
+```
+
+`getCurrentTier(activeCount)` retorna 0/1/2/3 segun el count activo. `computeExpectedBenefits(activeCount)` retorna el array esperado de beneficios para ese count.
+
+### Estado de referidos y beneficios
+
+```
+referral_rewards.status:
+  pending_signup   → referido registrado pero sin booking confirmado
+  active_sale      → primer booking confirmado (disparado por webhook)
+  expired          → (no usado en V1)
+  revoked          → admin revoca por fraude/abuso
+
+provider_referral_benefits.status:
+  pending   → generado durante Early Adopter, aun no activo
+  active    → disponible para consumir
+  consumed  → sales_consumed >= total_sales_granted
+  expired   → (reservado para logica futura de expiracion)
+```
+
+### Flujo completo
+
+1. **Proveedor se registra con `?ref=VIVELO-XXXXXX`**: `register-form.tsx` captura el codigo, llama `POST /api/referrals/apply` con el `referredId` (uuid del nuevo proveedor) → crea row en `referral_rewards` con `status='pending_signup'`. Solo acepta si referrer y referred son ambos providers
+2. **Primer booking confirmado**: webhook Stripe `payment_intent.succeeded` confirma bookings → busca rewards pendientes del cliente `auth_user_id` → actualiza a `active_sale` + `activated_at` + `first_booking_id` → recomputa beneficios para el referrer via `computeExpectedBenefits` + `diffBenefitsToInsert`
+3. **Early Adopter check**: al insertar beneficios, `initialBenefitStatus(early_adopter_ends_at)` retorna `'pending'` si Early Adopter activo, sino `'active'`
+4. **Proveedor ve su dashboard**: `/dashboard/proveedor/referidos` muestra tier actual, progreso al siguiente, beneficios (50% off / 75% off / priority) con desglose `granted/consumed/remaining`, lista de referidos con status, disclaimer de aplicacion manual
+5. **Admin revisa**: `/admin-portal/dashboard/referidos` lista proveedores con referidos, stats globales, busqueda + filtro por tier
+6. **Admin aplica reduccion manualmente en liquidacion**: al liquidar un proveedor, revisa beneficios activos → decide aplicar 50% o 75% off de comision en una venta especifica → incrementa `sales_consumed` via PATCH `/api/admin/referrals/benefits/[benefitId]`. Auto-transiciona a `consumed` cuando se completa
+7. **Admin puede asignar manualmente** (retroactivo): POST `/api/admin/referrals/assign` con `{referrerId, referredId, activate}` → idempotente, recomputa beneficios si `activate=true`
+8. **Admin marca Early Adopter**: POST `/api/admin/referrals/early-adopter` con `{providerId, earlyAdopterEndsAt}` → beneficios nuevos se crean como `pending`
+
+### Archivos clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00114_provider_referrals_v2.sql` | Extiende `referral_rewards` (activated_at, first_booking_id, admin_notes); crea tabla `provider_referral_benefits`; agrega `profiles.early_adopter_ends_at`; unique index idempotencia |
+| `src/types/database.ts` | `ReferralRewardStatus`, `ReferralReward`, `ProviderReferralBenefit`, `ReferralTierSummary`, `ReferralBenefitStatus` |
+| `src/lib/constants.ts` | `REFERRAL_TIERS`, `REFERRAL_BENEFIT_LABELS`, `REFERRAL_BENEFIT_COLORS`, `REFERRAL_REWARD_STATUS_LABELS` |
+| `src/lib/referrals.ts` | Funciones puras: `getCurrentTier`, `computeExpectedBenefits`, `diffBenefitsToInsert`, `initialBenefitStatus`, `buildTierSummary` |
+| `src/lib/validations/api-schemas.ts` | `AssignReferralManualSchema`, `UpdateRewardStatusSchema`, `UpdateBenefitSchema`, `SetEarlyAdopterSchema` |
+| `src/app/api/referrals/apply/route.ts` | POST publico — crea `pending_signup` al registrarse. Valida que referrer y referred sean providers |
+| `src/app/api/stripe/webhook/route.ts` | Handler `payment_intent.succeeded` — activa rewards pending tras primer booking confirmado, recomputa beneficios (try/catch NO bloqueante) |
+| `src/app/api/admin/referrals/route.ts` | GET lista de proveedores con stats (activos/pending/tier/benefits) |
+| `src/app/api/admin/referrals/[providerId]/route.ts` | GET detalle: profile + code + rewards (con referred_provider info via two-query join) + benefits + summary |
+| `src/app/api/admin/referrals/assign/route.ts` | POST — crea reward manual, idempotente, recomputa beneficios si activate=true |
+| `src/app/api/admin/referrals/rewards/[rewardId]/route.ts` | PATCH status/adminNotes — recomputa beneficios al transicionar a `active_sale` (NO rollback al revocar) |
+| `src/app/api/admin/referrals/benefits/[benefitId]/route.ts` | PATCH sales_consumed/status/adminNotes — valida `<= total_sales_granted`, auto-transiciona a `consumed` |
+| `src/app/api/admin/referrals/early-adopter/route.ts` | POST — setea `profiles.early_adopter_ends_at`, null para limpiar |
+| `src/app/dashboard/proveedor/referidos/page.tsx` | UI proveedor: tier card, progreso, benefits breakdown, lista de referidos, disclaimer manual |
+| `src/app/admin-portal/dashboard/referidos/page.tsx` | UI admin: stats, tabla con filtros, dialog detalle (benefits editable + rewards activate/revoke), dialog asignar, dialog Early Adopter |
+| `src/components/admin/admin-sidebar.tsx` | Link "Referidos" con icono Gift |
+| `src/components/auth/register-form.tsx` | Captura `?ref=VIVELO-XXX`, llama apply con uuid del nuevo user, solo providers |
+
+### Oculto en V1 (codigo preservado)
+
+- `src/app/dashboard/cliente/referidos/page.tsx` — reemplazado por redirect a `/dashboard/cliente`
+- Referral code card en `src/app/dashboard/cliente/perfil/page.tsx` — removido
+- Link "Referidos" en `src/components/dashboard/sidebar.tsx` (cliente nav) — comentado
+
+### NO se toca
+
+- `src/lib/commission.ts` (formula intacta — beneficios son manuales)
+- `src/lib/cancellation.ts`
+- `src/lib/booking-state-machine.ts`
+- Snapshot pattern en checkout
+- `orders`, `bookings`, `sub_bookings` (no se agregan columnas)
 
 ---
 

@@ -110,8 +110,73 @@ export interface Profile {
   default_cancellation_policy_id?: string | null;
   commission_rate: number;
   must_change_password: boolean;
+  early_adopter_ends_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Referral System (V2 — provider referrals) ──────────────────
+export type ReferralRewardStatus = 'pending_signup' | 'active_sale' | 'expired' | 'revoked';
+export type ProviderBenefitType = 'commission_50_off' | 'commission_75_off' | 'priority_placement_3m';
+export type ProviderBenefitStatus = 'pending' | 'active' | 'consumed' | 'expired';
+
+export interface ReferralCode {
+  id: string;
+  user_id: string;
+  code: string;
+  uses_count: number;
+  max_uses: number | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ReferralReward {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  referral_code_id: string;
+  order_id: string | null;
+  first_booking_id: string | null;
+  reward_type: string;
+  reward_amount: number;
+  status: ReferralRewardStatus;
+  activated_at: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  // Joined
+  referrer?: Profile;
+  referred?: Profile;
+}
+
+export interface ProviderReferralBenefit {
+  id: string;
+  provider_id: string;
+  benefit_type: ProviderBenefitType;
+  tier_level: 1 | 2 | 3;
+  triggered_by_referral_count: number;
+  total_sales_granted: number;
+  sales_consumed: number;
+  status: ProviderBenefitStatus;
+  generated_at: string;
+  activated_at: string | null;
+  consumed_at: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  provider?: Profile;
+}
+
+export interface ReferralTierSummary {
+  active_referral_count: number;       // count of referrals with status='active_sale'
+  pending_referral_count: number;      // count of referrals with status='pending_signup'
+  current_tier: 1 | 2 | 3 | 0;         // 0 = no tier yet
+  total_sales_50_off: number;          // cumulative granted
+  total_sales_75_off: number;          // cumulative granted
+  total_priority_months: number;       // cumulative granted
+  sales_50_off_remaining: number;      // granted - consumed for 50% benefits
+  sales_75_off_remaining: number;      // granted - consumed for 75% benefits
+  priority_months_remaining: number;   // granted - consumed for priority placement
 }
 
 export interface Service {
