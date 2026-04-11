@@ -104,10 +104,18 @@ export function CouponInput({ item, onApply }: CouponInputProps) {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="mt-2 text-xs text-deep-purple hover:underline flex items-center gap-1"
+        className="mt-3 w-full flex items-center justify-between gap-2 rounded-lg border-2 border-dashed border-deep-purple/40 bg-deep-purple/5 px-3 py-2.5 text-left transition-colors hover:border-deep-purple hover:bg-deep-purple/10"
       >
-        <Tag className="h-3 w-3" />
-        ¿Tienes un codigo de promocion?
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-deep-purple/15">
+            <Tag className="h-4 w-4 text-deep-purple" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-deep-purple">¿Tienes un codigo de promocion?</span>
+            <span className="text-xs text-muted-foreground">Aplicalo aqui para obtener tu descuento</span>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-deep-purple underline shrink-0">Aplicar</span>
       </button>
     );
   }
