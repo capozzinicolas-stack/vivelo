@@ -516,6 +516,24 @@ export interface ProviderFiscalData {
   updated_at: string;
 }
 
+export type ServiceCommentCategory = 'sugerencia' | 'reconocimiento' | 'aviso' | 'oportunidad' | 'recordatorio';
+
+export interface ServiceAdminComment {
+  id: string;
+  service_id: string;
+  provider_id: string;
+  admin_id: string | null;
+  category: ServiceCommentCategory;
+  comment: string;
+  is_read: boolean;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined helpers (opcionales)
+  service?: { id: string; title: string; slug: string | null };
+  admin?: { id: string; full_name: string | null; email: string };
+}
+
 export type LandingBannerPosition = 'hero' | 'mid_feed' | 'bottom';
 
 export interface LandingPageBanner {
@@ -570,6 +588,7 @@ export interface Database {
       cancellation_policies: { Row: CancellationPolicy; Insert: Partial<CancellationPolicy> & Pick<CancellationPolicy, 'name' | 'rules'>; Update: Partial<CancellationPolicy> };
       provider_fiscal_data: { Row: ProviderFiscalData; Insert: Partial<ProviderFiscalData> & Pick<ProviderFiscalData, 'provider_id' | 'rfc' | 'razon_social' | 'tipo_persona' | 'regimen_fiscal'>; Update: Partial<ProviderFiscalData> };
       landing_page_banners: { Row: LandingPageBanner; Insert: Partial<LandingPageBanner> & Pick<LandingPageBanner, 'title' | 'cta_url'>; Update: Partial<LandingPageBanner> };
+      service_admin_comments: { Row: ServiceAdminComment; Insert: Partial<ServiceAdminComment> & Pick<ServiceAdminComment, 'service_id' | 'provider_id' | 'comment'>; Update: Partial<ServiceAdminComment> };
     };
   };
 }

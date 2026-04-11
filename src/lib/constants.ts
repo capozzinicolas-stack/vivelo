@@ -121,6 +121,61 @@ export const GRADIENT_OPTIONS: { value: string; label: string }[] = [
   { value: 'from-indigo-500 to-purple-600', label: 'Indigo-Purpura' },
 ];
 
+// ============================================================================
+// Service Admin Comments — categorias para comentarios admin→proveedor
+// ============================================================================
+export const SERVICE_COMMENT_CATEGORIES = [
+  {
+    value: 'sugerencia',
+    label: 'Sugerencia',
+    description: 'Recomendacion para mejorar el servicio',
+    icon: 'Lightbulb',
+    color: 'bg-deep-purple/10 text-deep-purple border-deep-purple/30',
+    severity: 2,
+  },
+  {
+    value: 'reconocimiento',
+    label: 'Reconocimiento',
+    description: 'Felicitaciones o elogio por el buen trabajo',
+    icon: 'Award',
+    color: 'bg-green-50 text-green-700 border-green-200',
+    severity: 0,
+  },
+  {
+    value: 'aviso',
+    label: 'Aviso importante',
+    description: 'Informacion critica que el proveedor debe saber',
+    icon: 'AlertTriangle',
+    color: 'bg-amber-50 text-amber-700 border-amber-200',
+    severity: 4,
+  },
+  {
+    value: 'oportunidad',
+    label: 'Oportunidad',
+    description: 'Invitacion a campana, destacado, o promo',
+    icon: 'Sparkles',
+    color: 'bg-gold/10 text-amber-700 border-gold/40',
+    severity: 1,
+  },
+  {
+    value: 'recordatorio',
+    label: 'Recordatorio',
+    description: 'Tarea pendiente o deadline',
+    icon: 'Bell',
+    color: 'bg-blue-50 text-blue-700 border-blue-200',
+    severity: 3,
+  },
+] as const;
+
+export const SERVICE_COMMENT_CATEGORY_MAP = Object.fromEntries(
+  SERVICE_COMMENT_CATEGORIES.map(c => [c.value, c])
+) as Record<typeof SERVICE_COMMENT_CATEGORIES[number]['value'], typeof SERVICE_COMMENT_CATEGORIES[number]>;
+
+export const SERVICE_COMMENT_LIMITS = {
+  MIN_LENGTH: 1,
+  MAX_LENGTH: 2000,
+} as const;
+
 export const BANNER_KEY_LABELS: Record<string, string> = {
   showcase_promo: 'Tarjeta Promo Showcase',
   cashback_banner: 'Banner Cashback',

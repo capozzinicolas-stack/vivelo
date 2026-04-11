@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuthContext } from '@/providers/auth-provider';
-import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements, getCancellationPolicies } from '@/lib/supabase/queries';
+import { getServicesByProvider, updateServiceStatus, requestServiceDeletion, getFeaturedPlacements, getCancellationPolicies, getServiceCommentsByProvider } from '@/lib/supabase/queries';
 import { useCatalog } from '@/providers/catalog-provider';
 import { MediaGallery } from '@/components/services/media-gallery';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Star, Loader2, Eye, Pencil, Pause, Play, Trash2, MapPin, Sparkles, AlertTriangle, MessageSquare, Upload, Download, FileSpreadsheet } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
 import { ServiceImportDialog } from '@/components/dashboard/service-import-dialog';
+import { ServiceCommentsPanel } from '@/components/dashboard/service-comments-panel';
 import { generateTemplate, exportServices, getCategoryValues } from '@/lib/service-import-export';
 import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus, CancellationPolicy } from '@/types/database';
@@ -36,8 +37,24 @@ export default function ProveedorServiciosPage() {
   const [preview, setPreview] = useState<Service | null>(null);
   const [tab, setTab] = useState<StatusTab>('all');
   const [notesService, setNotesService] = useState<Service | null>(null);
+  const [commentsService, setCommentsService] = useState<Service | null>(null);
+  const [unreadByService, setUnreadByService] = useState<Record<string, number>>({});
   const [importOpen, setImportOpen] = useState(false);
   const [policies, setPolicies] = useState<CancellationPolicy[]>([]);
+
+  const loadUnreadCounts = useCallback(async () => {
+    if (!user) return;
+    try {
+      const comments = await getServiceCommentsByProvider(user.id, { unreadOnly: true, activeOnly: true });
+      const counts: Record<string, number> = {};
+      for (const c of comments) {
+        counts[c.service_id] = (counts[c.service_id] || 0) + 1;
+      }
+      setUnreadByService(counts);
+    } catch (err) {
+      console.warn('[ProveedorServicios] Unread counts failed:', err);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -56,7 +73,8 @@ export default function ProveedorServiciosPage() {
         toast({ title: 'Error cargando servicios', description: err?.message || 'Intenta recargar la pagina.', variant: 'destructive' });
       })
       .finally(() => setLoading(false));
-  }, [user, toast]);
+    loadUnreadCounts();
+  }, [user, toast, loadUnreadCounts]);
 
   const reloadServices = () => {
     if (!user) return;
@@ -208,6 +226,20 @@ export default function ProveedorServiciosPage() {
                     </Button>
                     <Button size="sm" variant="outline" className="h-7 w-7 p-0" title="Editar" asChild>
                       <Link href={`/dashboard/proveedor/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 w-7 p-0 relative"
+                      title="Comentarios del equipo Vivelo"
+                      onClick={() => setCommentsService(s)}
+                    >
+                      <MessageSquare className="h-3 w-3 text-deep-purple" />
+                      {(unreadByService[s.id] || 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-red-500 text-white text-[9px] font-bold px-1">
+                          {unreadByService[s.id]}
+                        </span>
+                      )}
                     </Button>
                     {s.status !== 'pending_review' && s.status !== 'needs_revision' && s.status !== 'archived' && (
                       <Button
@@ -450,6 +482,15 @@ export default function ProveedorServiciosPage() {
         onOpenChange={setImportOpen}
         policies={policies}
         onImportComplete={reloadServices}
+      />
+
+      {/* Admin Comments Panel */}
+      <ServiceCommentsPanel
+        serviceId={commentsService?.id || null}
+        serviceTitle={commentsService?.title || ''}
+        open={!!commentsService}
+        onOpenChange={(o) => !o && setCommentsService(null)}
+        onCommentsChanged={loadUnreadCounts}
       />
     </div>
   );

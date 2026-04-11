@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PROVIDER_PROMO_LIMITS } from '@/lib/constants';
+import { PROVIDER_PROMO_LIMITS, SERVICE_COMMENT_LIMITS } from '@/lib/constants';
 
 export const CancelBookingSchema = z.object({
   bookingId: z.string().uuid('bookingId debe ser un UUID valido'),
@@ -294,6 +294,37 @@ export const ValidateCouponSchema = z.object({
   service_id: z.string().uuid('service_id debe ser un UUID valido'),
   coupon_code: z.string().min(1, 'Codigo requerido').max(32),
   user_id: z.string().uuid().optional(),
+});
+
+// ─── Service Admin Comments Schemas ──────────────────────────
+const SERVICE_COMMENT_CATEGORY_VALUES = [
+  'sugerencia',
+  'reconocimiento',
+  'aviso',
+  'oportunidad',
+  'recordatorio',
+] as const;
+
+export const CreateServiceCommentSchema = z.object({
+  category: z.enum(SERVICE_COMMENT_CATEGORY_VALUES, { message: 'Categoria invalida' }),
+  comment: z.string()
+    .min(SERVICE_COMMENT_LIMITS.MIN_LENGTH, 'El comentario no puede estar vacio')
+    .max(SERVICE_COMMENT_LIMITS.MAX_LENGTH, `Maximo ${SERVICE_COMMENT_LIMITS.MAX_LENGTH} caracteres`),
+});
+
+export const UpdateServiceCommentSchema = z.object({
+  category: z.enum(SERVICE_COMMENT_CATEGORY_VALUES, { message: 'Categoria invalida' }).optional(),
+  comment: z.string()
+    .min(SERVICE_COMMENT_LIMITS.MIN_LENGTH, 'El comentario no puede estar vacio')
+    .max(SERVICE_COMMENT_LIMITS.MAX_LENGTH, `Maximo ${SERVICE_COMMENT_LIMITS.MAX_LENGTH} caracteres`)
+    .optional(),
+});
+
+export const UpdateCommentReadStateSchema = z.object({
+  is_read: z.boolean().optional(),
+  resolved: z.boolean().optional(),
+}).refine(d => d.is_read !== undefined || d.resolved !== undefined, {
+  message: 'Se requiere is_read o resolved',
 });
 
 export async function validateBody<T>(

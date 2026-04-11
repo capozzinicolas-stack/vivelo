@@ -298,3 +298,59 @@ export async function sendServiceStatusEmail(data: ServiceStatusEmailData) {
     console.error('[Email] Failed to send service status email:', error);
   }
 }
+
+interface ServiceCommentEmailData {
+  providerName: string;
+  providerEmail: string;
+  serviceTitle: string;
+  category: 'sugerencia' | 'reconocimiento' | 'aviso' | 'oportunidad' | 'recordatorio';
+  comment: string;
+}
+
+export async function sendServiceCommentNotification(data: ServiceCommentEmailData) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping service comment notification');
+    return;
+  }
+
+  const categoryConfig = {
+    sugerencia: { label: 'Sugerencia', emoji: '💡', accent: '#43276c' },
+    reconocimiento: { label: 'Reconocimiento', emoji: '🏆', accent: '#16a34a' },
+    aviso: { label: 'Aviso importante', emoji: '⚠️', accent: '#d97706' },
+    oportunidad: { label: 'Oportunidad', emoji: '✨', accent: '#ecbe38' },
+    recordatorio: { label: 'Recordatorio', emoji: '🔔', accent: '#2563eb' },
+  };
+
+  const c = categoryConfig[data.category];
+  const safeComment = data.comment.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br />');
+
+  try {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: data.providerEmail,
+      subject: `${c.emoji} ${c.label} sobre tu servicio "${data.serviceTitle}"`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #43276c;">Nuevo comentario del equipo Vivelo</h1>
+          <p>Hola ${data.providerName},</p>
+          <p>El equipo de Vivelo dejo un comentario sobre tu servicio <strong>"${data.serviceTitle}"</strong>.</p>
+          <div style="background: #f9f7f4; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid ${c.accent};">
+            <p style="font-size: 14px; color: #666; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+              ${c.emoji} ${c.label}
+            </p>
+            <p style="margin: 0; color: #333; line-height: 1.6;">${safeComment}</p>
+          </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://solovivelo.com/dashboard/proveedor/servicios" style="background: #43276c; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ver mis servicios</a>
+          </div>
+          <p style="color: #666; font-size: 14px;">Puedes responder marcando el comentario como leido o resuelto desde tu panel.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">Vivelo - Servicios para Eventos en Mexico</p>
+        </div>
+      `,
+    });
+    console.log('[Email] Service comment notification sent to', data.providerEmail);
+  } catch (error) {
+    console.error('[Email] Failed to send service comment notification:', error);
+  }
+}

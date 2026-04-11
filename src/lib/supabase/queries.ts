@@ -1,6 +1,6 @@
 import { createClient } from './client';
 import { generateSlug } from '@/lib/slug';
-import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogPostLink, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CategoryFieldDefinition } from '@/types/database';
+import type { Service, Booking, Profile, Extra, SubBooking, ServiceCategory, ServiceSubcategory, ServiceStatus, BookingStatus, BankingStatus, UserRole, VendorCalendarBlock, AvailabilityCheckResult, GoogleCalendarConnection, FeaturedPlacement, FeaturedSection, Campaign, CampaignStatus, CampaignSubscription, Notification, NotificationType, BlogPost, BlogPostLink, BlogStatus, FeaturedProvider, Review, ShowcaseItem, SiteBanner, Order, OrderStatus, CancellationPolicy, CancellationRule, CatalogCategory, CatalogSubcategory, CatalogZone, CategoryFieldDefinition, ServiceAdminComment } from '@/types/database';
 
 const isMockMode = () => process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') ?? true;
 
@@ -2877,6 +2877,115 @@ export async function getZoneServiceCount(zone: string): Promise<number> {
     .neq('status', 'archived');
   if (error) throw new Error(`Error contando servicios: ${error.message}`);
   return count || 0;
+}
+
+// ─── SERVICE ADMIN COMMENTS ────────────────────────────────
+// Comentarios admin→proveedor sobre servicios (no bloqueantes, informativos)
+
+export async function getServiceCommentsByService(serviceId: string): Promise<ServiceAdminComment[]> {
+  if (isMockMode()) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('service_admin_comments')
+    .select('*, admin:admin_id(id, full_name, email)')
+    .eq('service_id', serviceId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[getServiceCommentsByService] Error:', error.message);
+    return [];
+  }
+  return (data || []) as ServiceAdminComment[];
+}
+
+export async function getServiceCommentsByProvider(providerId: string, options?: { unreadOnly?: boolean; activeOnly?: boolean }): Promise<ServiceAdminComment[]> {
+  if (isMockMode()) return [];
+  const supabase = createClient();
+  let query = supabase
+    .from('service_admin_comments')
+    .select('*, service:service_id(id, title, slug), admin:admin_id(id, full_name, email)')
+    .eq('provider_id', providerId)
+    .order('created_at', { ascending: false });
+  if (options?.unreadOnly) query = query.eq('is_read', false);
+  if (options?.activeOnly) query = query.is('resolved_at', null);
+  const { data, error } = await query;
+  if (error) {
+    console.error('[getServiceCommentsByProvider] Error:', error.message);
+    return [];
+  }
+  return (data || []) as ServiceAdminComment[];
+}
+
+export async function getUnreadCommentsCountByProvider(providerId: string): Promise<number> {
+  if (isMockMode()) return 0;
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('service_admin_comments')
+    .select('id', { count: 'exact', head: true })
+    .eq('provider_id', providerId)
+    .eq('is_read', false)
+    .is('resolved_at', null);
+  if (error) {
+    console.error('[getUnreadCommentsCountByProvider] Error:', error.message);
+    return 0;
+  }
+  return count || 0;
+}
+
+export async function getUnreadCommentsCountByService(serviceId: string): Promise<number> {
+  if (isMockMode()) return 0;
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from('service_admin_comments')
+    .select('id', { count: 'exact', head: true })
+    .eq('service_id', serviceId)
+    .eq('is_read', false)
+    .is('resolved_at', null);
+  if (error) {
+    console.error('[getUnreadCommentsCountByService] Error:', error.message);
+    return 0;
+  }
+  return count || 0;
+}
+
+export async function markServiceCommentRead(commentId: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('service_admin_comments')
+    .update({ is_read: true })
+    .eq('id', commentId);
+  if (error) throw new Error(`Error marcando comentario como leido: ${error.message}`);
+}
+
+export async function markAllServiceCommentsReadByProvider(providerId: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('service_admin_comments')
+    .update({ is_read: true })
+    .eq('provider_id', providerId)
+    .eq('is_read', false);
+  if (error) throw new Error(`Error marcando comentarios como leidos: ${error.message}`);
+}
+
+export async function resolveServiceComment(commentId: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('service_admin_comments')
+    .update({ is_read: true, resolved_at: new Date().toISOString() })
+    .eq('id', commentId);
+  if (error) throw new Error(`Error resolviendo comentario: ${error.message}`);
+}
+
+export async function unresolveServiceComment(commentId: string): Promise<void> {
+  if (isMockMode()) return;
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('service_admin_comments')
+    .update({ resolved_at: null })
+    .eq('id', commentId);
+  if (error) throw new Error(`Error reabriendo comentario: ${error.message}`);
 }
 
 // ─── CATEGORY FIELD DEFINITIONS ────────────────────────────

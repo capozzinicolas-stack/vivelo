@@ -18,7 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryFieldsForm } from '@/components/services/category-fields-form';
-import { ArrowLeft, Loader2, Plus, Trash2, ImagePlus, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, ImagePlus, X, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ServiceCommentsPanel } from '@/components/dashboard/service-comments-panel';
 import type { ServiceCategory, ServiceSubcategory, Extra, CancellationPolicy } from '@/types/database';
 import Link from 'next/link';
 
@@ -64,6 +65,7 @@ export default function EditarServicioPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [serviceStatus, setServiceStatus] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const isPerHour = priceUnit === 'por hora';
   const showMinMaxHours = isPerHour;
@@ -284,9 +286,15 @@ export default function EditarServicioPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" asChild><Link href="/dashboard/proveedor/servicios"><ArrowLeft className="h-4 w-4" /></Link></Button>
-        <h1 className="text-2xl font-bold">Editar Servicio</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" asChild><Link href="/dashboard/proveedor/servicios"><ArrowLeft className="h-4 w-4" /></Link></Button>
+          <h1 className="text-2xl font-bold">Editar Servicio</h1>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setCommentsOpen(true)}>
+          <MessageSquare className="h-4 w-4 mr-2 text-deep-purple" />
+          Comentarios del equipo
+        </Button>
       </div>
       {serviceStatus === 'needs_revision' && adminNotes && (
         <div className="flex gap-3 p-4 rounded-lg border border-orange-300 bg-orange-50">
@@ -603,6 +611,13 @@ export default function EditarServicioPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ServiceCommentsPanel
+        serviceId={id}
+        serviceTitle={title || 'Servicio'}
+        open={commentsOpen}
+        onOpenChange={setCommentsOpen}
+      />
     </div>
   );
 }

@@ -557,6 +557,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Datos Fiscales (Retenciones en Finanzas) | ✅ Terminado | Card "Liquidacion con Retenciones" en `/admin-portal/dashboard/finanzas`. Muestra por proveedor: pago neto, ISR, IVA, neto tras retenciones, regimen fiscal y estado. Usa `calculateRetentions()` de `fiscal.ts`. Si proveedor no tiene datos fiscales → "Sin datos fiscales". Fetch read-only a `/api/admin/fiscal/list`. NO modifica ningun calculo financiero existente. |
 | Import/Export Masivo de Servicios | ✅ Terminado | Proveedores pueden importar hasta 50 servicios via Excel (.xlsx) con plantillas por categoria. Plantillas con dropdowns reales (fflate XML injection). Validacion client-side + server-side. Descarga async de imagenes desde URLs. Servicios creados como `pending_review`. Export de servicios existentes a formato plantilla. Archivos: `src/lib/service-import-export.ts`, `src/app/api/provider/services/import/route.ts`, `src/app/api/provider/services/download-images/route.ts`, `src/components/dashboard/service-import-dialog.tsx`. |
 | Categoria BEAUTY | ✅ Terminado | Categoria de belleza (maquillaje, peinado, uñas, spa, barberia). Campos especificos en `category-fields-config.ts`: tipo_servicio, productos_marcas, incluye_prueba, tiempo_por_persona, que_incluye, requerimientos_sitio, not_included. Iconos beauty en icon-registry (Eye, Droplets, Flower). Subcategorias y tags se gestionan desde admin panel (DB-driven). |
+| Comentarios Admin→Proveedor (servicios) | ✅ Terminado | Sistema de comentarios one-way donde admins envian notas categorizadas a proveedores sobre sus servicios activos. 5 categorias (sugerencia, reconocimiento, aviso, oportunidad, recordatorio). Tabla aislada `service_admin_comments` (no toca services.admin_notes). Admin puede editar/eliminar propios. Proveedor puede marcar como leido y resuelto. Notificacion in-app + email al crear. Ver seccion "Comentarios Admin → Proveedor". |
 
 ---
 
@@ -675,6 +676,97 @@ Un servicio que ya tiene una campana de admin activa **rechaza** cupones de prov
 - Snapshot pattern en checkout (solo se agrega `coupon_code` al snapshot)
 - `getActiveCampaignsWithServices` (sigue retornando solo activas con dates validas)
 - `/api/cron/end-expired-campaigns` (cubre tanto admin como provider campaigns por fecha)
+
+---
+
+## Comentarios Admin → Proveedor (servicios)
+
+Sistema one-way donde admins envian notas categorizadas a proveedores sobre sus servicios activos. Independiente del flujo de moderacion (`services.admin_notes` / `needs_revision`). No impacta finanzas, checkout, state machine, ni snapshots.
+
+### Reglas inquebrantables
+
+1. **Tabla aislada** `service_admin_comments` — no modifica `services`, `bookings`, ni snapshots
+2. **One-way**: proveedor no responde. Solo marca como leido / resuelto
+3. **Autoria**: solo el autor del comentario puede editar o eliminar
+4. **Email best-effort**: fallo de notificacion/email no bloquea la creacion del comentario
+5. **Edit resetea `is_read=false`**: al editar un comentario, el proveedor recibe el cambio como no leido
+
+### Modelo de datos (migracion `00113_service_admin_comments.sql`)
+
+```
+enum service_comment_category: sugerencia | reconocimiento | aviso | oportunidad | recordatorio
+
+service_admin_comments:
+  id (uuid, pk)
+  service_id (uuid, fk → services, cascade)
+  provider_id (uuid, fk → profiles, cascade)  — denormalizado para RLS/badge
+  admin_id (uuid, fk → profiles, set null)
+  category (service_comment_category)
+  comment (text)
+  is_read (boolean, default false)
+  resolved_at (timestamptz, nullable)
+  created_at, updated_at
+
+Indexes:
+  idx_sac_service_id, idx_sac_provider_id, idx_sac_admin_id
+  idx_sac_provider_unread (partial: WHERE is_read=false AND resolved_at IS NULL)
+
+RLS:
+  Admin manage all (via profiles.role='admin')
+  Provider SELECT own (provider_id = auth.uid())
+  Provider UPDATE own (is_read, resolved_at)
+```
+
+### Categorias (`SERVICE_COMMENT_CATEGORIES` en `src/lib/constants.ts`)
+
+| value | label | severity | icon |
+|-------|-------|----------|------|
+| sugerencia | Sugerencia | 2 | Lightbulb |
+| reconocimiento | Reconocimiento | 0 | Award |
+| aviso | Aviso importante | 4 | AlertTriangle |
+| oportunidad | Oportunidad | 1 | Sparkles |
+| recordatorio | Recordatorio | 3 | Bell |
+
+Severity se reserva para orden futuro de badges (mayor severidad primero).
+
+### Flujo completo
+
+1. **Admin crea comentario**: en `/admin-portal/dashboard/servicios` click icono MessageSquare → dialog `ServiceCommentDialog` → selecciona categoria + escribe texto → `POST /api/admin/services/[id]/comments` → inserta + notifica in-app + envia email via `sendServiceCommentNotification` (best-effort)
+2. **Admin edita/elimina**: en el mismo dialog, lista comentarios con botones de edit/delete (solo visibles en comentarios propios via `admin_id === currentUser.id`). PATCH resetea `is_read=false` para renotificar
+3. **Proveedor abre panel**: en `/dashboard/proveedor/servicios` ve badge rojo con count de no leidos en cada servicio. Click icono MessageSquare → `ServiceCommentsPanel` (tabs Activos/Resueltos) → auto-marca todos como leidos al abrir (PATCH sin body → markAll)
+4. **Proveedor resuelve**: boton "Marcar resuelto" → PATCH con `{commentId, resolved: true}` → setea `resolved_at = now()` y `is_read = true` → comentario pasa al tab "Resueltos"
+5. **Proveedor reabre**: desde tab Resueltos boton "Reabrir" → PATCH con `{commentId, resolved: false}` → setea `resolved_at = null`
+6. **Desde editor de servicio**: `/dashboard/proveedor/servicios/[id]/editar` tiene boton "Comentarios del equipo" en el header que abre el mismo panel
+
+### Email notification (`sendServiceCommentNotification`)
+
+Template con brand color `#43276c`, borde izquierdo con accent color por categoria, CTA a `/dashboard/proveedor/servicios`. HTML-escape del comentario para seguridad.
+
+### Archivos clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `supabase/migrations/00113_service_admin_comments.sql` | Enum, tabla, indices, trigger updated_at, RLS |
+| `src/types/database.ts` | `ServiceCommentCategory`, `ServiceAdminComment`, registrado en `Database.public.Tables` |
+| `src/lib/constants.ts` | `SERVICE_COMMENT_CATEGORIES`, `SERVICE_COMMENT_CATEGORY_MAP`, `SERVICE_COMMENT_LIMITS` (min 1, max 2000 chars) |
+| `src/lib/validations/api-schemas.ts` | `CreateServiceCommentSchema`, `UpdateServiceCommentSchema`, `UpdateCommentReadStateSchema` |
+| `src/lib/supabase/queries.ts` | `getServiceCommentsByService`, `getServiceCommentsByProvider`, `getUnreadCommentsCountByProvider`, `getUnreadCommentsCountByService`, `markServiceCommentRead`, `markAllServiceCommentsReadByProvider`, `resolveServiceComment`, `unresolveServiceComment` |
+| `src/lib/email.ts` | `sendServiceCommentNotification` con template por categoria |
+| `src/app/api/admin/services/[id]/comments/route.ts` | GET (lista) + POST (crea + notifica + email) |
+| `src/app/api/admin/services/[id]/comments/[commentId]/route.ts` | PATCH (edita, solo autor) + DELETE (solo autor) |
+| `src/app/api/provider/services/[id]/comments/route.ts` | GET (lista con ownership) + PATCH (markAll o update single via commentId) |
+| `src/components/admin/service-comment-dialog.tsx` | Dialog admin: crear, listar, editar, eliminar |
+| `src/components/dashboard/service-comments-panel.tsx` | Panel proveedor: tabs activos/resueltos, marcar resuelto, reabrir |
+| `src/app/admin-portal/dashboard/servicios/page.tsx` | Boton MessageSquare en tabla → abre dialog admin |
+| `src/app/dashboard/proveedor/servicios/page.tsx` | Boton MessageSquare por servicio con badge rojo de no leidos |
+| `src/app/dashboard/proveedor/servicios/[id]/editar/page.tsx` | Boton "Comentarios del equipo" en header del editor |
+
+### NO se toca
+
+- `services.admin_notes` (sigue siendo para `needs_revision`, independiente)
+- `src/lib/booking-state-machine.ts`
+- `src/lib/commission.ts`
+- `notifications` (solo se agrega un row de tipo `'system'` al crear comentario)
 
 ---
 

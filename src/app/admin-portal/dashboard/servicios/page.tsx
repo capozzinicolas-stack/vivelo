@@ -16,8 +16,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from '@/components/ui/textarea';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown, Clock } from 'lucide-react';
+import { Star, Pause, CheckCircle, Archive, Loader2, Trash2, XCircle, AlertTriangle, Eye, Pencil, MapPin, Search, ArrowUpDown, ArrowUp, ArrowDown, Clock, MessageSquare } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
+import { ServiceCommentDialog } from '@/components/admin/service-comment-dialog';
 import type { ExportColumn } from '@/lib/export';
 import type { Service, ServiceStatus } from '@/types/database';
 
@@ -54,6 +55,7 @@ export default function AdminServiciosPage() {
   const [revisionService, setRevisionService] = useState<Service | null>(null);
   const [revisionNotes, setRevisionNotes] = useState('');
   const [rejectNotes, setRejectNotes] = useState('');
+  const [commentService, setCommentService] = useState<Service | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -485,6 +487,9 @@ export default function AdminServiciosPage() {
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Editar" asChild>
                               <Link href={`/dashboard/servicios/${s.id}/editar`}><Pencil className="h-3 w-3" /></Link>
                             </Button>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Comentarios" onClick={() => setCommentService(s)}>
+                              <MessageSquare className="h-3 w-3 text-deep-purple" />
+                            </Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Activar" onClick={() => handleAction(s.id, 'active', s.title)}><CheckCircle className="h-3 w-3 text-green-600" /></Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Pausar" onClick={() => handleAction(s.id, 'paused', s.title)}><Pause className="h-3 w-3 text-yellow-600" /></Button>
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Archivar" onClick={() => handleAction(s.id, 'archived', s.title)}><Archive className="h-3 w-3 text-red-600" /></Button>
@@ -630,6 +635,14 @@ export default function AdminServiciosPage() {
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Service Comments Dialog */}
+      <ServiceCommentDialog
+        serviceId={commentService?.id || null}
+        serviceTitle={commentService?.title || ''}
+        open={!!commentService}
+        onOpenChange={(o) => !o && setCommentService(null)}
+      />
     </div>
   );
 }
