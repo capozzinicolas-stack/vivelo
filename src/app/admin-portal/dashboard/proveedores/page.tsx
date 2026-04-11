@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/button';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, Search, Landmark, XCircle, FileText, ExternalLink, LogIn } from 'lucide-react';
+import { Loader2, CheckCircle, Search, Landmark, XCircle, FileText, ExternalLink, LogIn, Eye } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
+import { ProviderSummaryDialog } from '@/components/admin/provider-summary-dialog';
 import type { ExportColumn } from '@/lib/export';
 import type { Profile, BankingStatus } from '@/types/database';
 
@@ -119,6 +120,7 @@ export default function AdminProveedoresPage() {
   };
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [summaryProviderId, setSummaryProviderId] = useState<string | null>(null);
 
   const handleImpersonate = async (providerId: string) => {
     setImpersonating(providerId);
@@ -265,21 +267,32 @@ export default function AdminProveedoresPage() {
                             : <span className="text-xs text-muted-foreground">No</span>}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1"
-                            disabled={impersonating === p.id}
-                            onClick={() => handleImpersonate(p.id)}
-                            aria-label={`Acceder como ${p.full_name}`}
-                          >
-                            {impersonating === p.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <LogIn className="h-3 w-3" />
-                            )}
-                            Acceder
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSummaryProviderId(p.id)}
+                              aria-label={`Ver resumen de ${p.full_name}`}
+                              title="Ver resumen"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              disabled={impersonating === p.id}
+                              onClick={() => handleImpersonate(p.id)}
+                              aria-label={`Acceder como ${p.full_name}`}
+                            >
+                              {impersonating === p.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <LogIn className="h-3 w-3" />
+                              )}
+                              Acceder
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -371,6 +384,12 @@ export default function AdminProveedoresPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <ProviderSummaryDialog
+        providerId={summaryProviderId}
+        open={!!summaryProviderId}
+        onOpenChange={(open) => !open && setSummaryProviderId(null)}
+      />
     </div>
   );
 }

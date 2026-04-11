@@ -34,11 +34,8 @@ import {
   Trophy,
   X,
   BarChart3,
-  Star,
-  Package,
-  CalendarCheck,
-  DollarSign,
 } from 'lucide-react';
+import { ProviderSummaryDialog } from '@/components/admin/provider-summary-dialog';
 import {
   REFERRAL_BENEFIT_LABELS,
   REFERRAL_BENEFIT_STATUS_LABELS,
@@ -82,38 +79,6 @@ interface ProviderDetailData {
   summary: ReferralTierSummary;
 }
 
-interface ProviderSummaryData {
-  profile: {
-    id: string;
-    full_name: string;
-    company_name: string | null;
-    email: string;
-    phone: string | null;
-    bio: string | null;
-    verified: boolean;
-    commission_rate: number;
-    created_at: string;
-    early_adopter_ends_at: string | null;
-  };
-  services: {
-    total: number;
-    by_status: Record<string, number>;
-  };
-  bookings: {
-    total: number;
-    by_status: Record<string, number>;
-    total_revenue: number;
-    total_commission: number;
-    net_to_provider: number;
-    total_refunded: number;
-    last_booking_date: string | null;
-  };
-  reviews: {
-    count: number;
-    avg_rating: number;
-  };
-}
-
 const tierColors: Record<0 | 1 | 2 | 3, string> = {
   0: 'bg-gray-100 text-gray-700',
   1: 'bg-amber-100 text-amber-800',
@@ -154,9 +119,7 @@ export default function AdminReferidosPage() {
   const [eaLoading, setEaLoading] = useState(false);
 
   // Provider summary dialog
-  const [summaryTarget, setSummaryTarget] = useState<ProviderRow | null>(null);
-  const [summaryData, setSummaryData] = useState<ProviderSummaryData | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryProviderId, setSummaryProviderId] = useState<string | null>(null);
 
   const loadProviders = useCallback(async () => {
     setLoading(true);
@@ -239,25 +202,6 @@ export default function AdminReferidosPage() {
       toast({ title: 'Error', description: 'Error de red', variant: 'destructive' });
     } finally {
       setAssignLoading(false);
-    }
-  };
-
-  const handleOpenSummary = async (row: ProviderRow) => {
-    setSummaryTarget(row);
-    setSummaryData(null);
-    setSummaryLoading(true);
-    try {
-      const res = await fetch(`/api/admin/providers/${row.provider_id}/summary`);
-      if (res.ok) {
-        const data = await res.json();
-        setSummaryData(data as ProviderSummaryData);
-      } else {
-        toast({ title: 'Error', description: 'No se pudo cargar el resumen', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Error', description: 'Error de red', variant: 'destructive' });
-    } finally {
-      setSummaryLoading(false);
     }
   };
 
@@ -473,7 +417,7 @@ export default function AdminReferidosPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleOpenSummary(p)}
+                          onClick={() => setSummaryProviderId(p.provider_id)}
                           aria-label="Ver resumen del proveedor"
                           title="Ver resumen del proveedor"
                         >
@@ -764,171 +708,19 @@ export default function AdminReferidosPage() {
       </Dialog>
 
       {/* Provider summary dialog */}
-      <Dialog open={!!summaryTarget} onOpenChange={open => !open && setSummaryTarget(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Resumen del proveedor
-            </DialogTitle>
-            <DialogDescription>
-              Informacion general, servicios, reservas y desempeno.
-            </DialogDescription>
-          </DialogHeader>
-
-          {summaryLoading ? (
-            <div className="py-12 text-center">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-            </div>
-          ) : summaryData ? (
-            <div className="space-y-5">
-              {/* Profile info */}
-              <div className="rounded-lg border p-4 space-y-2">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <p className="text-lg font-semibold">
-                      {summaryData.profile.company_name || summaryData.profile.full_name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{summaryData.profile.email}</p>
-                    {summaryData.profile.phone && (
-                      <p className="text-sm text-muted-foreground">{summaryData.profile.phone}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {summaryData.profile.verified ? (
-                      <Badge className="bg-green-100 text-green-800">Verificado</Badge>
-                    ) : (
-                      <Badge variant="outline">No verificado</Badge>
-                    )}
-                    {summaryData.profile.early_adopter_ends_at &&
-                      new Date(summaryData.profile.early_adopter_ends_at).getTime() > Date.now() && (
-                        <Badge className="bg-amber-100 text-amber-800">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Early Adopter
-                        </Badge>
-                      )}
-                    <p className="text-xs text-muted-foreground">
-                      Comision: {(summaryData.profile.commission_rate * 100).toFixed(0)}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Miembro desde {new Date(summaryData.profile.created_at).toLocaleDateString('es-MX')}
-                    </p>
-                  </div>
-                </div>
-                {summaryData.profile.bio && (
-                  <p className="text-sm text-muted-foreground border-t pt-2">{summaryData.profile.bio}</p>
-                )}
-              </div>
-
-              {/* KPI grid */}
-              <div className="grid gap-3 sm:grid-cols-4">
-                <SummaryCell
-                  icon={<Package className="h-4 w-4" />}
-                  label="Servicios totales"
-                  value={String(summaryData.services.total)}
-                />
-                <SummaryCell
-                  icon={<CalendarCheck className="h-4 w-4" />}
-                  label="Reservas totales"
-                  value={String(summaryData.bookings.total)}
-                />
-                <SummaryCell
-                  icon={<Star className="h-4 w-4" />}
-                  label="Resenas"
-                  value={
-                    summaryData.reviews.count > 0
-                      ? `${summaryData.reviews.avg_rating.toFixed(1)} (${summaryData.reviews.count})`
-                      : '—'
-                  }
-                />
-                <SummaryCell
-                  icon={<DollarSign className="h-4 w-4" />}
-                  label="Ingresos brutos"
-                  value={`$${summaryData.bookings.total_revenue.toLocaleString('es-MX')}`}
-                />
-              </div>
-
-              {/* Services breakdown */}
-              <div>
-                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Servicios por estado
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(summaryData.services.by_status).map(([status, count]) => (
-                    <Badge key={status} variant="outline" className="text-xs">
-                      {status}: {count}
-                    </Badge>
-                  ))}
-                  {summaryData.services.total === 0 && (
-                    <p className="text-sm text-muted-foreground">Sin servicios.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Bookings breakdown */}
-              <div>
-                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4" />
-                  Reservas por estado
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(summaryData.bookings.by_status).map(([status, count]) => (
-                    <Badge key={status} variant="outline" className="text-xs">
-                      {status}: {count}
-                    </Badge>
-                  ))}
-                  {summaryData.bookings.total === 0 && (
-                    <p className="text-sm text-muted-foreground">Sin reservas.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Financial summary */}
-              <div>
-                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Resumen financiero
-                </h3>
-                <div className="grid gap-2 sm:grid-cols-2 text-sm">
-                  <div className="flex justify-between border rounded-md px-3 py-2">
-                    <span className="text-muted-foreground">Ingresos brutos</span>
-                    <span className="font-semibold">${summaryData.bookings.total_revenue.toLocaleString('es-MX')}</span>
-                  </div>
-                  <div className="flex justify-between border rounded-md px-3 py-2">
-                    <span className="text-muted-foreground">Comision Vivelo</span>
-                    <span className="font-semibold">${summaryData.bookings.total_commission.toLocaleString('es-MX')}</span>
-                  </div>
-                  <div className="flex justify-between border rounded-md px-3 py-2">
-                    <span className="text-muted-foreground">Neto al proveedor</span>
-                    <span className="font-semibold text-green-700">${summaryData.bookings.net_to_provider.toLocaleString('es-MX')}</span>
-                  </div>
-                  <div className="flex justify-between border rounded-md px-3 py-2">
-                    <span className="text-muted-foreground">Reembolsos</span>
-                    <span className="font-semibold text-amber-700">${summaryData.bookings.total_refunded.toLocaleString('es-MX')}</span>
-                  </div>
-                </div>
-                {summaryData.bookings.last_booking_date && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Ultima reserva: {new Date(summaryData.bookings.last_booking_date).toLocaleDateString('es-MX')}
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <ProviderSummaryDialog
+        providerId={summaryProviderId}
+        open={!!summaryProviderId}
+        onOpenChange={open => !open && setSummaryProviderId(null)}
+      />
     </div>
   );
 }
 
-function SummaryCell({ label, value, small, icon }: { label: string; value: string; small?: boolean; icon?: React.ReactNode }) {
+function SummaryCell({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
     <div className="rounded-lg border p-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        {icon}
-        <p className="text-xs">{label}</p>
-      </div>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className={small ? 'text-sm font-mono font-semibold mt-1' : 'text-lg font-bold mt-0.5'}>{value}</p>
     </div>
   );
