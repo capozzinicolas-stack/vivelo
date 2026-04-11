@@ -18,6 +18,23 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Links externos abren en nueva pestaña; anchor links (#) abren en la misma página
+const SmartLink = LinkExtension.extend({
+  renderHTML({ HTMLAttributes }) {
+    const href = (HTMLAttributes.href as string) ?? '';
+    const isAnchor = href.startsWith('#');
+    return [
+      'a',
+      {
+        ...HTMLAttributes,
+        target: isAnchor ? null : '_blank',
+        rel: isAnchor ? null : 'noopener noreferrer',
+      },
+      0,
+    ];
+  },
+});
+
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
@@ -51,10 +68,7 @@ export function RichTextEditor({
         code: false,
       }),
       Underline,
-      LinkExtension.configure({
-        openOnClick: false,
-        HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
-      }),
+      SmartLink.configure({ openOnClick: false }),
       ...(variant === 'full'
         ? [
             Image.configure({ inline: false, allowBase64: false }),
@@ -93,7 +107,7 @@ export function RichTextEditor({
   const handleLink = useCallback(() => {
     if (!editor) return;
     const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL del enlace:', previousUrl || 'https://');
+    const url = window.prompt('URL del enlace (ej: https://... o #id-del-ancla):', previousUrl || '');
     if (url === null) return;
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
