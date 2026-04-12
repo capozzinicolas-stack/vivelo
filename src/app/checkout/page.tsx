@@ -81,13 +81,16 @@ export default function CheckoutPage() {
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Verify availability of all items
+  // Verify availability of all items (DB check + intra-cart conflict detection)
   useEffect(() => {
     if (!user || items.length === 0) return;
 
     async function verifyAll() {
       setVerifying(true);
       const results: AvailabilityResult[] = [];
+
+      // Track effective times + max_concurrent per item for intra-cart conflict check
+      const itemEffectives: { itemId: string; providerId: string; providerName: string; effectiveStart: string; effectiveEnd: string; maxConcurrent: number }[] = [];
 
       for (const item of items) {
         try {
@@ -118,13 +121,55 @@ export default function CheckoutPage() {
               available: false,
               reason: result.has_calendar_block
                 ? 'El proveedor tiene un bloqueo en ese horario'
-                : `El proveedor ya tiene ${result.overlapping_bookings} reserva(s) en ese horario`,
+                : `El proveedor "${item.service_snapshot.provider_name}" ya tiene ${result.overlapping_bookings} reserva(s) en ese horario`,
             });
           } else {
             results.push({ itemId: item.id, available: true });
           }
+
+          // Save for intra-cart conflict check
+          itemEffectives.push({
+            itemId: item.id,
+            providerId: item.service_snapshot.provider_id,
+            providerName: item.service_snapshot.provider_name,
+            effectiveStart: effective.effective_start,
+            effectiveEnd: effective.effective_end,
+            maxConcurrent: result.max_concurrent,
+          });
         } catch {
           results.push({ itemId: item.id, available: true });
+        }
+      }
+
+      // Intra-cart conflict detection: check if multiple items from the same provider
+      // overlap in time and exceed max_concurrent_services.
+      // The DB check above only sees existing bookings — it can't detect conflicts
+      // between items in the current cart that haven't been booked yet.
+      const providerGroups = new Map<string, typeof itemEffectives>();
+      for (const ie of itemEffectives) {
+        const group = providerGroups.get(ie.providerId) || [];
+        group.push(ie);
+        providerGroups.set(ie.providerId, group);
+      }
+
+      for (const group of Array.from(providerGroups.values())) {
+        if (group.length <= 1) continue;
+        const maxConcurrent = group[0].maxConcurrent;
+
+        // For each item, count how many other items from the same provider overlap
+        for (const current of group) {
+          const overlapping = group.filter(other =>
+            other.itemId !== current.itemId &&
+            other.effectiveStart < current.effectiveEnd &&
+            other.effectiveEnd > current.effectiveStart
+          );
+
+          // existing DB bookings (from checkVendorAvailability) + cart overlaps must fit in max_concurrent
+          const existingResult = results.find(r => r.itemId === current.itemId);
+          if (existingResult && existingResult.available && overlapping.length >= maxConcurrent) {
+            existingResult.available = false;
+            existingResult.reason = `El proveedor "${current.providerName}" solo puede atender ${maxConcurrent} servicio(s) a la vez en el mismo horario. Cambia la fecha u hora de alguno de sus servicios desde el carrito.`;
+          }
         }
       }
 
@@ -386,11 +431,11 @@ export default function CheckoutPage() {
 
       if (rollbackOk) {
         setError(
-          `Ocurrio un error creando tus reservas. Tu pago fue reembolsado automaticamente. Codigo de orden: ${orderId}. Puedes intentar de nuevo.`
+          `Hubo un problema al crear tus reservas. Tu pago fue reembolsado automaticamente. Puedes intentar de nuevo. (Orden: ${orderId})`
         );
       } else {
         setError(
-          `Error creando tus reservas y el reembolso automatico fallo. Contacta a soporte con el codigo de orden: ${orderId}`
+          `Hubo un problema al crear tus reservas y no pudimos procesar el reembolso automatico. Por favor contacta a soporte con tu codigo de orden: ${orderId}`
         );
       }
       // Return to initial checkout view so error renders and user can retry
