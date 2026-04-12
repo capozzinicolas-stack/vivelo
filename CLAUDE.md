@@ -519,8 +519,8 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Campanas (admin) y Promociones (proveedor) | ✅ Terminado | Admin crea campanas, proveedores inscriben servicios, descuento se aplica en detalle + checkout. Todas las queries de campanas activas validan `status='active'` + `start_date <= now <= end_date`. Cron `end-expired-campaigns` transiciona vencidas a `ended` diariamente. Proveedores pueden crear sus propias promociones con cupones compartibles (absorben 100% del descuento, comision Vivelo intacta). Ver seccion "Promociones del Proveedor". |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, contrasena temporal, perfil admin. Booking status updates usan API route con service-role (bypass RLS) |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
-| Checkout + Stripe | ⚠️ En progreso | Pago funciona pero bookings pueden perderse (ver Bugs Conocidos) |
-| Cancelacion + reembolsos | ⚠️ En progreso | Funciona pero depende del fix de checkout |
+| Checkout + Stripe | ✅ Terminado | Pago + rollback compensatorio (C1 resuelto). Si `createBookingsForOrder` falla mid-loop, el cliente llama `/api/checkout/rollback-order` que refunda el PI completo + cancela bookings parciales + marca orden cancelled (idempotente via 409). |
+| Cancelacion + reembolsos | ✅ Terminado | Flujo de cancelacion estable con calculo de refund, recalculo de comision, limpieza de Google Calendar y emails. |
 | Reviews/resenas | 🔲 Sin uso real | Codigo existe, moderacion implementada, sin resenas reales |
 | Google Calendar | 🚫 No integrar | Codigo existe pero NO se usa — no tocar |
 | Codigos de verificacion | 🔲 Implementado | Cron + endpoints existen, sin pruebas reales en produccion |
@@ -865,10 +865,11 @@ provider_referral_benefits.status:
 
 ## Bugs Conocidos
 
-### CRITICO: Bookings perdidos en ordenes multi-servicio
-Si un cliente agrega 3 servicios al carrito y paga, `createBookingsForOrder()` los crea uno por uno en loop. Si el booking #2 falla (error de DB, red, conflicto de disponibilidad), el booking #1 queda huerfano y el #3 nunca se crea. El pago ya se capturo en Stripe sin forma de recuperar.
-
-**Solucion propuesta**: Envolver el loop en transaccion via RPC, o implementar rollback compensatorio (cancelar bookings parciales + refund del PaymentIntent).
+### ✅ RESUELTO (C1): Bookings perdidos en ordenes multi-servicio — Rollback compensatorio
+**Antes**: Si el booking #2 fallaba mid-loop, #1 quedaba huerfano y #3 nunca se creaba. Stripe ya habia cobrado.
+**Solucion**: `handlePaymentSuccess` (real mode) y mock mode envuelven `createBookingsForOrder` en try/catch. Si falla, llaman `POST /api/checkout/rollback-order` que: (1) refunda el PI completo, (2) cancela bookings parciales (filtro `.neq('status','cancelled')`), (3) marca orden cancelled. Idempotente (409 on retry). En exito de rollback: muestra error + orderId al cliente, resetea vista para reintentar. En fallo de rollback: muestra error critico + CTA soporte.
+**Archivos**: `src/app/checkout/page.tsx` (`handlePaymentSuccess` + mock path), `src/app/api/checkout/rollback-order/route.ts`.
+**NO se toca**: `commission.ts`, snapshots, webhook, state machine, cancellation flow.
 
 ### ALTO: Race condition webhook vs booking creation
 El webhook `payment_intent.succeeded` puede llegar antes de que `createBookingsForOrder()` termine. El webhook busca bookings por `order_id` — si aun no existen, no los marca como `confirmed`.
