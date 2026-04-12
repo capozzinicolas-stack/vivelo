@@ -871,8 +871,11 @@ provider_referral_benefits.status:
 **Archivos**: `src/app/checkout/page.tsx` (`handlePaymentSuccess` + mock path), `src/app/api/checkout/rollback-order/route.ts`.
 **NO se toca**: `commission.ts`, snapshots, webhook, state machine, cancellation flow.
 
-### ALTO: Race condition webhook vs booking creation
-El webhook `payment_intent.succeeded` puede llegar antes de que `createBookingsForOrder()` termine. El webhook busca bookings por `order_id` — si aun no existen, no los marca como `confirmed`.
+### ✅ RESUELTO (C2): Race condition webhook vs booking creation
+**Antes**: El webhook `payment_intent.succeeded` podia llegar antes de que `createBookingsForOrder()` terminara. El webhook marcaba la orden como `paid` pero no encontraba bookings que confirmar. Los bookings quedaban en `pending` para siempre.
+**Solucion**: Despues de crear bookings, el cliente llama `POST /api/checkout/confirm-bookings`. Si la orden ya es `paid` (webhook ya paso), confirma los bookings pendientes + incrementa campaign usage. Si la orden aun es `pending`, no hace nada (el webhook lo hara). Idempotente via `WHERE status='pending'`.
+**Archivos**: `src/app/checkout/page.tsx` (`handlePaymentSuccess`), `src/app/api/checkout/confirm-bookings/route.ts`.
+**NO se toca**: webhook, commission.ts, state machine.
 
 ---
 

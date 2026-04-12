@@ -444,6 +444,19 @@ export default function CheckoutPage() {
       return;
     }
 
+    // C2 FIX: If the webhook already ran (order='paid') but found no bookings
+    // to confirm, this call confirms them now. If webhook hasn't arrived yet,
+    // this is a no-op and the webhook will handle it. Non-blocking.
+    try {
+      await fetch('/api/checkout/confirm-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+    } catch {
+      // Non-blocking: webhook may still handle confirmation
+    }
+
     trackPurchase(orderId, cartSnapshotRef.current, cartTotal);
     clearCart();
     router.push(`/checkout/confirmacion/${orderId}`);
