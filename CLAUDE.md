@@ -866,10 +866,9 @@ provider_referral_benefits.status:
 ## Bugs Conocidos
 
 ### CRITICO: Bookings perdidos en ordenes multi-servicio
-**Reproduccion**: Agregar 3 servicios al carrito → pagar → solo 2 bookings aparecen en dashboards.
-**Causa raiz**: `createBookingsForOrder()` crea bookings en un loop sin rollback. Si el booking #2 falla (ej: disponibilidad cambio), los bookings #1 ya creados quedan huerfanos y el #3 nunca se crea. El pago ya fue procesado por Stripe.
-**Archivos**: `src/app/checkout/page.tsx` (funcion `createBookingsForOrder`)
-**Impacto**: Cliente pago por 3 servicios pero solo tiene 2 reservas. Sin forma de recuperar automaticamente.
+Si un cliente agrega 3 servicios al carrito y paga, `createBookingsForOrder()` los crea uno por uno en loop. Si el booking #2 falla (error de DB, red, conflicto de disponibilidad), el booking #1 queda huerfano y el #3 nunca se crea. El pago ya se capturo en Stripe sin forma de recuperar.
+
+**Solucion propuesta**: Envolver el loop en transaccion via RPC, o implementar rollback compensatorio (cancelar bookings parciales + refund del PaymentIntent).
 
 ### ALTO: Race condition webhook vs booking creation
 El webhook `payment_intent.succeeded` puede llegar antes de que `createBookingsForOrder()` termine. El webhook busca bookings por `order_id` — si aun no existen, no los marca como `confirmed`.

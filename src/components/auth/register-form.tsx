@@ -245,7 +245,7 @@ export function RegisterForm() {
           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={loading || (role === 'provider' && !termsAccepted)}>
+          <Button type="submit" className="w-full" disabled={loading || (role === 'provider' && (!termsAccepted || phone.replace(/\D/g, '').length !== 10))}>
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </Button>
           <p className="text-sm text-muted-foreground">
