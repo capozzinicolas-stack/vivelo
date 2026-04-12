@@ -202,7 +202,42 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 8. Delete Google Calendar event (non-blocking)
+    // 8. C3 FIX: Update parent order status based on remaining bookings
+    if (!isMockDb && booking.order_id) {
+      try {
+        const orderClient = createAdminSupabaseClient();
+        const { data: siblingBookings } = await orderClient
+          .from('bookings')
+          .select('id, status')
+          .eq('order_id', booking.order_id as string);
+
+        if (siblingBookings && siblingBookings.length > 0) {
+          const allCancelled = siblingBookings.every(b => b.status === 'cancelled');
+          const someCancelled = siblingBookings.some(b => b.status === 'cancelled');
+
+          let newOrderStatus: string | null = null;
+          if (allCancelled) {
+            newOrderStatus = 'refunded';
+          } else if (someCancelled) {
+            newOrderStatus = 'partially_refunded';
+          }
+
+          if (newOrderStatus) {
+            await orderClient
+              .from('orders')
+              .update({ status: newOrderStatus, updated_at: new Date().toISOString() })
+              .eq('id', booking.order_id as string)
+              .in('status', ['paid', 'partially_refunded']);
+
+            console.log(`[Cancel] Order ${booking.order_id} status → '${newOrderStatus}'`);
+          }
+        }
+      } catch (err) {
+        console.error('[Cancel] Order status update failed (non-blocking):', err);
+      }
+    }
+
+    // 9. Delete Google Calendar event (non-blocking)
     if (booking.google_calendar_event_id) {
       try {
         const { deleteBookingFromGoogle } = await import('@/lib/google-calendar/sync');
@@ -212,7 +247,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send cancellation email (non-blocking)
+    // 10. Send cancellation email (non-blocking)
     try {
       const { sendCancellationNotice } = await import('@/lib/email');
       const adminClient = createAdminSupabaseClient();

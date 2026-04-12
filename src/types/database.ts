@@ -67,7 +67,7 @@ export interface CategoryFieldDefinition {
 export type ServiceStatus = 'draft' | 'pending_review' | 'needs_revision' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
-export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded' | 'partially_refunded';
 export type GoogleSyncStatus = 'active' | 'error' | 'disconnected';
 export type CalendarBlockSource = 'manual' | 'google_sync';
 

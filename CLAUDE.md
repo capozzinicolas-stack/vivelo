@@ -877,6 +877,12 @@ provider_referral_benefits.status:
 **Archivos**: `src/app/checkout/page.tsx` (`handlePaymentSuccess`), `src/app/api/checkout/confirm-bookings/route.ts`.
 **NO se toca**: webhook, commission.ts, state machine.
 
+### ✅ RESUELTO (C3): Order.status no se actualiza en cancelaciones/refunds
+**Antes**: Al cancelar bookings via `/api/bookings/cancel`, el status de la orden padre quedaba como `'paid'` para siempre, aunque todos los bookings estuvieran cancelados y reembolsados.
+**Solucion**: Despues de cancelar un booking, se consultan todos los bookings de la misma orden. Si todos estan cancelados → orden pasa a `'refunded'`. Si solo algunos → `'partially_refunded'`. Non-blocking (try/catch). Nuevo status `'partially_refunded'` agregado al enum `order_status` via migracion `00115`.
+**Archivos**: `src/app/api/bookings/cancel/route.ts` (step 8), `supabase/migrations/00115_order_partially_refunded.sql`, `src/types/database.ts` (`OrderStatus`).
+**NO se toca**: commission.ts, cancellation.ts, webhook, state machine, snapshots.
+
 ---
 
 ## Funcionalidades Planeadas
@@ -1035,7 +1041,7 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 | **MEDIA** | No hay rate limiting en endpoints de auth (`/login`, `/register`) | `src/app/login`, `src/app/register` | Pendiente |
 | **MEDIA** | No hay audit logging para acciones de admin (cambios de rol, moderacion) | Admin API routes | Pendiente |
 | **BAJA** | `buffer_before_days` y `buffer_after_days` existen en schema pero nunca se usan en codigo | `availability.ts` | Deuda tecnica |
-| **BAJA** | Webhook `charge.refunded` no actualiza `orders.status` a `refunded`/`partially_refunded` | `webhook/route.ts` | Pendiente |
+| **BAJA** | ~~Webhook `charge.refunded` no actualiza `orders.status`~~ | `bookings/cancel/route.ts` | ✅ Resuelto (C3) — order status se actualiza en `/api/bookings/cancel` tras cancelar booking |
 
 ### Lo que SI esta bien
 
