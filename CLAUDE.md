@@ -889,6 +889,12 @@ provider_referral_benefits.status:
 **Archivos**: `src/app/dashboard/proveedor/servicios/[id]/editar/page.tsx` (ownership check post-fetch).
 **NO se toca**: queries.ts, commission.ts, checkout, state machine.
 
+### ✅ RESUELTO (C5): Admin sidebar con active state roto
+**Antes**: En `admin.solovivelo.com`, el middleware reescribe `/dashboard/*` → `/admin-portal/dashboard/*` internamente. `usePathname()` retorna el path reescrito, pero los hrefs del sidebar usan `/dashboard/*`. La comparacion `pathname === item.href` siempre era false — ningun link se mostraba como activo.
+**Solucion**: Normalizar el pathname quitando el prefijo `/admin-portal` antes de comparar con los hrefs. Los hrefs NO se cambian (causaria doble-rewrite por el middleware).
+**Archivos**: `src/components/admin/admin-sidebar.tsx` (normalizedPathname en NavLinks).
+**NO se toca**: middleware, rutas de admin pages, hrefs de sidebar.
+
 ---
 
 ## Funcionalidades Planeadas

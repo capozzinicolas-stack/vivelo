@@ -55,6 +55,10 @@ function NavLinks({
   pathname: string;
   onNav?: () => void;
 }) {
+  // C5 FIX: Middleware rewrites /dashboard/* → /admin-portal/dashboard/* internally,
+  // so usePathname() returns the rewritten path. Normalize for active state comparison.
+  const normalizedPathname = pathname.replace(/^\/admin-portal/, '');
+
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => (
@@ -64,7 +68,7 @@ function NavLinks({
           onClick={onNav}
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            pathname === item.href
+            normalizedPathname === item.href
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
