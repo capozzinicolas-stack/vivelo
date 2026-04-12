@@ -883,6 +883,12 @@ provider_referral_benefits.status:
 **Archivos**: `src/app/api/bookings/cancel/route.ts` (step 8), `supabase/migrations/00115_order_partially_refunded.sql`, `src/types/database.ts` (`OrderStatus`).
 **NO se toca**: commission.ts, cancellation.ts, webhook, state machine, snapshots.
 
+### ✅ RESUELTO (C4): IDOR en editor de servicios del proveedor
+**Antes**: Un proveedor podia manipular el UUID en la URL `/dashboard/proveedor/servicios/[id]/editar` para ver (y potencialmente editar) servicios de otro proveedor. `getServiceById(id)` no verificaba ownership.
+**Solucion**: Despues de cargar el servicio, se verifica `s.provider_id !== user.id`. Si no coincide, muestra toast "No autorizado" y redirige a la lista de servicios. No se modifica `getServiceById` (otros callers como checkout y admin lo necesitan sin filtro).
+**Archivos**: `src/app/dashboard/proveedor/servicios/[id]/editar/page.tsx` (ownership check post-fetch).
+**NO se toca**: queries.ts, commission.ts, checkout, state machine.
+
 ---
 
 ## Funcionalidades Planeadas

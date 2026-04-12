@@ -83,6 +83,12 @@ export default function EditarServicioPage() {
       setCancellationPolicies(policies);
       setSelectedTags(tagSlugs);
       if (!s) return;
+      // C4 FIX: Verify ownership — prevent IDOR (viewing/editing another provider's service)
+      if (user && s.provider_id !== user.id) {
+        toast({ title: 'No autorizado', description: 'Este servicio no te pertenece.', variant: 'destructive' });
+        router.push('/dashboard/proveedor/servicios');
+        return;
+      }
       setTitle(s.title);
       setDescription(s.description);
       setCategory(s.category);
@@ -106,7 +112,8 @@ export default function EditarServicioPage() {
       setServiceStatus(s.status);
       setAdminNotes(s.admin_notes || '');
     }).finally(() => setLoading(false));
-  }, [id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id]);
 
   const toggleZone = (zone: string) => {
     setSelectedZones((prev) => prev.includes(zone) ? prev.filter((z) => z !== zone) : [...prev, zone]);
