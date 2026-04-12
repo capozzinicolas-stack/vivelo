@@ -895,6 +895,12 @@ provider_referral_benefits.status:
 **Archivos**: `src/components/admin/admin-sidebar.tsx` (normalizedPathname en NavLinks).
 **NO se toca**: middleware, rutas de admin pages, hrefs de sidebar.
 
+### ✅ RESUELTO (C6): Pagina de notificaciones admin con datos mock hardcodeados
+**Antes**: `/admin-portal/dashboard/notificaciones` siempre mostraba notificaciones mock importadas directamente de `@/data/mock-notifications`, ignorando la tabla `notifications` en Supabase. Las notificaciones creadas via `createNotification()` se guardaban en DB pero nunca se mostraban al recargar la pagina.
+**Solucion**: Agregar funcion `getAllNotifications()` en `queries.ts` (sin filtro de recipient — vista admin) con soporte mock mode. Reemplazar la importacion directa de `mockNotifications` en la pagina por la llamada a `getAllNotifications()`. RLS ya tenia policy `"Admins manage notifications" FOR ALL`.
+**Archivos**: `src/lib/supabase/queries.ts` (`getAllNotifications`), `src/app/admin-portal/dashboard/notificaciones/page.tsx` (reemplazar mock por query real).
+**NO se toca**: commission.ts, checkout, state machine, snapshots, otras queries de notificaciones.
+
 ---
 
 ## Funcionalidades Planeadas

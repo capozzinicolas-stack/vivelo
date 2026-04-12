@@ -14,8 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Send, Bell, Star, Megaphone, Info } from 'lucide-react';
 import type { Notification, Profile, NotificationType } from '@/types/database';
 import { NOTIFICATION_TYPE_LABELS } from '@/lib/constants';
-import { getAllProfiles, createNotification } from '@/lib/supabase/queries';
-import { mockNotifications } from '@/data/mock-notifications';
+import { getAllProfiles, createNotification, getAllNotifications } from '@/lib/supabase/queries';
 
 const typeIcons: Record<string, React.ElementType> = {
   featured_placement: Star,
@@ -42,8 +41,8 @@ export default function AdminNotificacionesPage() {
     try {
       const profiles = await getAllProfiles();
       setProviders(profiles.filter(p => p.role === 'provider'));
-      // In mock mode, show all notifications for admin view
-      setNotifications([...mockNotifications].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      const allNotifications = await getAllNotifications();
+      setNotifications(allNotifications);
     } catch (err) {
       console.error('Error loading data:', err);
     }

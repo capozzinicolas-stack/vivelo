@@ -2062,6 +2062,24 @@ export async function getProviderCampaignSubscriptions(providerId: string): Prom
 
 // ─── NOTIFICATIONS ──────────────────────────────────────────
 
+export async function getAllNotifications(): Promise<Notification[]> {
+  if (isMockMode()) {
+    const { mockNotifications } = await import('@/data/mock-notifications');
+    return [...mockNotifications].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.warn('[getAllNotifications] Query failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 export async function getNotifications(recipientId: string): Promise<Notification[]> {
   if (isMockMode()) {
     const { mockNotifications } = await import('@/data/mock-notifications');
