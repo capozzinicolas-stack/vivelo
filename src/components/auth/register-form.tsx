@@ -118,6 +118,22 @@ export function RegisterForm() {
         localStorage.removeItem('vivelo-referral-code');
       }
 
+      // Send WhatsApp welcome message (non-blocking)
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (currentUser && digitsOnly) {
+          fetch('/api/whatsapp/welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profileId: currentUser.id, phone: digitsOnly, name: fullName, role }),
+          }).catch(() => {});
+        }
+      } catch {
+        // Non-blocking
+      }
+
       window.location.href = redirectTo || '/dashboard';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');

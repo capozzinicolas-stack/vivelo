@@ -96,7 +96,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const { data: provider } = await supabase
       .from('profiles')
-      .select('full_name, email')
+      .select('full_name, email, phone')
       .eq('id', service.provider_id)
       .maybeSingle();
 
@@ -109,8 +109,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         comment: body.comment,
       });
     }
+
+    // WhatsApp notification (non-blocking)
+    if (provider?.phone) {
+      const { waProviderAdminComment } = await import('@/lib/whatsapp');
+      waProviderAdminComment({
+        providerId: service.provider_id,
+        providerPhone: provider.phone,
+        providerName: provider.full_name || 'Proveedor',
+        serviceTitle: service.title,
+        serviceId: service.id,
+        category: body.category,
+      });
+    }
   } catch (e) {
-    console.warn('[Admin Comments] email send failed:', e);
+    console.warn('[Admin Comments] email/WhatsApp send failed:', e);
   }
 
   return NextResponse.json({ comment: comment as ServiceAdminComment }, { status: 201 });

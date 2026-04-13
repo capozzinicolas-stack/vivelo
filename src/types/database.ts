@@ -9,6 +9,17 @@ export type ServiceSubcategory = string;
 export type FiscalStatus = 'incomplete' | 'pending_review' | 'approved' | 'rejected';
 export type PersonaType = 'fisica' | 'moral';
 export type RegimenFiscal = '601' | '603' | '605' | '606' | '607' | '608' | '610' | '611' | '612' | '614' | '615' | '616' | '620' | '621' | '622' | '623' | '624' | '625' | '626';
+export type WaEventType =
+  | 'provider_welcome' | 'provider_service_approved' | 'provider_service_rejected'
+  | 'provider_service_needs_revision' | 'provider_new_booking' | 'provider_booking_cancelled'
+  | 'provider_event_reminder' | 'provider_start_code' | 'provider_booking_completed'
+  | 'provider_new_review' | 'provider_fiscal_approved' | 'provider_fiscal_rejected'
+  | 'provider_banking_approved' | 'provider_banking_rejected' | 'provider_admin_comment'
+  | 'provider_booking_rejected' | 'client_welcome' | 'client_booking_confirmed'
+  | 'client_booking_cancelled' | 'client_event_reminder' | 'client_verification_codes'
+  | 'client_booking_completed' | 'client_event_started' | 'client_booking_rejected'
+  | 'admin_manual';
+export type WaLogStatus = 'pending' | 'accepted' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface CatalogCategory {
   slug: string;
@@ -629,6 +640,23 @@ export interface LandingPageBanner {
   };
 }
 
+export interface WhatsAppEvent {
+  id: string;
+  event_type: WaEventType;
+  profile_id: string | null;
+  phone: string;
+  template_name: string;
+  variables: Record<string, string> | null;
+  mirlo_message_id: string | null;
+  status: WaLogStatus;
+  error_message: string | null;
+  booking_id: string | null;
+  service_id: string | null;
+  created_at: string;
+  // Joined data
+  profile?: { full_name: string; email: string; phone: string | null } | undefined;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -654,6 +682,7 @@ export interface Database {
       provider_fiscal_data: { Row: ProviderFiscalData; Insert: Partial<ProviderFiscalData> & Pick<ProviderFiscalData, 'provider_id' | 'rfc' | 'razon_social' | 'tipo_persona' | 'regimen_fiscal'>; Update: Partial<ProviderFiscalData> };
       landing_page_banners: { Row: LandingPageBanner; Insert: Partial<LandingPageBanner> & Pick<LandingPageBanner, 'title' | 'cta_url'>; Update: Partial<LandingPageBanner> };
       service_admin_comments: { Row: ServiceAdminComment; Insert: Partial<ServiceAdminComment> & Pick<ServiceAdminComment, 'service_id' | 'provider_id' | 'comment'>; Update: Partial<ServiceAdminComment> };
+      whatsapp_events: { Row: WhatsAppEvent; Insert: Partial<WhatsAppEvent> & Pick<WhatsAppEvent, 'event_type' | 'phone' | 'template_name'>; Update: Partial<WhatsAppEvent> };
     };
   };
 }

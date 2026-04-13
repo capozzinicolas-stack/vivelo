@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   // Find bookings for today that are confirmed and don't have codes yet
   const { data: bookings, error } = await supabase
     .from('bookings')
-    .select('id, client_id, event_date, service:services(title), client:profiles!bookings_client_id_fkey(full_name, email)')
+    .select('id, client_id, provider_id, service_id, event_date, service:services(title), client:profiles!bookings_client_id_fkey(full_name, email, phone)')
     .eq('event_date', today)
     .eq('status', 'confirmed')
     .is('start_code', null);
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
     }
 
     // Send email to client
-    const client = booking.client as unknown as { full_name: string; email: string } | null;
+    const client = booking.client as unknown as { full_name: string; email: string; phone: string | null } | null;
     const service = booking.service as unknown as { title: string } | null;
 
     if (client?.email) {
@@ -76,6 +76,44 @@ export async function GET(request: Request) {
         startCode,
         endCode,
       });
+    }
+
+    // Send WhatsApp with verification codes + provider start code (non-blocking)
+    try {
+      const { waClientVerificationCodes, waProviderStartCode } = await import('@/lib/whatsapp');
+      const serviceTitle = service?.title || 'Servicio';
+
+      waClientVerificationCodes({
+        bookingId: booking.id,
+        serviceId: booking.service_id,
+        serviceTitle,
+        clientId: booking.client_id,
+        clientPhone: client?.phone || null,
+        clientName: client?.full_name || 'Cliente',
+        startCode,
+        endCode,
+      });
+
+      // Notify provider with start code
+      const { data: provider } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', (booking as Record<string, unknown>).provider_id as string)
+        .single();
+
+      if (provider?.phone) {
+        waProviderStartCode({
+          providerId: (booking as Record<string, unknown>).provider_id as string,
+          providerPhone: provider.phone,
+          providerName: provider.full_name || 'Proveedor',
+          serviceTitle,
+          serviceId: booking.service_id,
+          startCode,
+          bookingId: booking.id,
+        });
+      }
+    } catch (waErr) {
+      console.error(`[SendEventCodes] WhatsApp failed for booking ${booking.id}:`, waErr);
     }
 
     processed++;

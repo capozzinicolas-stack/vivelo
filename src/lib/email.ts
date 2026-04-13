@@ -228,6 +228,50 @@ export async function sendEventCodes(data: EventCodesEmailData) {
   }
 }
 
+interface EventReminderEmailData {
+  clientName: string;
+  clientEmail: string;
+  serviceTitle: string;
+  eventDate: string;
+  startTime: string;
+  address: string;
+}
+
+export async function sendEventReminder(data: EventReminderEmailData) {
+  if (!resend) {
+    console.log('[Email] Resend not configured, skipping event reminder email');
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: EMAIL_FROM,
+      to: data.clientEmail,
+      subject: `Recordatorio: tu evento es manana — ${data.serviceTitle}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #43276c;">Tu evento es manana!</h1>
+          <p>Hola ${data.clientName},</p>
+          <p>Te recordamos que manana tienes un evento programado.</p>
+          <div style="background: #f9f7f4; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">${data.serviceTitle}</h3>
+            <p><strong>Fecha:</strong> ${data.eventDate}</p>
+            ${data.startTime ? `<p><strong>Hora:</strong> ${data.startTime}</p>` : ''}
+            ${data.address ? `<p><strong>Direccion:</strong> ${data.address}</p>` : ''}
+          </div>
+          <p>Puedes ver los detalles de tu reserva en tu <a href="https://solovivelo.com/dashboard/cliente/reservas" style="color: #43276c;">panel de cliente</a>.</p>
+          <p style="color: #666; font-size: 14px;">Que disfrutes tu evento!</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="color: #999; font-size: 12px;">Vivelo - Servicios para Eventos en Mexico</p>
+        </div>
+      `,
+    });
+    console.log('[Email] Event reminder sent to', data.clientEmail);
+  } catch (error) {
+    console.error('[Email] Failed to send event reminder:', error);
+  }
+}
+
 interface ServiceStatusEmailData {
   providerName: string;
   providerEmail: string;

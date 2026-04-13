@@ -54,5 +54,35 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   console.log(`[Fiscal Admin] Provider ${providerId} fiscal status changed to ${body.fiscal_status} by admin ${auth.user.id}`);
 
+  // WhatsApp notification (non-blocking)
+  try {
+    const { data: provider } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', providerId)
+      .single();
+
+    if (provider?.phone) {
+      if (body.fiscal_status === 'approved') {
+        const { waProviderFiscalApproved } = await import('@/lib/whatsapp');
+        waProviderFiscalApproved({
+          providerId,
+          providerPhone: provider.phone,
+          providerName: provider.full_name || 'Proveedor',
+        });
+      } else if (body.fiscal_status === 'rejected') {
+        const { waProviderFiscalRejected } = await import('@/lib/whatsapp');
+        waProviderFiscalRejected({
+          providerId,
+          providerPhone: provider.phone,
+          providerName: provider.full_name || 'Proveedor',
+          reason: body.admin_notes || 'Sin motivo especificado',
+        });
+      }
+    }
+  } catch (waErr) {
+    console.error('[Fiscal Admin] WhatsApp notification failed:', waErr);
+  }
+
   return NextResponse.json({ data });
 }

@@ -93,6 +93,64 @@ export async function POST(request: NextRequest) {
             }
           }
 
+          // Send WhatsApp booking confirmations (non-blocking)
+          if (orderBookings && orderBookings.length > 0) {
+            try {
+              const { waClientBookingConfirmed, waProviderNewBooking } = await import('@/lib/whatsapp');
+              for (const booking of orderBookings) {
+                const clientId = (booking as Record<string, unknown>).client_id as string;
+                const providerId = (booking as Record<string, unknown>).provider_id as string;
+                const serviceId = (booking as Record<string, unknown>).service_id as string;
+                const serviceData = booking.service as { title: string } | null;
+                const serviceTitle = serviceData?.title || 'Servicio';
+                const eventDate = (booking as Record<string, unknown>).event_date as string || '';
+                const startTime = (booking as Record<string, unknown>).start_time as string || '';
+
+                const { data: clientProfile } = await supabaseAdmin
+                  .from('profiles')
+                  .select('full_name, phone')
+                  .eq('id', clientId)
+                  .single();
+
+                if (clientProfile?.phone) {
+                  waClientBookingConfirmed({
+                    bookingId: booking.id,
+                    serviceId,
+                    serviceTitle,
+                    clientId,
+                    clientPhone: clientProfile.phone,
+                    clientName: clientProfile.full_name || 'Cliente',
+                    eventDate,
+                    startTime,
+                    total: (booking as Record<string, unknown>).total as number || 0,
+                  });
+                }
+
+                // Notify provider of new booking
+                const { data: providerProfile } = await supabaseAdmin
+                  .from('profiles')
+                  .select('full_name, phone')
+                  .eq('id', providerId)
+                  .single();
+
+                if (providerProfile?.phone) {
+                  waProviderNewBooking({
+                    providerId,
+                    providerPhone: providerProfile.phone,
+                    providerName: providerProfile.full_name || 'Proveedor',
+                    serviceTitle,
+                    serviceId,
+                    clientName: clientProfile?.full_name || 'Cliente',
+                    eventDate,
+                    bookingId: booking.id,
+                  });
+                }
+              }
+            } catch (err) {
+              console.error('[Stripe Webhook] WhatsApp notification error:', err);
+            }
+          }
+
           // Push each confirmed booking to Google Calendar (non-blocking)
           if (orderBookings && orderBookings.length > 0) {
             try {

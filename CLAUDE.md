@@ -385,6 +385,25 @@ El codigo existe pero **no se esta usando en produccion**. No desarrollar ni exp
 - **Loop agentico**: Max 5 rondas de tool-use
 - **Estado**: Funciona en produccion, no hay planes de cambio
 
+### WhatsApp via Mirlo — Fase 2 (Event-Driven)
+- **Arquitectura**: Vivelo dispara eventos a Mirlo (`send-template`), Mirlo gestiona templates/flows/broadcasts. Vivelo solo logea y expone APIs read-only
+- **API**: `https://api.mirlo.com/v1`, auth via header `X-API-Key`
+- **Env vars**: `MIRLO_API_KEY`, `MIRLO_ORGANIZATION_ID`, `MIRLO_ORGANIZATION_ADDRESS`, `MIRLO_WEBHOOK_SECRET` (para APIs de Mirlo)
+- **Mock mode**: Si `MIRLO_API_KEY` falta o es `'mirlo_placeholder'` → todo se logea pero no se envia
+- **Cliente Mirlo**: `src/lib/mirlo.ts` — fetch wrapper, `getTemplateIdByName()` con cache por cold start, sin funciones de broadcast
+- **Servicio WA**: `src/lib/whatsapp.ts` — 25 event types, `sendWhatsAppEvent()` + 25 funciones de conveniencia fire-and-forget. Template name resuelto via `TEMPLATE_MAP` + cache de Mirlo
+- **Telefono**: `profiles.phone` guarda 10 digitos (ej: `5512345678`), se convierte a E.164 (`+525512345678`). Si `phone` es null → skip silencioso
+- **DB**: 1 tabla `whatsapp_events` + 2 enums (`wa_event_type` con 25 valores, `wa_log_status`), migracion `00117` (reemplaza 00116)
+- **25 event types**: provider_welcome, provider_service_approved/rejected/needs_revision, provider_new_booking, provider_booking_cancelled/rejected/completed, provider_event_reminder, provider_start_code, provider_new_review, provider_fiscal_approved/rejected, provider_banking_approved/rejected, provider_admin_comment, client_welcome, client_booking_confirmed/cancelled/rejected/completed, client_event_reminder, client_verification_codes, client_event_started, admin_manual
+- **Hooks non-blocking (11 archivos)**: Stripe webhook (confirmed + provider new booking), cancel (client + provider), send-event-codes (client codes + provider start_code), service-status-email (approved + rejected + needs_revision), send-event-reminders (client + provider), register-form (welcome), auto-complete (client + provider), verify-code (event started + completed), fiscal status (approved/rejected), admin comments, admin bookings status (rejected)
+- **APIs Mirlo**: `GET /api/mirlo/provider-status?phone=X` y `GET /api/mirlo/client-status?phone=X` — read-only, auth via `X-Mirlo-Secret` header
+- **Welcome endpoint**: `POST /api/whatsapp/welcome` — publico con dedup 24h, llamado desde register-form
+- **Admin notify**: `POST /api/admin/whatsapp/notify` — admin-only, para hooks client-side
+- **Admin dashboard**: `/admin-portal/dashboard/whatsapp` — metricas only (stats cards, distribucion por tipo, tabla de eventos recientes con filtros). Sin gestion de templates ni envios manuales
+- **Admin APIs**: `GET /api/admin/whatsapp/messages` (lista events con filtros), `GET /api/admin/whatsapp/stats` (aggregates)
+- **Types**: `WaEventType`, `WaLogStatus`, `WhatsAppEvent` en `database.ts`. Schemas: `WelcomeWhatsAppSchema`, `AdminWhatsAppNotifySchema` en `api-schemas.ts`
+- **NO se toca**: commission.ts, cancellation.ts, booking-state-machine.ts, patron de snapshots, checkout flow
+
 ---
 
 ## Convenciones
@@ -524,6 +543,7 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Reviews/resenas | 🔲 Sin uso real | Codigo existe, moderacion implementada, sin resenas reales |
 | Google Calendar | 🚫 No integrar | Codigo existe pero NO se usa — no tocar |
 | Codigos de verificacion | 🔲 Implementado | Cron + endpoints existen, sin pruebas reales en produccion |
+| WhatsApp via Mirlo (Fase 2) | ✅ Terminado | Event-driven: 25 event types, Mirlo gestiona templates/flows/broadcasts, Vivelo solo dispara eventos y logea. 11 hooks en flujos existentes (stripe, cancel, codes, reminders, service-status, register, auto-complete, verify-code, fiscal, comments, bookings-status). APIs read-only para Mirlo. Dashboard admin metricas-only. Mock mode sin env vars. |
 | Mis Eventos (cliente) | ✅ Terminado | Agrupacion de servicios por `event_name` con gasto total y desglose |
 | SEO Slugs (servicios) | ✅ Terminado | URLs publicas usan `/servicios/{slug}` en vez de UUID. UUIDs redirigen 301. |
 | SEO Slugs (proveedores) | ✅ Terminado | URLs publicas usan `/proveedores/{slug}` en vez de UUID. UUIDs redirigen 301. Trigger SQL auto-genera slug al crear perfil. |

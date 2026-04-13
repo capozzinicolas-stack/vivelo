@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   // Fetch booking
   const { data: booking, error: fetchError } = await supabaseAdmin
     .from('bookings')
-    .select('*, service:services(title), client:profiles!bookings_client_id_fkey(id, full_name)')
+    .select('*, service:services(title), client:profiles!bookings_client_id_fkey(id, full_name, phone)')
     .eq('id', bookingId)
     .single();
 
@@ -75,6 +75,22 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error('[VerifyCode] Error updating booking:', updateError);
       return NextResponse.json({ error: 'Error al actualizar la reserva' }, { status: 500 });
+    }
+
+    // WhatsApp: notify client that event has started (non-blocking)
+    try {
+      const { waClientEventStarted } = await import('@/lib/whatsapp');
+      const clientData = booking.client as unknown as { id: string; full_name: string; phone: string | null } | null;
+      waClientEventStarted({
+        clientId: booking.client_id,
+        clientPhone: clientData?.phone || null,
+        clientName: clientData?.full_name || 'Cliente',
+        serviceTitle: booking.service?.title || 'Servicio',
+        serviceId: booking.service_id,
+        bookingId,
+      });
+    } catch (waErr) {
+      console.error('[VerifyCode] WhatsApp start notification failed:', waErr);
     }
 
     return NextResponse.json({
@@ -122,6 +138,42 @@ export async function POST(request: Request) {
       });
     } catch (err) {
       console.error('[VerifyCode] Error creating review notification:', err);
+    }
+
+    // WhatsApp: notify client + provider of completion (non-blocking)
+    try {
+      const { waClientBookingCompleted, waProviderBookingCompleted } = await import('@/lib/whatsapp');
+      const clientData = booking.client as unknown as { id: string; full_name: string; phone: string | null } | null;
+      const serviceTitle = booking.service?.title || 'Servicio';
+
+      waClientBookingCompleted({
+        clientId: booking.client_id,
+        clientPhone: clientData?.phone || null,
+        clientName: clientData?.full_name || 'Cliente',
+        serviceTitle,
+        serviceId: booking.service_id,
+        bookingId,
+      });
+
+      const { data: providerData } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', booking.provider_id)
+        .single();
+
+      if (providerData?.phone) {
+        waProviderBookingCompleted({
+          providerId: booking.provider_id,
+          providerPhone: providerData.phone,
+          providerName: providerData.full_name || 'Proveedor',
+          serviceTitle,
+          serviceId: booking.service_id,
+          clientName: clientData?.full_name || 'Cliente',
+          bookingId,
+        });
+      }
+    } catch (waErr) {
+      console.error('[VerifyCode] WhatsApp completion notification failed:', waErr);
     }
 
     return NextResponse.json({

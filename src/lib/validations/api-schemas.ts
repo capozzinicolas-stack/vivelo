@@ -363,6 +363,25 @@ export const SetEarlyAdopterSchema = z.object({
   earlyAdopterEndsAt: z.string().datetime({ message: 'Fecha ISO invalida' }).nullable(),
 });
 
+// ─── WhatsApp Schemas (Fase 2) ────────────────────────────────
+
+export const WelcomeWhatsAppSchema = z.object({
+  profileId: z.string().uuid('profileId debe ser un UUID valido'),
+  phone: z.string().min(10, 'Telefono debe tener al menos 10 digitos'),
+  name: z.string().min(1, 'Nombre es requerido'),
+  role: z.enum(['client', 'provider'], { message: 'role debe ser "client" o "provider"' }),
+});
+
+export const AdminWhatsAppNotifySchema = z.object({
+  eventType: z.string().min(1, 'eventType es requerido'),
+  recipientId: z.string().uuid('recipientId debe ser un UUID valido').nullable(),
+  phone: z.string().min(10, 'Telefono debe tener al menos 10 digitos'),
+  name: z.string().min(1, 'Nombre es requerido'),
+  variables: z.record(z.string(), z.string()),
+  bookingId: z.string().uuid().optional(),
+  serviceId: z.string().uuid().optional(),
+});
+
 export async function validateBody<T>(
   request: Request,
   schema: z.ZodSchema<T>

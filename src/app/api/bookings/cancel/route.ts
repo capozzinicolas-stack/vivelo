@@ -268,6 +268,45 @@ export async function POST(request: NextRequest) {
       console.error('[Cancel] Email notification failed:', emailErr);
     }
 
+    // 11. Send WhatsApp cancellation notifications (non-blocking)
+    try {
+      const { waClientBookingCancelled, waProviderBookingCancelled } = await import('@/lib/whatsapp');
+      const adminClient = createAdminSupabaseClient();
+      const { data: clientForWA } = await adminClient.from('profiles').select('full_name, phone').eq('id', booking.client_id).single();
+      const { data: serviceForWA } = await adminClient.from('services').select('title').eq('id', booking.service_id).single();
+      const serviceTitle = serviceForWA?.title || 'Servicio';
+
+      if (clientForWA?.phone) {
+        waClientBookingCancelled({
+          bookingId,
+          serviceId: booking.service_id as string,
+          serviceTitle,
+          clientId: booking.client_id as string,
+          clientPhone: clientForWA.phone,
+          clientName: clientForWA.full_name || 'Cliente',
+          refundAmount: refund_amount,
+          refundPercent: refund_percent,
+        });
+      }
+
+      // Notify provider
+      const { data: providerForWA } = await adminClient.from('profiles').select('full_name, phone').eq('id', booking.provider_id).single();
+      if (providerForWA?.phone) {
+        waProviderBookingCancelled({
+          providerId: booking.provider_id as string,
+          providerPhone: providerForWA.phone,
+          providerName: providerForWA.full_name || 'Proveedor',
+          serviceTitle,
+          serviceId: booking.service_id as string,
+          clientName: clientForWA?.full_name || 'Cliente',
+          eventDate: booking.event_date as string,
+          bookingId,
+        });
+      }
+    } catch (waErr) {
+      console.error('[Cancel] WhatsApp notification failed:', waErr);
+    }
+
     return NextResponse.json({
       success: true,
       refund_amount,

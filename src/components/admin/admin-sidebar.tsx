@@ -26,6 +26,7 @@ import {
   Receipt,
   Image as ImageIcon,
   Gift,
+  MessageCircle,
 } from 'lucide-react';
 
 const adminNavItems = [
@@ -42,6 +43,7 @@ const adminNavItems = [
   { label: 'Banners', href: '/dashboard/banners', icon: ImageIcon },
   { label: 'Contenido', href: '/dashboard/contenido', icon: FileText },
   { label: 'Notificaciones', href: '/dashboard/notificaciones', icon: Bell },
+  { label: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle },
   { label: 'Configuracion', href: '/dashboard/configuracion', icon: Settings },
   { label: 'Mi Perfil', href: '/dashboard/perfil', icon: CircleUser },
 ];

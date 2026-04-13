@@ -48,6 +48,60 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Error al actualizar la reserva' }, { status: 500 });
     }
 
+    // WhatsApp notifications for rejected bookings (non-blocking)
+    if (newStatus === 'rejected') {
+      try {
+        const { waClientBookingRejected, waProviderBookingRejected } = await import('@/lib/whatsapp');
+
+        const { data: fullBooking } = await supabase
+          .from('bookings')
+          .select('client_id, provider_id, service_id, service:services(title)')
+          .eq('id', bookingId)
+          .single();
+
+        if (fullBooking) {
+          const serviceTitle = (fullBooking.service as unknown as { title: string } | null)?.title || 'Servicio';
+
+          const { data: clientProfile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', fullBooking.client_id)
+            .single();
+
+          const { data: providerProfile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('id', fullBooking.provider_id)
+            .single();
+
+          if (clientProfile?.phone) {
+            waClientBookingRejected({
+              clientId: fullBooking.client_id,
+              clientPhone: clientProfile.phone,
+              clientName: clientProfile.full_name || 'Cliente',
+              serviceTitle,
+              serviceId: fullBooking.service_id,
+              bookingId,
+            });
+          }
+
+          if (providerProfile?.phone) {
+            waProviderBookingRejected({
+              providerId: fullBooking.provider_id,
+              providerPhone: providerProfile.phone,
+              providerName: providerProfile.full_name || 'Proveedor',
+              serviceTitle,
+              serviceId: fullBooking.service_id,
+              clientName: clientProfile?.full_name || 'Cliente',
+              bookingId,
+            });
+          }
+        }
+      } catch (waErr) {
+        console.error('[Admin Bookings] WhatsApp rejected notification failed:', waErr);
+      }
+    }
+
     return NextResponse.json({ success: true, status: newStatus });
   } catch (err) {
     if (err instanceof z.ZodError) {
