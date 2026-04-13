@@ -59,8 +59,10 @@ const TEMPLATE_MAP: Record<WaEventType, string> = {
 
 function formatPhoneE164(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('52') && digits.length === 12) return `+${digits}`;
-  if (digits.length === 10) return `+52${digits}`;
+  // Mexico mobile: +521XXXXXXXXXX (13 digits)
+  if (digits.startsWith('521') && digits.length === 13) return `+${digits}`;
+  if (digits.startsWith('52') && digits.length === 12) return `+521${digits.slice(2)}`;
+  if (digits.length === 10) return `+521${digits}`;
   return `+${digits}`;
 }
 
