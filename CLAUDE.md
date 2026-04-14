@@ -1073,7 +1073,7 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 
 | Severidad | Problema | Ubicacion | Estado |
 |-----------|----------|-----------|--------|
-| **ALTA** | Trigger de signup no copia `role` del metadata al perfil — todos los usuarios quedan como 'client' | `00001_create_profiles.sql` trigger `handle_new_user` | Pendiente |
+| ~~**ALTA**~~ | ~~Trigger de signup no copia `role` del metadata al perfil — todos los usuarios quedan como 'client'~~ | `00001_create_profiles.sql` trigger `handle_new_user` | ✅ Resuelto (migracion `00118`) — trigger ahora copia `phone` y `role` del metadata + backfill |
 | **ALTA** | Datos bancarios (RFC, CLABE) visibles via RLS para cualquier usuario autenticado — se filtra solo a nivel de app | `profiles` table RLS policies | Pendiente |
 | **MEDIA** | Fallback de `checkVendorAvailability` hardcodea `max_concurrent=1` si el RPC falla | `queries.ts:1105-1107` | Pendiente |
 | **MEDIA** | No hay rate limiting en endpoints de auth (`/login`, `/register`) | `src/app/login`, `src/app/register` | Pendiente |
