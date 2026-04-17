@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { validateBody, UpdateFiscalStatusSchema } from '@/lib/validations/api-schemas';
 
@@ -12,7 +12,7 @@ interface RouteParams {
  * Admin aprueba o rechaza datos fiscales de un proveedor.
  */
 export async function PATCH(request: Request, { params }: RouteParams) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
 
   const { providerId } = params;

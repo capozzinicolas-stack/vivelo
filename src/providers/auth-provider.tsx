@@ -120,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         banking_rejection_reason: null,
         commission_rate: 0.12,
         must_change_password: false,
+        admin_level: role === 'admin' ? 'super_admin' : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

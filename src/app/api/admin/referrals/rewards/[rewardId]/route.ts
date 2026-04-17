@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { z } from 'zod';
 import { computeExpectedBenefits, diffBenefitsToInsert, initialBenefitStatus } from '@/lib/referrals';
@@ -26,7 +26,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ rewardId: string }> }
 ) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
 
   const { rewardId } = await params;

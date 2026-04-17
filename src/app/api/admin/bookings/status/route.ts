@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { isValidTransition } from '@/lib/booking-state-machine';
 import type { BookingStatus } from '@/types/database';
@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
 
   try {

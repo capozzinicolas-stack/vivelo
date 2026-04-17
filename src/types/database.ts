@@ -1,4 +1,5 @@
 export type UserRole = 'client' | 'provider' | 'admin';
+export type AdminLevel = 'super_admin' | 'operations' | 'marketing' | 'support';
 export type FeaturedSection = 'servicios_destacados' | 'servicios_recomendados' | 'mas_vendidos';
 export type CampaignStatus = 'draft' | 'active' | 'ended' | 'cancelled';
 export type NotificationType = 'featured_placement' | 'campaign_enrollment' | 'campaign_available' | 'system';
@@ -121,6 +122,7 @@ export interface Profile {
   default_cancellation_policy_id?: string | null;
   commission_rate: number;
   must_change_password: boolean;
+  admin_level: AdminLevel | null;
   early_adopter_ends_at?: string | null;
   created_at: string;
   updated_at: string;

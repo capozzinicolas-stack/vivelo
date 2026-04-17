@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireRole, requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { validateBody, AdminCreateReviewSchema, ModerateReviewSchema } from '@/lib/validations/api-schemas';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
   const { profile } = auth;
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
   const { profile } = auth;
 

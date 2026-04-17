@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireRole, requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { CreateLandingBannerSchema } from '@/lib/validations/api-schemas';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireRole(['admin']);
+    const auth = await requireAdminLevel(['super_admin', 'marketing']);
     if (isAuthError(auth)) return auth;
 
     let body: unknown;

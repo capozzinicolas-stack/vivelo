@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { UpdateLandingBannerSchema } from '@/lib/validations/api-schemas';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const auth = await requireRole(['admin']);
+    const auth = await requireAdminLevel(['super_admin', 'marketing']);
     if (isAuthError(auth)) return auth;
 
     let body: unknown;
@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const auth = await requireRole(['admin']);
+    const auth = await requireAdminLevel(['super_admin', 'marketing']);
     if (isAuthError(auth)) return auth;
 
     const supabaseAdmin = createAdminSupabaseClient();

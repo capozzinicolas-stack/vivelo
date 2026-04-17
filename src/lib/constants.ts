@@ -1,3 +1,5 @@
+import type { AdminLevel } from '@/types/database';
+
 export const COMMISSION_RATE = 0.12;
 
 export const VIVELO_ZONES = [
@@ -229,6 +231,72 @@ export const REFERRAL_REWARD_STATUS_COLORS: Record<string, string> = {
   active_sale: 'bg-green-100 text-green-800',
   expired: 'bg-gray-100 text-gray-800',
   revoked: 'bg-red-100 text-red-800',
+};
+
+// ============================================================================
+// Admin Access Levels
+// ============================================================================
+
+/** Which sidebar sections each admin level can see */
+export const ADMIN_LEVEL_CONFIG: Record<AdminLevel, {
+  label: string;
+  description: string;
+  allowedSections: string[];
+}> = {
+  super_admin: {
+    label: 'Super Admin',
+    description: 'Acceso completo a todas las secciones',
+    allowedSections: ['*'],
+  },
+  operations: {
+    label: 'Operaciones',
+    description: 'Servicios, reservas, reviews, fiscal, finanzas (lectura), proveedores, usuarios',
+    allowedSections: [
+      '/dashboard',
+      '/dashboard/usuarios',
+      '/dashboard/proveedores',
+      '/dashboard/servicios',
+      '/dashboard/reservas',
+      '/dashboard/reviews',
+      '/dashboard/fiscal',
+      '/dashboard/finanzas',
+      '/dashboard/perfil',
+    ],
+  },
+  marketing: {
+    label: 'Marketing',
+    description: 'Campanas, banners, contenido, notificaciones, conversaciones',
+    allowedSections: [
+      '/dashboard',
+      '/dashboard/marketing',
+      '/dashboard/banners',
+      '/dashboard/contenido',
+      '/dashboard/notificaciones',
+      '/dashboard/whatsapp',
+      '/dashboard/perfil',
+    ],
+  },
+  support: {
+    label: 'Soporte',
+    description: 'Solo lectura + mensajes WhatsApp manuales',
+    allowedSections: [
+      '/dashboard',
+      '/dashboard/usuarios',
+      '/dashboard/proveedores',
+      '/dashboard/servicios',
+      '/dashboard/reservas',
+      '/dashboard/reviews',
+      '/dashboard/whatsapp',
+      '/dashboard/perfil',
+    ],
+  },
+};
+
+export const ADMIN_LEVEL_LABELS: Record<AdminLevel, string> = {
+  super_admin: 'Super Admin',
+  operations: 'Operaciones',
+  marketing: 'Marketing',
+  support: 'Soporte',
 };
 
 // ============================================================================

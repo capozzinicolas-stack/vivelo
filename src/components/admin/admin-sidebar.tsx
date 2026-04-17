@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ADMIN_LEVEL_CONFIG, ADMIN_LEVEL_LABELS } from '@/lib/constants';
+import type { AdminLevel } from '@/types/database';
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -48,6 +51,13 @@ const adminNavItems = [
   { label: 'Mi Perfil', href: '/dashboard/perfil', icon: CircleUser },
 ];
 
+function getVisibleNavItems(adminLevel: AdminLevel | null | undefined) {
+  const level = adminLevel || 'super_admin';
+  const config = ADMIN_LEVEL_CONFIG[level];
+  if (!config || config.allowedSections.includes('*')) return adminNavItems;
+  return adminNavItems.filter((item) => config.allowedSections.includes(item.href));
+}
+
 function NavLinks({
   items,
   pathname,
@@ -83,11 +93,25 @@ function NavLinks({
   );
 }
 
+function AdminLevelBadge({ level }: { level: AdminLevel | null | undefined }) {
+  if (!level) return null;
+  return (
+    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
+      {ADMIN_LEVEL_LABELS[level]}
+    </Badge>
+  );
+}
+
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut, user } = useAuthContext();
   const [open, setOpen] = useState(false);
+
+  const visibleItems = useMemo(
+    () => getVisibleNavItems(user?.admin_level),
+    [user?.admin_level]
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -114,9 +138,10 @@ export function AdminSidebar() {
                   <div className="mb-4 rounded-lg bg-muted p-3">
                     <p className="text-sm font-medium">{user.full_name}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
+                    <AdminLevelBadge level={user.admin_level} />
                   </div>
                 )}
-                <NavLinks items={adminNavItems} pathname={pathname} onNav={() => setOpen(false)} />
+                <NavLinks items={visibleItems} pathname={pathname} onNav={() => setOpen(false)} />
               </div>
               <div className="border-t p-4">
                 <Button
@@ -147,9 +172,10 @@ export function AdminSidebar() {
                 <div className="mb-6 rounded-lg bg-muted p-3">
                   <p className="text-sm font-medium">{user.full_name}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
+                  <AdminLevelBadge level={user.admin_level} />
                 </div>
               )}
-              <NavLinks items={adminNavItems} pathname={pathname} />
+              <NavLinks items={visibleItems} pathname={pathname} />
             </div>
             <div className="border-t pt-4">
               <Button

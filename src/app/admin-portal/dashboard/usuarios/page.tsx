@@ -14,13 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { CheckCircle, XCircle, Loader2, KeyRound, UserPlus, Pause, Play, Trash2, AlertTriangle, Copy, Lock } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
+import { ADMIN_LEVEL_LABELS } from '@/lib/constants';
 import type { ExportColumn } from '@/lib/export';
-import type { Profile, UserRole } from '@/types/database';
+import type { Profile, UserRole, AdminLevel } from '@/types/database';
 
 const PAGE_SIZE = 20;
 
 const roleTabs = ['all', 'client', 'provider', 'admin'] as const;
 const roleLabels: Record<string, string> = { all: 'Todos', client: 'Clientes', provider: 'Proveedores', admin: 'Admins' };
+
+const ADMIN_LEVELS: AdminLevel[] = ['super_admin', 'operations', 'marketing', 'support'];
 
 export default function AdminUsuariosPage() {
   const [tab, setTab] = useState('all');
@@ -35,6 +38,7 @@ export default function AdminUsuariosPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
+  const [inviteLevel, setInviteLevel] = useState<AdminLevel>('operations');
   const [inviting, setInviting] = useState(false);
 
   // Delete dialog state
@@ -51,7 +55,7 @@ export default function AdminUsuariosPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, full_name, role, verified, created_at')
+        .select('id, email, full_name, role, verified, admin_level, created_at')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -114,10 +118,29 @@ export default function AdminUsuariosPage() {
   const handleRoleChange = async (id: string, role: UserRole) => {
     try {
       const supabase = createClient();
-      const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
+      const updates: Record<string, unknown> = { role };
+      // When changing to admin, set default level; when changing away, clear it
+      if (role === 'admin') {
+        updates.admin_level = 'operations';
+      } else {
+        updates.admin_level = null;
+      }
+      const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
-      setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u));
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, role, admin_level: role === 'admin' ? 'operations' : null } as Profile : u));
       toast({ title: `Rol cambiado a ${role}` });
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleAdminLevelChange = async (id: string, adminLevel: AdminLevel) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from('profiles').update({ admin_level: adminLevel }).eq('id', id);
+      if (error) throw error;
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, admin_level: adminLevel } as Profile : u));
+      toast({ title: `Nivel cambiado a ${ADMIN_LEVEL_LABELS[adminLevel]}` });
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     }
@@ -130,7 +153,7 @@ export default function AdminUsuariosPage() {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, full_name: inviteName }),
+        body: JSON.stringify({ email: inviteEmail, full_name: inviteName, admin_level: inviteLevel }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al invitar admin');
@@ -138,6 +161,7 @@ export default function AdminUsuariosPage() {
       setInviteOpen(false);
       setInviteEmail('');
       setInviteName('');
+      setInviteLevel('operations');
       setLoading(true);
       loadUsers();
     } catch (err) {
@@ -198,9 +222,13 @@ export default function AdminUsuariosPage() {
     { header: 'Nombre', accessor: 'full_name' },
     { header: 'Email', accessor: 'email' },
     { header: 'Rol', accessor: 'role' },
+    { header: 'Nivel Admin', accessor: (r) => r.admin_level ? ADMIN_LEVEL_LABELS[r.admin_level as AdminLevel] : '' },
     { header: 'Estado', accessor: (r) => r.verified ? 'Activo' : 'Inactivo' },
     { header: 'Registro', accessor: (r) => new Date(r.created_at).toLocaleDateString('es-MX') },
   ];
+
+  // Only super_admin can manage other admin levels
+  const canManageLevels = currentUser?.admin_level === 'super_admin';
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" role="status" aria-label="Cargando usuarios" /></div>;
 
@@ -211,22 +239,25 @@ export default function AdminUsuariosPage() {
         <div className="flex items-center gap-3">
           <ExportButton data={filtered} columns={exportColumns} filename="usuarios" pdfTitle="Usuarios" />
           <p className="text-sm text-muted-foreground">{users.length} usuarios registrados</p>
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-1" />
-            Invitar Admin
-          </Button>
+          {canManageLevels && (
+            <Button size="sm" onClick={() => setInviteOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-1" />
+              Invitar Admin
+            </Button>
+          )}
         </div>
       </div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>{roleTabs.map((r) => <TabsTrigger key={r} value={r}>{roleLabels[r]}</TabsTrigger>)}</TabsList>
         <TabsContent value={tab} className="mt-4">
           <div className="rounded-md border overflow-x-auto">
-            <Table className="min-w-[700px]">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead>Nivel</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="hidden md:table-cell">Registro</TableHead>
                   <TableHead>Acciones</TableHead>
@@ -234,20 +265,47 @@ export default function AdminUsuariosPage() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hay usuarios</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hay usuarios</TableCell></TableRow>
                 ) : paged.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.full_name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
-                      <Select value={u.role} onValueChange={(v) => handleRoleChange(u.id, v as UserRole)}>
-                        <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="client">Cliente</SelectItem>
-                          <SelectItem value="provider">Proveedor</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {canManageLevels ? (
+                        <Select value={u.role} onValueChange={(v) => handleRoleChange(u.id, v as UserRole)}>
+                          <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="client">Cliente</SelectItem>
+                            <SelectItem value="provider">Proveedor</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-sm capitalize">{u.role}</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {u.role === 'admin' ? (
+                        canManageLevels ? (
+                          <Select
+                            value={u.admin_level || 'super_admin'}
+                            onValueChange={(v) => handleAdminLevelChange(u.id, v as AdminLevel)}
+                          >
+                            <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ADMIN_LEVELS.map((level) => (
+                                <SelectItem key={level} value={level}>
+                                  {ADMIN_LEVEL_LABELS[level]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-sm">{u.admin_level ? ADMIN_LEVEL_LABELS[u.admin_level] : '—'}</span>
+                        )
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {u.verified
@@ -275,17 +333,19 @@ export default function AdminUsuariosPage() {
                         <Lock className="h-3 w-3 mr-1" />
                         Temp Pass
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        aria-label="Borrar usuario"
-                        disabled={u.id === currentUser?.id}
-                        onClick={() => setDeleteTarget(u)}
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Borrar
-                      </Button>
+                      {canManageLevels && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          aria-label="Borrar usuario"
+                          disabled={u.id === currentUser?.id}
+                          onClick={() => setDeleteTarget(u)}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Borrar
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -324,6 +384,25 @@ export default function AdminUsuariosPage() {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-level">Nivel de acceso</Label>
+              <Select value={inviteLevel} onValueChange={(v) => setInviteLevel(v as AdminLevel)}>
+                <SelectTrigger id="invite-level"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ADMIN_LEVELS.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {ADMIN_LEVEL_LABELS[level]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {ADMIN_LEVEL_LABELS[inviteLevel] === 'Super Admin' && 'Acceso completo a todas las secciones'}
+                {inviteLevel === 'operations' && 'Servicios, reservas, reviews, fiscal, finanzas, proveedores, usuarios'}
+                {inviteLevel === 'marketing' && 'Campanas, banners, contenido, notificaciones, conversaciones'}
+                {inviteLevel === 'support' && 'Solo lectura + mensajes WhatsApp manuales'}
+              </p>
             </div>
           </div>
           <DialogFooter>

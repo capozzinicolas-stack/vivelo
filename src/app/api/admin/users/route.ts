@@ -3,7 +3,9 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import crypto from 'crypto';
 
-async function verifyAdmin(): Promise<{ authorized: boolean; userId?: string; error?: string }> {
+import type { AdminLevel } from '@/types/database';
+
+async function verifyAdmin(): Promise<{ authorized: boolean; userId?: string; adminLevel?: AdminLevel | null; error?: string }> {
   try {
     const supabase = createServerSupabaseClient();
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -14,7 +16,7 @@ async function verifyAdmin(): Promise<{ authorized: boolean; userId?: string; er
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, admin_level')
       .eq('id', user.id)
       .single();
 
@@ -22,7 +24,7 @@ async function verifyAdmin(): Promise<{ authorized: boolean; userId?: string; er
       return { authorized: false, error: 'Not admin' };
     }
 
-    return { authorized: true, userId: user.id };
+    return { authorized: true, userId: user.id, adminLevel: profile.admin_level as AdminLevel | null };
   } catch (err) {
     return { authorized: false, error: `Exception: ${err instanceof Error ? err.message : String(err)}` };
   }
@@ -39,7 +41,7 @@ export async function GET() {
     const supabaseAdmin = createAdminSupabaseClient();
     const { data, error } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, full_name, role, verified, created_at')
+      .select('id, email, full_name, role, verified, admin_level, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -65,7 +67,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, verified, role } = body;
+    const { id, verified, role, admin_level } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID de usuario requerido' }, { status: 400 });
@@ -73,7 +75,26 @@ export async function PATCH(request: NextRequest) {
 
     const updates: Record<string, unknown> = {};
     if (typeof verified === 'boolean') updates.verified = verified;
-    if (role && ['client', 'provider', 'admin'].includes(role)) updates.role = role;
+    if (role && ['client', 'provider', 'admin'].includes(role)) {
+      // Only super_admin can change roles
+      if (auth.adminLevel !== 'super_admin') {
+        return NextResponse.json({ error: 'Solo Super Admin puede cambiar roles' }, { status: 403 });
+      }
+      updates.role = role;
+      // Clear admin_level if not admin; set default if becoming admin
+      if (role !== 'admin') {
+        updates.admin_level = null;
+      } else if (!admin_level) {
+        updates.admin_level = 'operations';
+      }
+    }
+    if (admin_level && ['super_admin', 'operations', 'marketing', 'support'].includes(admin_level)) {
+      // Only super_admin can change admin levels
+      if (auth.adminLevel !== 'super_admin') {
+        return NextResponse.json({ error: 'Solo Super Admin puede cambiar niveles de admin' }, { status: 403 });
+      }
+      updates.admin_level = admin_level;
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No hay cambios' }, { status: 400 });
@@ -106,13 +127,21 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
     }
+    // Only super_admin can invite new admins
+    if (auth.adminLevel !== 'super_admin') {
+      return NextResponse.json({ error: 'Solo Super Admin puede invitar administradores' }, { status: 403 });
+    }
 
     const body = await request.json();
-    const { email, full_name } = body;
+    const { email, full_name, admin_level } = body;
 
     if (!email || !full_name) {
       return NextResponse.json({ error: 'Email y nombre completo son requeridos' }, { status: 400 });
     }
+
+    const level = admin_level && ['super_admin', 'operations', 'marketing', 'support'].includes(admin_level)
+      ? admin_level
+      : 'operations';
 
     const supabaseAdmin = createAdminSupabaseClient();
 
@@ -131,7 +160,7 @@ export async function POST(request: NextRequest) {
     // Update profile to admin role (trigger handle_new_user creates it as 'client')
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
-      .update({ role: 'admin', full_name })
+      .update({ role: 'admin', full_name, admin_level: level })
       .eq('id', newUser.user.id);
 
     if (updateError) {
@@ -165,6 +194,10 @@ export async function DELETE(request: NextRequest) {
     const auth = await verifyAdmin();
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: 401 });
+    }
+    // Only super_admin can delete users
+    if (auth.adminLevel !== 'super_admin') {
+      return NextResponse.json({ error: 'Solo Super Admin puede eliminar usuarios' }, { status: 403 });
     }
 
     const body = await request.json();

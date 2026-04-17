@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireRole, requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { validateBody, CreateServiceCommentSchema } from '@/lib/validations/api-schemas';
 import { sendServiceCommentNotification } from '@/lib/email';
@@ -36,7 +36,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * Envia notificacion in-app + email al proveedor.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
 
   const { id: serviceId } = await params;

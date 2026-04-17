@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireRole, isAuthError } from '@/lib/auth/api-auth';
+import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { validateBody, AssignReferralManualSchema } from '@/lib/validations/api-schemas';
 import { computeExpectedBenefits, diffBenefitsToInsert, initialBenefitStatus } from '@/lib/referrals';
@@ -19,7 +19,7 @@ import { computeExpectedBenefits, diffBenefitsToInsert, initialBenefitStatus } f
  * - Otherwise created with status='pending_signup'
  */
 export async function POST(request: NextRequest) {
-  const auth = await requireRole(['admin']);
+  const auth = await requireAdminLevel(['super_admin', 'operations']);
   if (isAuthError(auth)) return auth;
 
   const { data: body, error: validationError } = await validateBody(request, AssignReferralManualSchema);
