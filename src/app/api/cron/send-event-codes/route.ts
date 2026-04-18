@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     .from('bookings')
     .select('id, client_id, provider_id, service_id, event_date, service:services(title), client:profiles!bookings_client_id_fkey(full_name, email, phone)')
     .eq('event_date', today)
-    .eq('status', 'confirmed')
+    .in('status', ['confirmed', 'pending'])
     .is('start_code', null);
 
   if (error) {

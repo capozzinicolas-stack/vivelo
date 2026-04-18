@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'La reserva ya fue rechazada' }, { status: 400 });
     }
 
-    // Pending bookings: cancel directly, no refund policy applies
+    // Pending bookings: cancel PI (no refund policy), 100% release
     const isPending = status === 'pending';
 
     // 3. Resolve cancellation policy (only for confirmed bookings)
@@ -79,6 +79,52 @@ export async function POST(request: NextRequest) {
     let refund_amount = 0;
     let stripeRefundId: string | null = null;
     const snapshot = booking.cancellation_policy_snapshot as Record<string, unknown> | null;
+
+    // Resolve Stripe PI (needed for both pending and confirmed)
+    let stripePI: string | null = null;
+    if (!isMockDb) {
+      if (booking.order_id) {
+        const orderClient = createAdminSupabaseClient();
+        const { data: order } = await orderClient
+          .from('orders')
+          .select('stripe_payment_intent_id, status')
+          .eq('id', booking.order_id as string)
+          .single();
+        stripePI = order?.stripe_payment_intent_id || null;
+
+        // For pending bookings (pre-accept): cancel/release the PI hold
+        if (isPending && stripePI && !isMock) {
+          try {
+            const stripe = new Stripe(secretKey!);
+            // Check PI status — if requires_capture, cancel it (releases hold)
+            const pi = await stripe.paymentIntents.retrieve(stripePI);
+            if (pi.status === 'requires_capture') {
+              // Check if this is the only remaining pending booking
+              const { data: siblings } = await orderClient
+                .from('bookings')
+                .select('id, status')
+                .eq('order_id', booking.order_id as string);
+
+              const otherPending = siblings?.filter(b => b.id !== bookingId && b.status === 'pending') || [];
+              const otherConfirmed = siblings?.filter(b => b.id !== bookingId && b.status === 'confirmed') || [];
+
+              if (otherPending.length === 0 && otherConfirmed.length === 0) {
+                // No other active bookings — cancel PI entirely
+                await stripe.paymentIntents.cancel(stripePI);
+                console.log(`[Cancel] Cancelled PI ${stripePI} (all bookings cancelled/rejected)`);
+              }
+              // If other bookings still active, just cancel this booking (PI stays for them)
+            }
+          } catch (stripeError) {
+            console.error(`[Cancel] Stripe PI cancel failed for ${stripePI}:`, stripeError);
+          }
+        }
+      }
+      if (!stripePI && booking.stripe_payment_intent_id) {
+        stripePI = booking.stripe_payment_intent_id as string;
+        console.log(`[Cancel] Using legacy booking.stripe_payment_intent_id: ${stripePI}`);
+      }
+    }
 
     if (!isPending) {
       // Only confirmed bookings go through refund policy
@@ -117,26 +163,6 @@ export async function POST(request: NextRequest) {
       }
 
       // 5. Process Stripe refund if applicable
-      // stripe_payment_intent_id lives on the order, not the booking
-      let stripePI: string | null = null;
-      if (!isMockDb) {
-        // Primary: fetch from orders table via order_id
-        if (booking.order_id) {
-          const orderClient = createAdminSupabaseClient();
-          const { data: order } = await orderClient
-            .from('orders')
-            .select('stripe_payment_intent_id')
-            .eq('id', booking.order_id as string)
-            .single();
-          stripePI = order?.stripe_payment_intent_id || null;
-        }
-        // Fallback: legacy bookings may have stripe_payment_intent_id directly
-        if (!stripePI && booking.stripe_payment_intent_id) {
-          stripePI = booking.stripe_payment_intent_id as string;
-          console.log(`[Cancel] Using legacy booking.stripe_payment_intent_id: ${stripePI}`);
-        }
-      }
-
       if (refund_amount > 0 && stripePI && !isMock) {
         try {
           const stripe = new Stripe(secretKey!);

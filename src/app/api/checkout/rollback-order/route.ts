@@ -87,28 +87,38 @@ export async function POST(request: NextRequest) {
     if (stripePI && !isMock) {
       try {
         const stripe = new Stripe(secretKey!);
-        // Full refund — no amount parameter refunds the entire charge
-        const refund = await stripe.refunds.create({
-          payment_intent: stripePI,
-          reason: 'requested_by_customer',
-          metadata: {
-            orderId,
-            rollbackReason: reason || 'booking_creation_failed',
-            rolledBackBy: auth.user.id,
-          },
-        });
-        stripeRefundId = refund.id;
-        refundedAmount = refund.amount / 100; // centavos -> MXN
-        console.log(
-          `[Checkout Rollback] Stripe refund created: ${refund.id}, amount: ${refundedAmount} MXN, PI: ${stripePI}`
-        );
+        // Check PI status — if requires_capture (auth & capture), cancel instead of refund
+        const pi = await stripe.paymentIntents.retrieve(stripePI);
+
+        if (pi.status === 'requires_capture') {
+          // Auth & capture: cancel PI to release the hold (no charge was made)
+          await stripe.paymentIntents.cancel(stripePI);
+          refundedAmount = pi.amount / 100;
+          console.log(
+            `[Checkout Rollback] Cancelled uncaptured PI ${stripePI}, released ${refundedAmount} MXN`
+          );
+        } else {
+          // Already captured — full refund
+          const refund = await stripe.refunds.create({
+            payment_intent: stripePI,
+            reason: 'requested_by_customer',
+            metadata: {
+              orderId,
+              rollbackReason: reason || 'booking_creation_failed',
+              rolledBackBy: auth.user.id,
+            },
+          });
+          stripeRefundId = refund.id;
+          refundedAmount = refund.amount / 100; // centavos -> MXN
+          console.log(
+            `[Checkout Rollback] Stripe refund created: ${refund.id}, amount: ${refundedAmount} MXN, PI: ${stripePI}`
+          );
+        }
       } catch (stripeErr) {
         console.error(
-          `[Checkout Rollback] Stripe refund FAILED for PI ${stripePI}, order ${orderId}:`,
+          `[Checkout Rollback] Stripe refund/cancel FAILED for PI ${stripePI}, order ${orderId}:`,
           stripeErr
         );
-        // Do not proceed with DB cleanup if refund failed — leaves order in inconsistent state
-        // but prevents marking as cancelled when money is still captured.
         return NextResponse.json(
           {
             error:

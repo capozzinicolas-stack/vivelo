@@ -7,12 +7,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { BOOKING_STATUS_LABELS, BOOKING_STATUS_COLORS } from '@/lib/constants';
-import { updateBookingStatus } from '@/lib/supabase/queries';
 import { calculateRefund } from '@/lib/cancellation';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
-import { CalendarDays, Clock, MapPin, Users, Mail, PartyPopper, Loader2, ShieldCheck } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Users, Mail, PartyPopper, Loader2, ShieldCheck, Timer } from 'lucide-react';
 import type { Booking, BookingStatus, CancellationPolicy, CancellationRule } from '@/types/database';
 
 interface BookingDetailDialogProps {
@@ -33,6 +33,8 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
   const [policyName, setPolicyName] = useState<string | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
   // Recalculate refund preview when cancel dialog opens
   useEffect(() => {
@@ -67,16 +69,66 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
         subtotal: se.price,
       })) || [];
 
-  const handleAction = async (newStatus: BookingStatus) => {
-    setActionLoading(newStatus);
+  const handleAcceptBooking = async () => {
+    setActionLoading('confirmed');
     try {
-      await updateBookingStatus(booking.id, newStatus);
-      const label = BOOKING_STATUS_LABELS[newStatus];
-      toast({ title: `Reserva ${label}`, description: `La reserva ha sido actualizada a "${label}".` });
-      onStatusChange?.(booking.id, newStatus);
+      const res = await fetch(`/api/provider/bookings/${booking.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al aceptar');
+      toast({ title: 'Reserva aceptada', description: 'La reserva ha sido confirmada exitosamente.' });
+      onStatusChange?.(booking.id, 'confirmed');
       onOpenChange(false);
-    } catch {
-      toast({ title: 'Error', description: 'No se pudo actualizar la reserva.', variant: 'destructive' });
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo aceptar la reserva.', variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectBooking = async () => {
+    if (!rejectReason.trim()) {
+      toast({ title: 'Error', description: 'Ingresa un motivo de rechazo.', variant: 'destructive' });
+      return;
+    }
+    setActionLoading('rejected');
+    try {
+      const res = await fetch(`/api/provider/bookings/${booking.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al rechazar');
+      toast({ title: 'Reserva rechazada', description: 'La reserva ha sido rechazada.' });
+      onStatusChange?.(booking.id, 'rejected');
+      setRejectDialogOpen(false);
+      setRejectReason('');
+      onOpenChange(false);
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo rechazar la reserva.', variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelPending = async () => {
+    setActionLoading('cancelled');
+    try {
+      const res = await fetch('/api/bookings/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: booking.id, cancelledBy: role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cancelar');
+      toast({ title: 'Reserva cancelada', description: 'La reserva ha sido cancelada.' });
+      onStatusChange?.(booking.id, 'cancelled');
+      onOpenChange(false);
+    } catch (err) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'No se pudo cancelar.', variant: 'destructive' });
     } finally {
       setActionLoading(null);
     }
@@ -144,6 +196,18 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
   };
 
   const canCancel = booking.status === 'confirmed' || booking.status === 'pending';
+
+  // Deadline countdown for provider
+  const deadlineInfo = (() => {
+    if (!booking.provider_acceptance_deadline) return null;
+    const deadline = new Date(booking.provider_acceptance_deadline);
+    const now = new Date();
+    const diff = deadline.getTime() - now.getTime();
+    if (diff <= 0) return { expired: true, text: 'Plazo vencido' };
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return { expired: false, text: `${hours}h ${minutes}m restantes para responder` };
+  })();
 
   return (
     <>
@@ -384,6 +448,17 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
               </>
             )}
 
+            {/* Provider acceptance deadline countdown */}
+            {role === 'provider' && booking.status === 'pending' && deadlineInfo && (
+              <>
+                <Separator />
+                <div className={`flex items-center gap-2 text-sm rounded-lg p-3 ${deadlineInfo.expired ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <Timer className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">{deadlineInfo.text}</span>
+                </div>
+              </>
+            )}
+
             {/* Action buttons */}
             {canCancel && (
               <>
@@ -393,8 +468,8 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
                     <>
                       <Button
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => handleAction('confirmed')}
-                        disabled={!!actionLoading}
+                        onClick={handleAcceptBooking}
+                        disabled={!!actionLoading || (deadlineInfo?.expired ?? false)}
                       >
                         {actionLoading === 'confirmed' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                         Aceptar Reservacion
@@ -402,20 +477,19 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
                       <Button
                         variant="destructive"
                         className="flex-1"
-                        onClick={() => handleAction('rejected')}
-                        disabled={!!actionLoading}
+                        onClick={() => setRejectDialogOpen(true)}
+                        disabled={!!actionLoading || (deadlineInfo?.expired ?? false)}
                       >
-                        {actionLoading === 'rejected' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                         Rechazar
                       </Button>
                     </>
                   )}
-                  {/* Pending: client can cancel directly (no refund policy) */}
+                  {/* Pending: client can cancel directly (cancel PI, no refund policy) */}
                   {booking.status === 'pending' && role === 'client' && (
                     <Button
                       variant="destructive"
                       className="w-full"
-                      onClick={() => handleAction('cancelled')}
+                      onClick={handleCancelPending}
                       disabled={!!actionLoading}
                     >
                       {actionLoading === 'cancelled' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
@@ -439,6 +513,41 @@ export function BookingDetailDialog({ booking, open, onOpenChange, role, onStatu
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Rejection reason dialog */}
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechazar reservacion</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Por favor indica el motivo del rechazo. El cliente sera notificado.</p>
+                <Textarea
+                  placeholder="Motivo del rechazo..."
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  rows={3}
+                  className="mt-2"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!actionLoading} onClick={() => setRejectReason('')}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleRejectBooking();
+              }}
+              disabled={!!actionLoading || !rejectReason.trim()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {actionLoading === 'rejected' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Confirmar rechazo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancellation confirmation dialog with refund preview */}
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>

@@ -19,9 +19,11 @@ export type WaEventType =
   | 'provider_event_reminder' | 'provider_start_code' | 'provider_booking_completed'
   | 'provider_new_review' | 'provider_fiscal_approved' | 'provider_fiscal_rejected'
   | 'provider_banking_approved' | 'provider_banking_rejected' | 'provider_admin_comment'
-  | 'provider_booking_rejected' | 'client_welcome' | 'client_booking_confirmed'
+  | 'provider_booking_rejected' | 'provider_booking_accepted'
+  | 'client_welcome' | 'client_booking_confirmed'
   | 'client_booking_cancelled' | 'client_event_reminder' | 'client_verification_codes'
   | 'client_booking_completed' | 'client_event_started' | 'client_booking_rejected'
+  | 'client_payment_authorized'
   | 'admin_manual';
 
 // ─── Template name mapping ───────────────────────────────────
@@ -44,6 +46,7 @@ const TEMPLATE_MAP: Record<WaEventType, string> = {
   provider_banking_rejected: 'vivelo_proveedor_banco_rechazado',
   provider_admin_comment: 'vivelo_proveedor_comentario_admin',
   provider_booking_rejected: 'vivelo_proveedor_reserva_rechazada',
+  provider_booking_accepted: 'vivelo_proveedor_reserva_aceptada',
   client_welcome: 'vivelo_cliente_bienvenida',
   client_booking_confirmed: 'vivelo_reserva_confirmada',
   client_booking_cancelled: 'vivelo_reserva_cancelada',
@@ -52,6 +55,7 @@ const TEMPLATE_MAP: Record<WaEventType, string> = {
   client_booking_completed: 'vivelo_reserva_completada',
   client_event_started: 'vivelo_evento_iniciado',
   client_booking_rejected: 'vivelo_reserva_rechazada',
+  client_payment_authorized: 'vivelo_pago_autorizado',
   admin_manual: 'vivelo_mensaje_admin',
 };
 
@@ -731,6 +735,57 @@ export function waClientBookingRejected(data: {
     bookingId: data.bookingId,
     serviceId: data.serviceId,
   }).catch(err => console.error('[WhatsApp] client_booking_rejected error:', err));
+}
+
+// New auth & capture events
+
+export function waClientPaymentAuthorized(data: {
+  clientId: string;
+  clientPhone: string | null;
+  clientName: string;
+  orderId: string;
+  total: number;
+}) {
+  if (!data.clientPhone) return;
+  sendWhatsAppEvent({
+    eventType: 'client_payment_authorized',
+    recipientId: data.clientId,
+    recipientPhone: data.clientPhone,
+    recipientName: data.clientName,
+    variables: {
+      nombre: data.clientName,
+      monto: `$${data.total.toLocaleString()} MXN`,
+      link: 'https://solovivelo.com/dashboard/cliente/reservas',
+    },
+  }).catch(err => console.error('[WhatsApp] client_payment_authorized error:', err));
+}
+
+export function waProviderBookingAccepted(data: {
+  providerId: string;
+  providerPhone: string | null;
+  providerName: string;
+  serviceTitle: string;
+  serviceId: string;
+  clientName: string;
+  eventDate: string;
+  bookingId: string;
+}) {
+  if (!data.providerPhone) return;
+  sendWhatsAppEvent({
+    eventType: 'provider_booking_accepted',
+    recipientId: data.providerId,
+    recipientPhone: data.providerPhone,
+    recipientName: data.providerName,
+    variables: {
+      nombre: data.providerName,
+      servicio: data.serviceTitle,
+      cliente: data.clientName,
+      fecha: data.eventDate,
+      link: 'https://solovivelo.com/dashboard/proveedor/reservas',
+    },
+    bookingId: data.bookingId,
+    serviceId: data.serviceId,
+  }).catch(err => console.error('[WhatsApp] provider_booking_accepted error:', err));
 }
 
 // Admin events

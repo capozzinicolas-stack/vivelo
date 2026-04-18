@@ -1,6 +1,8 @@
 import type { AdminLevel } from '@/types/database';
 
 export const COMMISSION_RATE = 0.12;
+export const PROVIDER_ACCEPTANCE_HOURS = 48;
+export const MIN_BOOKING_ADVANCE_HOURS = 24;
 
 export const VIVELO_ZONES = [
   { slug: 'ciudad-de-mexico', label: 'Ciudad de México' },

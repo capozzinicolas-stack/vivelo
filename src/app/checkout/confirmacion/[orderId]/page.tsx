@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { PromoBanner } from '@/components/marketing/promo-banner';
-import { CheckCircle, Loader2, Calendar, ArrowRight } from 'lucide-react';
+import { CheckCircle, Clock, Loader2, Calendar, ArrowRight } from 'lucide-react';
 import type { Order } from '@/types/database';
 
 export default function ConfirmacionPage() {
@@ -32,16 +32,33 @@ export default function ConfirmacionPage() {
     return <div className="container mx-auto px-4 py-16 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>;
   }
 
+  const isAuthorized = order?.status === 'authorized' || order?.status === 'pending';
+  const isPaid = order?.status === 'paid';
+
   return (
     <div className="container mx-auto px-4 py-16 max-w-2xl">
       <div className="text-center space-y-4 mb-8">
-        <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-          <CheckCircle className="h-10 w-10 text-green-600" />
-        </div>
-        <h1 className="text-3xl font-bold">Pago confirmado!</h1>
-        <p className="text-muted-foreground">
-          Tu pedido ha sido procesado exitosamente. Los proveedores seran notificados.
-        </p>
+        {isAuthorized ? (
+          <>
+            <div className="w-20 h-20 mx-auto bg-amber-100 rounded-full flex items-center justify-center">
+              <Clock className="h-10 w-10 text-amber-600" />
+            </div>
+            <h1 className="text-3xl font-bold">Pago autorizado</h1>
+            <p className="text-muted-foreground">
+              Tu tarjeta ha sido autorizada. Estamos esperando la confirmacion de los proveedores (maximo 48 horas). Te notificaremos cuando acepten.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+            <h1 className="text-3xl font-bold">{isPaid ? 'Reserva confirmada!' : 'Pago confirmado!'}</h1>
+            <p className="text-muted-foreground">
+              Tu pedido ha sido procesado exitosamente. Los proveedores han sido notificados.
+            </p>
+          </>
+        )}
       </div>
 
       {order && (
@@ -49,7 +66,9 @@ export default function ConfirmacionPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="font-semibold">Detalles del pedido</h2>
-              <Badge className="bg-green-100 text-green-800">{order.status === 'paid' ? 'Pagado' : order.status}</Badge>
+              <Badge className={order.status === 'authorized' || order.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}>
+                {order.status === 'paid' ? 'Pagado' : order.status === 'authorized' ? 'Autorizado' : order.status === 'pending' ? 'Pendiente' : order.status}
+              </Badge>
             </div>
 
             <div className="text-sm text-muted-foreground">
@@ -69,7 +88,9 @@ export default function ConfirmacionPage() {
                     </div>
                     <div className="text-right">
                       <span className="font-medium">${booking.total.toLocaleString()}</span>
-                      <Badge variant="outline" className="ml-2 text-xs">{booking.status === 'confirmed' ? 'Confirmado' : booking.status}</Badge>
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {booking.status === 'confirmed' ? 'Confirmado' : booking.status === 'pending' ? 'Esperando proveedor' : booking.status}
+                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -78,7 +99,7 @@ export default function ConfirmacionPage() {
 
             <Separator />
             <div className="flex justify-between font-bold text-lg">
-              <span>Total pagado</span>
+              <span>{isAuthorized ? 'Total autorizado' : 'Total pagado'}</span>
               <span>${order.total.toLocaleString()} MXN</span>
             </div>
           </CardContent>

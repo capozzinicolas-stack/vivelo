@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { PROVIDER_ACCEPTANCE_HOURS } from '@/lib/constants';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
@@ -43,137 +44,128 @@ export async function POST(request: NextRequest) {
     }
 
     switch (event.type) {
+      // ─── AUTH: Card authorized, PI awaiting capture ─────────────────
+      case 'payment_intent.amount_capturable_updated': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        const orderId = pi.metadata?.orderId;
+        console.log(`[Stripe] Pago autorizado (capturable): ${pi.id}, Order: ${orderId}`);
+
+        if (!orderId) {
+          console.warn(`[Stripe] amount_capturable_updated without orderId, skipping`);
+          break;
+        }
+
+        // Update order to 'authorized'
+        const { data: updatedOrders } = await supabaseAdmin
+          .from('orders')
+          .update({ status: 'authorized', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
+          .eq('id', orderId)
+          .eq('status', 'pending')
+          .select('id, total, client_id');
+
+        if (!updatedOrders || updatedOrders.length === 0) {
+          console.log(`[Stripe] Order ${orderId} already past pending, skipping auth update`);
+          break;
+        }
+
+        // Set acceptance deadline + stripe PI on all pending bookings
+        const deadline = new Date(Date.now() + PROVIDER_ACCEPTANCE_HOURS * 60 * 60 * 1000).toISOString();
+        const { data: orderBookings } = await supabaseAdmin
+          .from('bookings')
+          .update({
+            stripe_payment_intent_id: pi.id,
+            provider_acceptance_deadline: deadline,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('order_id', orderId)
+          .eq('status', 'pending')
+          .select('id, client_id, provider_id, service_id, event_date, start_time, total, service:services(title)');
+
+        console.log(`[Stripe] Set deadline on ${orderBookings?.length || 0} bookings for order ${orderId}`);
+
+        // WhatsApp: notify client of authorization + each provider of new booking
+        if (orderBookings && orderBookings.length > 0) {
+          try {
+            const { waClientPaymentAuthorized, waProviderNewBooking } = await import('@/lib/whatsapp');
+            const clientId = updatedOrders[0].client_id;
+
+            const { data: clientProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('full_name, phone')
+              .eq('id', clientId)
+              .single();
+
+            if (clientProfile?.phone) {
+              waClientPaymentAuthorized({
+                clientId,
+                clientPhone: clientProfile.phone,
+                clientName: clientProfile.full_name || 'Cliente',
+                orderId,
+                total: updatedOrders[0].total,
+              });
+            }
+
+            for (const booking of orderBookings) {
+              const providerId = (booking as Record<string, unknown>).provider_id as string;
+              const serviceId = (booking as Record<string, unknown>).service_id as string;
+              const serviceData = booking.service as unknown as { title: string } | null;
+              const serviceTitle = serviceData?.title || 'Servicio';
+              const eventDate = (booking as Record<string, unknown>).event_date as string || '';
+
+              const { data: providerProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('full_name, phone')
+                .eq('id', providerId)
+                .single();
+
+              if (providerProfile?.phone) {
+                waProviderNewBooking({
+                  providerId,
+                  providerPhone: providerProfile.phone,
+                  providerName: providerProfile.full_name || 'Proveedor',
+                  serviceTitle,
+                  serviceId,
+                  clientName: clientProfile?.full_name || 'Cliente',
+                  eventDate,
+                  bookingId: booking.id,
+                });
+              }
+            }
+          } catch (err) {
+            console.error('[Stripe Webhook] WhatsApp notification error:', err);
+          }
+        }
+        break;
+      }
+
+      // ─── CAPTURED: PI was captured (by provider accept) ─────────────
       case 'payment_intent.succeeded': {
         const pi = event.data.object as Stripe.PaymentIntent;
         const orderId = pi.metadata?.orderId;
         const bookingId = pi.metadata?.bookingId;
-        console.log(`[Stripe] Pago exitoso: ${pi.id}, Order: ${orderId}, Booking: ${bookingId}`);
+        console.log(`[Stripe] Pago capturado: ${pi.id}, Order: ${orderId}, Booking: ${bookingId}`);
 
         if (orderId) {
-          // New order-based flow: update order + all its bookings (idempotent)
-          const { data: updatedOrders } = await supabaseAdmin
+          // Update order to 'paid' — bookings already confirmed by accept endpoint
+          await supabaseAdmin
             .from('orders')
             .update({ status: 'paid', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
             .eq('id', orderId)
-            .eq('status', 'pending')
-            .select('id');
+            .in('status', ['pending', 'authorized']);
 
-          if (!updatedOrders || updatedOrders.length === 0) {
-            console.log(`[Stripe] Order ${orderId} already processed, skipping`);
-            break;
-          }
+          console.log(`[Stripe] Order ${orderId} → paid`);
 
-          // Confirm all bookings in this order
-          const { data: orderBookings } = await supabaseAdmin
-            .from('bookings')
-            .update({ status: 'confirmed', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
-            .eq('order_id', orderId)
-            .eq('status', 'pending')
-            .select('*, service:services(title)');
+          // Provider Referrals V2: activate pending_signup referrals (non-blocking)
+          try {
+            const { data: confirmedBookings } = await supabaseAdmin
+              .from('bookings')
+              .select('id, provider_id')
+              .eq('order_id', orderId)
+              .eq('status', 'confirmed');
 
-          // Increment used_count atomically for each unique campaign used in this order.
-          // Idempotent via stripe_webhook_events table check above — if this webhook runs
-          // twice for the same event, the outer idempotency guard short-circuits.
-          if (orderBookings && orderBookings.length > 0) {
-            const campaignIds = orderBookings
-              .map(b => (b as { campaign_id?: string | null }).campaign_id)
-              .filter((id): id is string => !!id);
-            const uniqueCampaignIds = Array.from(new Set(campaignIds));
-            for (const campaignId of uniqueCampaignIds) {
-              try {
-                const { error: rpcErr } = await supabaseAdmin.rpc('increment_campaign_usage', {
-                  p_campaign_id: campaignId,
-                });
-                if (rpcErr) {
-                  console.error(`[Stripe Webhook] increment_campaign_usage failed for ${campaignId}:`, rpcErr);
-                }
-              } catch (err) {
-                console.error(`[Stripe Webhook] increment_campaign_usage exception for ${campaignId}:`, err);
-              }
-            }
-          }
-
-          // Send WhatsApp booking confirmations (non-blocking)
-          if (orderBookings && orderBookings.length > 0) {
-            try {
-              const { waClientBookingConfirmed, waProviderNewBooking } = await import('@/lib/whatsapp');
-              for (const booking of orderBookings) {
-                const clientId = (booking as Record<string, unknown>).client_id as string;
-                const providerId = (booking as Record<string, unknown>).provider_id as string;
-                const serviceId = (booking as Record<string, unknown>).service_id as string;
-                const serviceData = booking.service as { title: string } | null;
-                const serviceTitle = serviceData?.title || 'Servicio';
-                const eventDate = (booking as Record<string, unknown>).event_date as string || '';
-                const startTime = (booking as Record<string, unknown>).start_time as string || '';
-
-                const { data: clientProfile } = await supabaseAdmin
-                  .from('profiles')
-                  .select('full_name, phone')
-                  .eq('id', clientId)
-                  .single();
-
-                if (clientProfile?.phone) {
-                  waClientBookingConfirmed({
-                    bookingId: booking.id,
-                    serviceId,
-                    serviceTitle,
-                    clientId,
-                    clientPhone: clientProfile.phone,
-                    clientName: clientProfile.full_name || 'Cliente',
-                    eventDate,
-                    startTime,
-                    total: (booking as Record<string, unknown>).total as number || 0,
-                  });
-                }
-
-                // Notify provider of new booking
-                const { data: providerProfile } = await supabaseAdmin
-                  .from('profiles')
-                  .select('full_name, phone')
-                  .eq('id', providerId)
-                  .single();
-
-                if (providerProfile?.phone) {
-                  waProviderNewBooking({
-                    providerId,
-                    providerPhone: providerProfile.phone,
-                    providerName: providerProfile.full_name || 'Proveedor',
-                    serviceTitle,
-                    serviceId,
-                    clientName: clientProfile?.full_name || 'Cliente',
-                    eventDate,
-                    bookingId: booking.id,
-                  });
-                }
-              }
-            } catch (err) {
-              console.error('[Stripe Webhook] WhatsApp notification error:', err);
-            }
-          }
-
-          // Push each confirmed booking to Google Calendar (non-blocking)
-          if (orderBookings && orderBookings.length > 0) {
-            try {
-              const { pushBookingToGoogle } = await import('@/lib/google-calendar/sync');
-              await Promise.allSettled(
-                orderBookings.map(booking =>
-                  pushBookingToGoogle(booking).catch(err =>
-                    console.error(`[Stripe Webhook] Google Calendar push failed for booking ${booking.id}:`, err)
-                  )
-                )
-              );
-            } catch (err) {
-              console.error('[Stripe Webhook] Google Calendar integration error:', err);
-            }
-          }
-
-          // Provider Referrals V2: activate pending_signup referrals when
-          // a provider completes their first confirmed sale. Non-blocking.
-          // Idempotent via stripe_webhook_events guard above + unique index on benefits.
-          if (orderBookings && orderBookings.length > 0) {
-            try {
+            if (confirmedBookings && confirmedBookings.length > 0) {
               const providerFirstBooking = new Map<string, { id: string }>();
-              for (const b of orderBookings) {
+              for (const b of confirmedBookings) {
                 const pid = (b as { provider_id?: string | null }).provider_id;
                 if (pid && !providerFirstBooking.has(pid)) {
                   providerFirstBooking.set(pid, { id: b.id });
@@ -213,7 +205,6 @@ export async function POST(request: NextRequest) {
                     referrersToRecompute.add(reward.referrer_id);
                   }
 
-                  // Recompute benefits for each affected referrer (insert delta only)
                   for (const referrerId of Array.from(referrersToRecompute)) {
                     try {
                       const { count: activeCount } = await supabaseAdmin
@@ -265,9 +256,9 @@ export async function POST(request: NextRequest) {
                   }
                 }
               }
-            } catch (err) {
-              console.error('[Stripe Webhook] Provider referrals activation error:', err);
             }
+          } catch (err) {
+            console.error('[Stripe Webhook] Provider referrals activation error:', err);
           }
         } else if (bookingId) {
           // Legacy single-booking flow (backwards compatible, idempotent)
@@ -301,6 +292,39 @@ export async function POST(request: NextRequest) {
         }
         break;
       }
+
+      // ─── PI CANCELED: defensive cleanup ─────────────────────────────
+      case 'payment_intent.canceled': {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        const orderId = pi.metadata?.orderId;
+        console.log(`[Stripe] PaymentIntent cancelado: ${pi.id}, Order: ${orderId}`);
+
+        if (orderId) {
+          // Mark pending bookings as rejected
+          const { data: rejectedBookings } = await supabaseAdmin
+            .from('bookings')
+            .update({
+              status: 'rejected',
+              provider_rejected_at: new Date().toISOString(),
+              provider_rejection_reason: 'Pago cancelado por Stripe',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('order_id', orderId)
+            .eq('status', 'pending')
+            .select('id');
+
+          console.log(`[Stripe] Rejected ${rejectedBookings?.length || 0} pending bookings for cancelled PI`);
+
+          // Mark order as cancelled
+          await supabaseAdmin
+            .from('orders')
+            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('id', orderId)
+            .in('status', ['pending', 'authorized']);
+        }
+        break;
+      }
+
       case 'payment_intent.payment_failed': {
         const pi = event.data.object as Stripe.PaymentIntent;
         console.error(`[Stripe] Pago fallido: ${pi.id}, Error: ${pi.last_payment_error?.message}`);
@@ -313,8 +337,6 @@ export async function POST(request: NextRequest) {
           : charge.payment_intent?.id;
         console.log(`[Stripe] Reembolso confirmado: ${charge.id}, PI: ${piId}, Amount refunded: ${charge.amount_refunded}`);
 
-        // Booking should already be marked as cancelled by /api/bookings/cancel
-        // This is just a confirmation log. Optionally verify:
         if (piId) {
           const { data: booking } = await supabaseAdmin
             .from('bookings')

@@ -19,6 +19,7 @@ export type WaEventType =
   | 'provider_booking_rejected' | 'client_welcome' | 'client_booking_confirmed'
   | 'client_booking_cancelled' | 'client_event_reminder' | 'client_verification_codes'
   | 'client_booking_completed' | 'client_event_started' | 'client_booking_rejected'
+  | 'client_payment_authorized' | 'provider_booking_accepted'
   | 'admin_manual';
 export type WaLogStatus = 'pending' | 'accepted' | 'sent' | 'delivered' | 'read' | 'failed';
 
@@ -79,7 +80,7 @@ export interface CategoryFieldDefinition {
 export type ServiceStatus = 'draft' | 'pending_review' | 'needs_revision' | 'active' | 'paused' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'in_review' | 'completed' | 'cancelled' | 'rejected';
 export type BankingStatus = 'not_submitted' | 'pending_review' | 'verified' | 'rejected';
-export type OrderStatus = 'pending' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded' | 'partially_refunded';
+export type OrderStatus = 'pending' | 'authorized' | 'paid' | 'partially_fulfilled' | 'fulfilled' | 'cancelled' | 'refunded' | 'partially_refunded';
 export type GoogleSyncStatus = 'active' | 'error' | 'disconnected';
 export type CalendarBlockSource = 'manual' | 'google_sync';
 
@@ -303,6 +304,10 @@ export interface Booking {
   end_code_used_at?: string | null;
   end_code_deadline?: string | null;
   auto_completed?: boolean;
+  provider_acceptance_deadline?: string | null;
+  provider_accepted_at?: string | null;
+  provider_rejected_at?: string | null;
+  provider_rejection_reason?: string | null;
   created_at: string;
   updated_at: string;
   // Joined data

@@ -206,7 +206,7 @@ export default function CheckoutPage() {
 
       const finalTotal = cartTotal - discountTotal;
 
-      // 1. Create order (NO bookings yet — those are created after payment)
+      // 1. Create order
       const order = await createOrder({
         client_id: user.id,
         subtotal: cartTotal,
@@ -217,7 +217,31 @@ export default function CheckoutPage() {
 
       setOrderId(order.id);
 
-      // 2. Create payment intent
+      // 2. Create bookings BEFORE payment (auth & capture flow)
+      try {
+        await createBookingsForOrder(order.id, user.id);
+      } catch (bookingErr) {
+        console.error('[Checkout] createBookingsForOrder failed, rolling back:', bookingErr);
+        try {
+          await fetch('/api/checkout/rollback-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: order.id,
+              reason: bookingErr instanceof Error ? bookingErr.message : 'booking_creation_failed',
+            }),
+          });
+        } catch (rollbackErr) {
+          console.error('[Checkout] Rollback call failed:', rollbackErr);
+        }
+        throw new Error(
+          bookingErr instanceof Error
+            ? `Error creando las reservas: ${bookingErr.message}. Tu orden fue cancelada. Intenta de nuevo.`
+            : 'Error creando las reservas. Tu orden fue cancelada. Intenta de nuevo.'
+        );
+      }
+
+      // 3. Create payment intent (with capture_method:'manual')
       const res = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -228,30 +252,6 @@ export default function CheckoutPage() {
 
       // Check if it's mock mode
       if (data.clientSecret?.includes('_mock')) {
-        // In mock mode, create bookings and redirect.
-        // C1 FIX: wrap in try/catch + rollback on failure (same pattern as real flow).
-        try {
-          await createBookingsForOrder(order.id, user.id);
-        } catch (bookingErr) {
-          console.error('[Checkout Mock] createBookingsForOrder failed, rolling back:', bookingErr);
-          try {
-            await fetch('/api/checkout/rollback-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                orderId: order.id,
-                reason: bookingErr instanceof Error ? bookingErr.message : 'booking_creation_failed_mock',
-              }),
-            });
-          } catch (rollbackErr) {
-            console.error('[Checkout Mock] Rollback call failed:', rollbackErr);
-          }
-          throw new Error(
-            bookingErr instanceof Error
-              ? `Error creando las reservas: ${bookingErr.message}. Tu orden fue cancelada. Intenta de nuevo.`
-              : 'Error creando las reservas. Tu orden fue cancelada. Intenta de nuevo.'
-          );
-        }
         clearCart();
         router.push(`/checkout/confirmacion/${order.id}`);
         return;
@@ -406,57 +406,9 @@ export default function CheckoutPage() {
   const handlePaymentSuccess = async () => {
     if (!orderId || !user) return;
 
-    try {
-      // Create bookings AFTER successful payment
-      await createBookingsForOrder(orderId, user.id);
-    } catch (err) {
-      console.error('[Checkout] createBookingsForOrder failed, initiating rollback:', err);
-      // C1 FIX: Payment succeeded but booking creation failed mid-loop.
-      // Call rollback endpoint to refund Stripe PI and cancel any partial bookings.
-      let rollbackOk = false;
-      try {
-        const rollbackRes = await fetch('/api/checkout/rollback-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId,
-            reason: err instanceof Error ? err.message : 'booking_creation_failed',
-          }),
-        });
-        // 409 = already rolled back (idempotent), treat as success
-        rollbackOk = rollbackRes.ok || rollbackRes.status === 409;
-      } catch (rollbackErr) {
-        console.error('[Checkout] Rollback call failed:', rollbackErr);
-      }
-
-      if (rollbackOk) {
-        setError(
-          `Hubo un problema al crear tus reservas. Tu pago fue reembolsado automaticamente. Puedes intentar de nuevo. (Orden: ${orderId})`
-        );
-      } else {
-        setError(
-          `Hubo un problema al crear tus reservas y no pudimos procesar el reembolso automatico. Por favor contacta a soporte con tu codigo de orden: ${orderId}`
-        );
-      }
-      // Return to initial checkout view so error renders and user can retry
-      setClientSecret(null);
-      setOrderId(null);
-      return;
-    }
-
-    // C2 FIX: If the webhook already ran (order='paid') but found no bookings
-    // to confirm, this call confirms them now. If webhook hasn't arrived yet,
-    // this is a no-op and the webhook will handle it. Non-blocking.
-    try {
-      await fetch('/api/checkout/confirm-bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
-      });
-    } catch {
-      // Non-blocking: webhook may still handle confirmation
-    }
-
+    // Auth & capture flow: bookings already created before payment.
+    // Payment authorization triggers webhook (amount_capturable_updated)
+    // which sets order to 'authorized' and starts provider acceptance window.
     trackPurchase(orderId, cartSnapshotRef.current, cartTotal);
     clearCart();
     router.push(`/checkout/confirmacion/${orderId}`);

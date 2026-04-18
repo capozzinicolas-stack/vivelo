@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireAuth, isAuthError } from '@/lib/auth/api-auth';
 import { validateBody, CreatePaymentIntentSchema } from '@/lib/validations/api-schemas';
+import { MIN_BOOKING_ADVANCE_HOURS } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,26 @@ export async function POST(request: NextRequest) {
       const { data: order } = await supabase.from('orders').select('client_id, discount_total').eq('id', orderId).single();
       if (!order || order.client_id !== auth.user.id) {
         return NextResponse.json({ error: 'Orden no encontrada o no autorizada' }, { status: 403 });
+      }
+
+      // Validate 24h minimum advance for all bookings in the order
+      const { data: orderBookings } = await supabase
+        .from('bookings')
+        .select('id, event_date, start_time')
+        .eq('order_id', orderId);
+
+      if (orderBookings && orderBookings.length > 0) {
+        const now = new Date();
+        for (const b of orderBookings) {
+          const eventStart = new Date(`${b.event_date}T${b.start_time || '00:00'}:00`);
+          const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+          if (hoursUntilEvent < MIN_BOOKING_ADVANCE_HOURS) {
+            return NextResponse.json(
+              { error: `Todas las reservas deben tener al menos ${MIN_BOOKING_ADVANCE_HOURS}h de antelacion. Ajusta la fecha u hora.` },
+              { status: 400 }
+            );
+          }
+        }
       }
 
       // Validate campaign discounts server-side.
@@ -101,6 +122,7 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'mxn',
+      capture_method: 'manual',
       metadata: {
         ...(orderId ? { orderId } : {}),
         ...(bookingId ? { bookingId } : {}),

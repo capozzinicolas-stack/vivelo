@@ -173,7 +173,9 @@ Toda la matematica financiera usa: `Math.round(valor × 100) / 100` (redondeo a 
 
 ---
 
-## Flujo de Checkout Completo
+## Flujo de Checkout Completo (Auth & Capture)
+
+El checkout usa **Stripe manual capture** (`capture_method: 'manual'`). La tarjeta del cliente se autoriza al pagar, pero el cobro real solo ocurre cuando el proveedor acepta la reserva.
 
 ### Paso 1: Carrito → Checkout
 - Usuario hace click en "Proceder al Checkout" desde `/carrito`
@@ -192,35 +194,58 @@ createOrder({
 → Order con status 'pending'
 ```
 
-### Paso 4: Crear PaymentIntent
+### Paso 4: Crear Bookings (ANTES del pago)
+- `createBookingsForOrder()` crea un Booking + SubBookings por cada item del carrito
+- Cada booking se crea con `status: 'pending'`
+- Snapshots: `commission_rate_snapshot`, `cancellation_policy_snapshot`, `billing_type_snapshot`, `effective_start/end`
+- Si falla mid-loop: rollback bookings parciales y orden via `/api/checkout/rollback-order`
+
+### Paso 5: Crear PaymentIntent
 ```
 POST /api/stripe/create-payment-intent
   { orderId, amount: finalTotal }
-→ Stripe PaymentIntent en centavos MXN
+→ Stripe PaymentIntent con capture_method:'manual' en centavos MXN
+→ Valida min 24h de antelacion para cada booking
 → Retorna clientSecret
 ```
 
-El servidor valida: orden existe, pertenece al usuario, campanas siguen activas.
+El servidor valida: orden existe, pertenece al usuario, campanas siguen activas, bookings con fecha >= 24h en el futuro.
 
-### Paso 5: Pago con Stripe Elements
+### Paso 6: Pago con Stripe Elements
 - `stripe.confirmPayment()` con redirect `'if_required'` (3D Secure)
-- Si mock mode: salta Stripe, crea bookings directo
+- La tarjeta se **autoriza** (no se cobra) — PI queda en `requires_capture`
+- Si mock mode: salta Stripe, confirma directo
 
-### Paso 6: Post-Pago (client-side)
-- `createBookingsForOrder()` crea un Booking + SubBookings por cada item del carrito
-- Cada booking incluye snapshots: `commission_rate_snapshot`, `cancellation_policy_snapshot`, `billing_type_snapshot`, `effective_start/end`
-- Limpia carrito, redirect a `/checkout/confirmacion/[orderId]`
+### Paso 7: Webhook `payment_intent.amount_capturable_updated`
+- Order → `status = 'authorized'`
+- Cada booking recibe `provider_acceptance_deadline = now + 48h`
+- WhatsApp: `waClientPaymentAuthorized()` al cliente, `waProviderNewBooking()` a cada proveedor
+- NO confirma bookings, NO cobra
 
-### Paso 7: Webhook de Stripe (server-side, paralelo)
-- `payment_intent.succeeded`: Order → `status='paid'`, todos los bookings → `status='confirmed'`
-- Push cada booking a Google Calendar del proveedor
-- Idempotencia via tabla `stripe_webhook_events`
+### Paso 8: Proveedor Acepta/Rechaza (48h)
+- **Acepta** (`POST /api/provider/bookings/[id]/accept`): booking → `confirmed`, si todos confirmed → `stripe.paymentIntents.capture()`, incrementa campaign usage
+- **Rechaza** (`POST /api/provider/bookings/[id]/reject`): booking → `rejected`, decrementa campaign usage, si todos rejected → `stripe.paymentIntents.cancel()`
+- **Expira** (cron horario `/api/cron/expire-pending-bookings`): auto-rechaza con razon "Tiempo de aceptacion vencido (48h)"
+
+### Paso 9: Webhook `payment_intent.succeeded` (post-capture)
+- Order → `status = 'paid'`
+- Bookings ya estan confirmed (por accept endpoint)
+- Activa referidos pendientes
+
+### Multi-proveedor (ordenes con N bookings)
+```
+Todos aceptan         → capture PI completo, order → paid
+Todos rechazan        → cancel PI, order → cancelled
+Mix aceptan/rechazan  → partial capture (amount_to_capture), resto liberado
+Algunos expiran       → misma logica que mix
+```
 
 ### Relacion de datos
 ```
 Order (1) → (N) Bookings → (N) SubBookings
 Order.stripe_payment_intent_id = compartido por todos los bookings
 Booking.order_id = referencia a la orden
+Booking.provider_acceptance_deadline = now + 48h (set por webhook)
 ```
 
 ---
@@ -238,17 +263,22 @@ pending ──→ confirmed ──→ in_progress ──→ completed (terminal)
 
 | Transicion | Disparador | Quien |
 |------------|-----------|-------|
-| pending → confirmed | Webhook `payment_intent.succeeded` | Sistema (Stripe) |
-| pending → cancelled | Cancelacion manual | Cliente, proveedor o admin |
-| pending → rejected | Rechazo manual | Proveedor o admin |
+| pending → confirmed | Proveedor acepta (`/api/provider/bookings/[id]/accept`) | Proveedor |
+| pending → cancelled | Cancelacion manual (cancel PI, sin politica de reembolso) | Cliente, proveedor o admin |
+| pending → rejected | Rechazo manual o auto-expiracion 48h | Proveedor, admin o cron |
 | confirmed → in_progress | Verificacion de `start_code` | Proveedor |
-| confirmed → cancelled | Cancelacion con politica de reembolso | Cliente, proveedor o admin |
+| confirmed → cancelled | Cancelacion con politica de reembolso (Stripe refund) | Cliente, proveedor o admin |
 | confirmed → completed | Manual o auto-complete | Admin o cron |
 | in_progress → completed | Verificacion de `end_code` o auto-complete | Cliente o cron |
 | in_progress → cancelled | Cancelacion | Cliente, proveedor o admin |
 
+**Deadline de aceptacion del proveedor:**
+- Al autorizar pago, webhook setea `provider_acceptance_deadline = now + 48h` en cada booking
+- Si el proveedor no responde, cron horario (`/api/cron/expire-pending-bookings`) auto-rechaza
+- Constantes: `PROVIDER_ACCEPTANCE_HOURS = 48`, `MIN_BOOKING_ADVANCE_HOURS = 24`
+
 **Codigos de Verificacion:**
-- Cron diario genera `start_code` y `end_code` (6 digitos) para bookings confirmados del dia
+- Cron diario genera `start_code` y `end_code` (6 digitos) para bookings confirmados **y pendientes** del dia
 - Proveedor verifica `start_code` → booking pasa a `in_progress`
 - Cliente verifica `end_code` → booking pasa a `completed`
 - `end_code_deadline` = fecha_evento + 3 dias habiles. Si pasa, cron auto-completa.
@@ -272,9 +302,9 @@ pending ──→ confirmed ──→ in_progress ──→ completed (terminal)
 
 1. **Auth**: Cliente, proveedor o admin pueden cancelar
 2. **Validacion**: No se puede cancelar si ya esta `cancelled`, `completed` o `rejected`
-3. **Bookings pending**: Se cancelan directo, sin politica de reembolso
-4. **Bookings confirmed+**: Se aplica politica de cancelacion
-5. **Stripe refund**: Se busca `stripe_payment_intent_id` primero en la orden (via `booking.order_id`), fallback al booking directo (legacy)
+3. **Bookings pending** (proveedor no ha aceptado): Se cancela el PI hold (`stripe.paymentIntents.cancel()`) si no hay otros bookings activos en la orden. Sin politica de reembolso — 100% liberado
+4. **Bookings confirmed+** (proveedor ya acepto): Se aplica politica de cancelacion con Stripe refund
+5. **Stripe**: Para pending se busca PI via orden y se cancela (release hold). Para confirmed se crea refund. Busca PI primero en la orden (via `booking.order_id`), fallback al booking directo (legacy)
 6. **Recalculo de comision**:
    ```
    retainedAmount = booking.total - refund_amount
@@ -367,11 +397,20 @@ Datos financieros se capturan al momento de crear el booking para inmutabilidad 
 
 ## Integraciones
 
-### Stripe
+### Stripe (Auth & Capture)
 - **Moneda**: MXN, montos en pesos (centavos para la API)
+- **Capture method**: `manual` — tarjeta se autoriza al pagar, cobro real solo al aceptar proveedor
 - **Webhook**: `POST /api/stripe/webhook` con firma HMAC. Tabla `stripe_webhook_events` para idempotencia
-- **Eventos**: `payment_intent.succeeded` (confirma order+bookings), `payment_intent.payment_failed` (log), `charge.refunded` (log de confirmacion)
-- **Refund**: Se busca PI desde `orders.stripe_payment_intent_id` via `booking.order_id`, con fallback a `booking.stripe_payment_intent_id` (legacy)
+- **Eventos manejados**:
+  - `payment_intent.amount_capturable_updated`: Tarjeta autorizada → order `authorized`, setea deadline 48h, WhatsApp a cliente y proveedores
+  - `payment_intent.succeeded`: PI capturado → order `paid` (bookings ya confirmed por accept endpoint), activa referidos
+  - `payment_intent.canceled`: PI cancelado → bookings pending → `rejected`, order → `cancelled`
+  - `payment_intent.payment_failed`: Log
+  - `charge.refunded`: Log de confirmacion
+- **Capture**: `stripe.paymentIntents.capture()` llamado desde `/api/provider/bookings/[id]/accept` cuando todos los bookings estan confirmed. Soporta partial capture via `amount_to_capture`
+- **Cancel PI**: `stripe.paymentIntents.cancel()` para liberar hold cuando proveedor rechaza o booking expira
+- **Refund**: Para bookings ya capturados, se busca PI desde `orders.stripe_payment_intent_id` via `booking.order_id`, con fallback a `booking.stripe_payment_intent_id` (legacy)
+- **Rollback**: `/api/checkout/rollback-order` detecta PI status — si `requires_capture` cancela PI, si ya capturado crea refund
 
 ### Google Calendar ⚠️ NO INTEGRAR POR AHORA
 El codigo existe pero **no se esta usando en produccion**. No desarrollar ni expandir esta integracion hasta nuevo aviso. El codigo puede quedar como referencia pero no debe activarse.
@@ -391,10 +430,10 @@ El codigo existe pero **no se esta usando en produccion**. No desarrollar ni exp
 - **Env vars**: `MIRLO_API_KEY`, `MIRLO_ORGANIZATION_ID`, `MIRLO_ORGANIZATION_ADDRESS`, `MIRLO_WEBHOOK_SECRET` (para APIs de Mirlo)
 - **Mock mode**: Si `MIRLO_API_KEY` falta o es `'mirlo_placeholder'` → todo se logea pero no se envia
 - **Cliente Mirlo**: `src/lib/mirlo.ts` — fetch wrapper, `getTemplateIdByName()` con cache por cold start, sin funciones de broadcast
-- **Servicio WA**: `src/lib/whatsapp.ts` — 25 event types, `sendWhatsAppEvent()` + 25 funciones de conveniencia fire-and-forget. Template name resuelto via `TEMPLATE_MAP` + cache de Mirlo
+- **Servicio WA**: `src/lib/whatsapp.ts` — 27 event types, `sendWhatsAppEvent()` + 27 funciones de conveniencia fire-and-forget. Template name resuelto via `TEMPLATE_MAP` + cache de Mirlo
 - **Telefono**: `profiles.phone` guarda 10 digitos (ej: `5512345678`), se convierte a E.164 (`+525512345678`). Si `phone` es null → skip silencioso
-- **DB**: 1 tabla `whatsapp_events` + 2 enums (`wa_event_type` con 25 valores, `wa_log_status`), migracion `00117` (reemplaza 00116)
-- **25 event types**: provider_welcome, provider_service_approved/rejected/needs_revision, provider_new_booking, provider_booking_cancelled/rejected/completed, provider_event_reminder, provider_start_code, provider_new_review, provider_fiscal_approved/rejected, provider_banking_approved/rejected, provider_admin_comment, client_welcome, client_booking_confirmed/cancelled/rejected/completed, client_event_reminder, client_verification_codes, client_event_started, admin_manual
+- **DB**: 1 tabla `whatsapp_events` + 2 enums (`wa_event_type` con 27 valores, `wa_log_status`), migracion `00117` (reemplaza 00116)
+- **27 event types**: provider_welcome, provider_service_approved/rejected/needs_revision, provider_new_booking, provider_booking_cancelled/rejected/completed, provider_event_reminder, provider_start_code, provider_new_review, provider_fiscal_approved/rejected, provider_banking_approved/rejected, provider_admin_comment, client_welcome, client_booking_confirmed/cancelled/rejected/completed, client_event_reminder, client_verification_codes, client_event_started, client_payment_authorized, provider_booking_accepted, admin_manual
 - **Hooks non-blocking (11 archivos)**: Stripe webhook (confirmed + provider new booking), cancel (client + provider), send-event-codes (client codes + provider start_code), service-status-email (approved + rejected + needs_revision), send-event-reminders (client + provider), register-form (welcome), auto-complete (client + provider), verify-code (event started + completed), fiscal status (approved/rejected), admin comments, admin bookings status (rejected)
 - **APIs Mirlo**: `GET /api/mirlo/provider-status?phone=X` y `GET /api/mirlo/client-status?phone=X` — read-only, auth via `X-Mirlo-Secret` header
 - **Welcome endpoint**: `POST /api/whatsapp/welcome` — publico con dedup 24h, llamado desde register-form
@@ -445,8 +484,9 @@ src/
 │   └── api/
 │       ├── stripe/             create-payment-intent, webhook
 │       ├── bookings/           cancel, verify-code
+│       ├── provider/bookings/  [bookingId]/accept, [bookingId]/reject
 │       ├── google-calendar/    auth, callback, sync, cron-sync, status, disconnect
-│       ├── cron/               auto-complete, send-event-codes, end-expired-campaigns
+│       ├── cron/               auto-complete, send-event-codes, end-expired-campaigns, expire-pending-bookings
 │       ├── admin/              catalog, users, reviews, providers/commission
 │       ├── chat                Vivi AI (SSE streaming)
 │       ├── reviews             CRUD resenas
@@ -538,12 +578,12 @@ Admin usa service-role key para bypass de RLS en todas las operaciones administr
 | Campanas (admin) y Promociones (proveedor) | ✅ Terminado | Admin crea campanas, proveedores inscriben servicios, descuento se aplica en detalle + checkout. Todas las queries de campanas activas validan `status='active'` + `start_date <= now <= end_date`. Cron `end-expired-campaigns` transiciona vencidas a `ended` diariamente. Proveedores pueden crear sus propias promociones con cupones compartibles (absorben 100% del descuento, comision Vivelo intacta). Ver seccion "Promociones del Proveedor". |
 | Admin Portal | ✅ Terminado | KPIs, moderacion, finanzas, catalogo, usuarios, gestion de usuarios (invitar/pausar/borrar), recuperacion de contrasena, contrasena temporal, perfil admin. Booking status updates usan API route con service-role (bypass RLS) |
 | Chat Vivi (AI) | ✅ Terminado | Estable, sin planes de cambio |
-| Checkout + Stripe | ✅ Terminado | Pago + rollback compensatorio (C1 resuelto). Si `createBookingsForOrder` falla mid-loop, el cliente llama `/api/checkout/rollback-order` que refunda el PI completo + cancela bookings parciales + marca orden cancelled (idempotente via 409). |
+| Checkout + Stripe (Auth & Capture) | ✅ Terminado | Manual capture: bookings se crean ANTES del pago, tarjeta se autoriza (no se cobra), proveedor tiene 48h para aceptar/rechazar. Accept → capture PI, reject → cancel PI. Multi-proveedor con partial capture. Cron horario auto-expira bookings. Rollback compensatorio (C1) ajustado para cancelar PI no capturado. |
 | Cancelacion + reembolsos | ✅ Terminado | Flujo de cancelacion estable con calculo de refund, recalculo de comision, limpieza de Google Calendar y emails. |
 | Reviews/resenas | 🔲 Sin uso real | Codigo existe, moderacion implementada, sin resenas reales |
 | Google Calendar | 🚫 No integrar | Codigo existe pero NO se usa — no tocar |
 | Codigos de verificacion | 🔲 Implementado | Cron + endpoints existen, sin pruebas reales en produccion |
-| WhatsApp via Mirlo (Fase 2) | ✅ Terminado | Event-driven: 25 event types, Mirlo gestiona templates/flows/broadcasts, Vivelo solo dispara eventos y logea. 11 hooks en flujos existentes (stripe, cancel, codes, reminders, service-status, register, auto-complete, verify-code, fiscal, comments, bookings-status). APIs read-only para Mirlo. Dashboard admin metricas-only. Mock mode sin env vars. |
+| WhatsApp via Mirlo (Fase 2) | ✅ Terminado | Event-driven: 27 event types, Mirlo gestiona templates/flows/broadcasts, Vivelo solo dispara eventos y logea. 11 hooks en flujos existentes (stripe, cancel, codes, reminders, service-status, register, auto-complete, verify-code, fiscal, comments, bookings-status). APIs read-only para Mirlo. Dashboard admin metricas-only. Mock mode sin env vars. |
 | Mis Eventos (cliente) | ✅ Terminado | Agrupacion de servicios por `event_name` con gasto total y desglose |
 | SEO Slugs (servicios) | ✅ Terminado | URLs publicas usan `/servicios/{slug}` en vez de UUID. UUIDs redirigen 301. |
 | SEO Slugs (proveedores) | ✅ Terminado | URLs publicas usan `/proveedores/{slug}` en vez de UUID. UUIDs redirigen 301. Trigger SQL auto-genera slug al crear perfil. |
@@ -892,10 +932,9 @@ provider_referral_benefits.status:
 **NO se toca**: `commission.ts`, snapshots, webhook, state machine, cancellation flow.
 
 ### ✅ RESUELTO (C2): Race condition webhook vs booking creation
-**Antes**: El webhook `payment_intent.succeeded` podia llegar antes de que `createBookingsForOrder()` terminara. El webhook marcaba la orden como `paid` pero no encontraba bookings que confirmar. Los bookings quedaban en `pending` para siempre.
-**Solucion**: Despues de crear bookings, el cliente llama `POST /api/checkout/confirm-bookings`. Si la orden ya es `paid` (webhook ya paso), confirma los bookings pendientes + incrementa campaign usage. Si la orden aun es `pending`, no hace nada (el webhook lo hara). Idempotente via `WHERE status='pending'`.
-**Archivos**: `src/app/checkout/page.tsx` (`handlePaymentSuccess`), `src/app/api/checkout/confirm-bookings/route.ts`.
-**NO se toca**: webhook, commission.ts, state machine.
+**Antes**: El webhook `payment_intent.succeeded` podia llegar antes de que `createBookingsForOrder()` terminara.
+**Solucion original**: `POST /api/checkout/confirm-bookings` post-pago.
+**Solucion actual (Auth & Capture)**: Bookings se crean ANTES del pago. El webhook `amount_capturable_updated` solo setea deadline — no necesita buscar bookings que no existen. La race condition ya no existe. `confirm-bookings` route se conserva pero no se llama (deprecado).
 
 ### ✅ RESUELTO (C3): Order.status no se actualiza en cancelaciones/refunds
 **Antes**: Al cancelar bookings via `/api/bookings/cancel`, el status de la orden padre quedaba como `'paid'` para siempre, aunque todos los bookings estuvieran cancelados y reembolsados.
