@@ -9,9 +9,10 @@ interface StripePaymentFormProps {
   amount: number;
   orderId: string;
   onSuccess: () => void;
+  customerEmail?: string;
 }
 
-export function StripePaymentForm({ amount, orderId, onSuccess }: StripePaymentFormProps) {
+export function StripePaymentForm({ amount, orderId, onSuccess, customerEmail }: StripePaymentFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [status, setStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
@@ -59,7 +60,15 @@ export function StripePaymentForm({ amount, orderId, onSuccess }: StripePaymentF
         Informacion de Pago
       </h3>
 
-      <PaymentElement />
+      <PaymentElement
+        options={{
+          defaultValues: {
+            billingDetails: {
+              email: customerEmail || '',
+            },
+          },
+        }}
+      />
 
       {status === 'error' && (
         <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg p-3">

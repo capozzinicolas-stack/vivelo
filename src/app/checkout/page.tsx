@@ -641,6 +641,7 @@ export default function CheckoutPage() {
                       amount={cartTotal}
                       orderId={orderId!}
                       onSuccess={handlePaymentSuccess}
+                      customerEmail={user?.email}
                     />
                   </StripeProvider>
                 </>
