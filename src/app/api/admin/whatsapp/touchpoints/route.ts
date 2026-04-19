@@ -30,6 +30,8 @@ const TEMPLATE_MAP: Record<string, string> = {
   client_booking_completed: 'vivelo_reserva_completada',
   client_event_started: 'vivelo_evento_iniciado',
   client_booking_rejected: 'vivelo_reserva_rechazada',
+  client_payment_authorized: 'vivelo_pago_autorizado',
+  provider_booking_accepted: 'vivelo_proveedor_reserva_aceptada',
   admin_manual: 'vivelo_mensaje_admin',
 };
 
@@ -78,6 +80,8 @@ export async function GET() {
       recipient: tp.recipient,
       trigger: tp.trigger,
       channel: tp.channel,
+      journey: tp.journey,
+      phase: tp.phase,
       templateName,
       templateStatus, // 'APPROVED', 'REJECTED', null (not found)
       active: templateStatus === 'APPROVED',

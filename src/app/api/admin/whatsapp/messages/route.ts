@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
   const startDate = searchParams.get('start');
   const endDate = searchParams.get('end');
+  const bookingId = searchParams.get('booking_id');
+  const phone = searchParams.get('phone');
 
   const offset = (page - 1) * limit;
 
@@ -28,6 +30,8 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq('status', status);
   if (startDate) query = query.gte('created_at', startDate);
   if (endDate) query = query.lte('created_at', endDate);
+  if (bookingId) query = query.eq('booking_id', bookingId);
+  if (phone) query = query.ilike('phone', `%${phone}%`);
 
   const { data, count, error } = await query;
 

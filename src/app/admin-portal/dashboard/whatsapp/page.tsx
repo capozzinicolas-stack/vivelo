@@ -10,6 +10,8 @@ import { MessagesSquare, BarChart3, RefreshCw, CheckCircle2, Clock, XCircle } fr
 import { Button } from '@/components/ui/button';
 import { ChannelIcon } from '@/components/admin/channel-icon';
 import { type ConversationChannel } from '@/lib/constants';
+import { FlujosTab } from '@/components/admin/whatsapp/flujos-tab';
+import { PorReservaTab } from '@/components/admin/whatsapp/por-reserva-tab';
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -45,6 +47,8 @@ interface Touchpoint {
   recipient: 'provider' | 'client' | 'admin';
   trigger: string;
   channel: ConversationChannel;
+  journey: string;
+  phase: string;
   templateName: string | null;
   templateStatus: string | null;
   active: boolean;
@@ -59,6 +63,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   provider_service_rejected: 'Servicio rechazado',
   provider_service_needs_revision: 'Servicio requiere revision',
   provider_new_booking: 'Nueva reserva (proveedor)',
+  provider_booking_accepted: 'Reserva aceptada (proveedor)',
   provider_booking_cancelled: 'Reserva cancelada (proveedor)',
   provider_event_reminder: 'Recordatorio (proveedor)',
   provider_start_code: 'Codigo inicio (proveedor)',
@@ -71,6 +76,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   provider_admin_comment: 'Comentario admin',
   provider_booking_rejected: 'Reserva rechazada (proveedor)',
   client_welcome: 'Bienvenida cliente',
+  client_payment_authorized: 'Pago autorizado',
   client_booking_confirmed: 'Reserva confirmada',
   client_booking_cancelled: 'Reserva cancelada',
   client_event_reminder: 'Recordatorio (cliente)',
@@ -215,11 +221,18 @@ export default function ConversacionesDashboard() {
         </Button>
       </div>
 
-      <Tabs defaultValue="touchpoints">
+      <Tabs defaultValue="flujos">
         <TabsList>
+          <TabsTrigger value="flujos">Flujos</TabsTrigger>
           <TabsTrigger value="touchpoints">Touchpoints</TabsTrigger>
           <TabsTrigger value="actividad">Actividad</TabsTrigger>
+          <TabsTrigger value="por-reserva">Por Reserva</TabsTrigger>
         </TabsList>
+
+        {/* ─── Tab: Flujos ───────────────────────────────────── */}
+        <TabsContent value="flujos" className="space-y-4">
+          <FlujosTab touchpoints={touchpoints} loading={touchpointsLoading} />
+        </TabsContent>
 
         {/* ─── Tab: Touchpoints ──────────────────────────────── */}
         <TabsContent value="touchpoints" className="space-y-4">
@@ -292,6 +305,7 @@ export default function ConversacionesDashboard() {
                             <tr className="border-b text-left text-muted-foreground">
                               <th className="pb-2 pr-3 w-10">Canal</th>
                               <th className="pb-2 pr-3">Touchpoint</th>
+                              <th className="pb-2 pr-3 hidden sm:table-cell">Fase</th>
                               <th className="pb-2 pr-3 hidden md:table-cell">Disparador</th>
                               <th className="pb-2 pr-3 hidden lg:table-cell">Template</th>
                               <th className="pb-2 pr-3">Estado</th>
@@ -307,6 +321,9 @@ export default function ConversacionesDashboard() {
                                 <td className="py-2 pr-3">
                                   <div className="font-medium">{tp.label}</div>
                                   <div className="text-xs text-muted-foreground">{tp.description}</div>
+                                </td>
+                                <td className="py-2 pr-3 hidden sm:table-cell">
+                                  <span className="text-xs text-muted-foreground">{tp.phase}</span>
                                 </td>
                                 <td className="py-2 pr-3 text-xs text-muted-foreground hidden md:table-cell">
                                   {tp.trigger}
@@ -515,6 +532,11 @@ export default function ConversacionesDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ─── Tab: Por Reserva ───────────────────────────────── */}
+        <TabsContent value="por-reserva" className="space-y-4">
+          <PorReservaTab />
         </TabsContent>
       </Tabs>
     </div>

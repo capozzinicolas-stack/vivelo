@@ -314,6 +314,57 @@ export const CHANNEL_CONFIG: Record<ConversationChannel, { label: string; icon: 
   messenger: { label: 'Messenger', icon: 'Facebook', color: 'text-blue-500' },
 };
 
+export interface WhatsAppPhase {
+  id: string;
+  label: string;
+  touchpoints: string[]; // eventType references
+}
+
+export interface WhatsAppJourney {
+  id: string;
+  label: string;
+  icon: string; // Lucide icon name
+  phases: WhatsAppPhase[];
+}
+
+export const WHATSAPP_JOURNEYS: WhatsAppJourney[] = [
+  {
+    id: 'reserva',
+    label: 'Reserva',
+    icon: 'CalendarCheck',
+    phases: [
+      { id: 'pago', label: 'Pago autorizado', touchpoints: ['client_payment_authorized', 'provider_new_booking'] },
+      { id: 'aceptacion', label: 'Aceptacion del proveedor', touchpoints: ['provider_booking_accepted', 'client_booking_confirmed'] },
+      { id: 'recordatorios', label: 'Recordatorios', touchpoints: ['client_event_reminder', 'provider_event_reminder'] },
+      { id: 'codigos', label: 'Codigos de verificacion', touchpoints: ['client_verification_codes', 'provider_start_code'] },
+      { id: 'ejecucion', label: 'Ejecucion del evento', touchpoints: ['client_event_started'] },
+      { id: 'cierre', label: 'Cierre', touchpoints: ['client_booking_completed', 'provider_booking_completed', 'provider_new_review'] },
+      { id: 'cancelacion', label: 'Cancelacion / Rechazo', touchpoints: ['client_booking_cancelled', 'provider_booking_cancelled', 'client_booking_rejected', 'provider_booking_rejected'] },
+    ],
+  },
+  {
+    id: 'onboarding_proveedor',
+    label: 'Onboarding Proveedor',
+    icon: 'UserPlus',
+    phases: [
+      { id: 'registro', label: 'Registro', touchpoints: ['provider_welcome'] },
+      { id: 'servicio', label: 'Publicacion de servicio', touchpoints: ['provider_service_approved', 'provider_service_rejected', 'provider_service_needs_revision'] },
+      { id: 'fiscal', label: 'Datos fiscales', touchpoints: ['provider_fiscal_approved', 'provider_fiscal_rejected'] },
+      { id: 'banco', label: 'Datos bancarios', touchpoints: ['provider_banking_approved', 'provider_banking_rejected'] },
+    ],
+  },
+  {
+    id: 'operaciones',
+    label: 'Operaciones',
+    icon: 'Settings',
+    phases: [
+      { id: 'cliente_registro', label: 'Registro de cliente', touchpoints: ['client_welcome'] },
+      { id: 'comentarios', label: 'Comentarios admin', touchpoints: ['provider_admin_comment'] },
+      { id: 'manual', label: 'Mensajes manuales', touchpoints: ['admin_manual'] },
+    ],
+  },
+];
+
 export const TOUCHPOINT_CONFIG: Array<{
   eventType: string;
   label: string;
@@ -321,36 +372,46 @@ export const TOUCHPOINT_CONFIG: Array<{
   recipient: 'provider' | 'client' | 'admin';
   trigger: string;
   channel: ConversationChannel;
+  journey: string;
+  phase: string;
 }> = [
-  // Provider (16)
-  { eventType: 'provider_welcome', label: 'Bienvenida proveedor', description: 'Al registrarse como proveedor', recipient: 'provider', trigger: 'Registro', channel: 'whatsapp' },
-  { eventType: 'provider_service_approved', label: 'Servicio aprobado', description: 'Admin aprueba un servicio', recipient: 'provider', trigger: 'Admin aprueba servicio', channel: 'whatsapp' },
-  { eventType: 'provider_service_rejected', label: 'Servicio rechazado', description: 'Admin rechaza un servicio', recipient: 'provider', trigger: 'Admin rechaza servicio', channel: 'whatsapp' },
-  { eventType: 'provider_service_needs_revision', label: 'Servicio requiere revision', description: 'Admin solicita ajustes', recipient: 'provider', trigger: 'Admin solicita revision', channel: 'whatsapp' },
-  { eventType: 'provider_new_booking', label: 'Nueva reserva', description: 'Cliente confirma reserva', recipient: 'provider', trigger: 'Pago confirmado (Stripe)', channel: 'whatsapp' },
-  { eventType: 'provider_booking_cancelled', label: 'Reserva cancelada', description: 'Se cancela una reserva', recipient: 'provider', trigger: 'Cancelacion', channel: 'whatsapp' },
-  { eventType: 'provider_event_reminder', label: 'Recordatorio evento', description: '24h antes del evento', recipient: 'provider', trigger: 'Cron diario', channel: 'whatsapp' },
-  { eventType: 'provider_start_code', label: 'Codigo de inicio', description: 'Codigo para iniciar evento', recipient: 'provider', trigger: 'Cron diario', channel: 'whatsapp' },
-  { eventType: 'provider_booking_completed', label: 'Reserva completada', description: 'Evento finalizado', recipient: 'provider', trigger: 'Verificacion / auto-complete', channel: 'whatsapp' },
-  { eventType: 'provider_new_review', label: 'Nueva resena', description: 'Cliente deja resena', recipient: 'provider', trigger: 'Review creada', channel: 'whatsapp' },
-  { eventType: 'provider_fiscal_approved', label: 'Fiscal aprobado', description: 'Datos fiscales aprobados', recipient: 'provider', trigger: 'Admin aprueba fiscal', channel: 'whatsapp' },
-  { eventType: 'provider_fiscal_rejected', label: 'Fiscal rechazado', description: 'Datos fiscales rechazados', recipient: 'provider', trigger: 'Admin rechaza fiscal', channel: 'whatsapp' },
-  { eventType: 'provider_banking_approved', label: 'Banco aprobado', description: 'Datos bancarios aprobados', recipient: 'provider', trigger: 'Admin aprueba banco', channel: 'whatsapp' },
-  { eventType: 'provider_banking_rejected', label: 'Banco rechazado', description: 'Datos bancarios rechazados', recipient: 'provider', trigger: 'Admin rechaza banco', channel: 'whatsapp' },
-  { eventType: 'provider_admin_comment', label: 'Comentario admin', description: 'Admin comenta en servicio', recipient: 'provider', trigger: 'Admin crea comentario', channel: 'whatsapp' },
-  { eventType: 'provider_booking_rejected', label: 'Reserva rechazada', description: 'Admin rechaza reserva', recipient: 'provider', trigger: 'Admin rechaza booking', channel: 'whatsapp' },
-  // Client (8)
-  { eventType: 'client_welcome', label: 'Bienvenida cliente', description: 'Al registrarse como cliente', recipient: 'client', trigger: 'Registro', channel: 'whatsapp' },
-  { eventType: 'client_booking_confirmed', label: 'Reserva confirmada', description: 'Pago exitoso', recipient: 'client', trigger: 'Pago confirmado (Stripe)', channel: 'whatsapp' },
-  { eventType: 'client_booking_cancelled', label: 'Reserva cancelada', description: 'Se cancela una reserva', recipient: 'client', trigger: 'Cancelacion', channel: 'whatsapp' },
-  { eventType: 'client_event_reminder', label: 'Recordatorio evento', description: '24h antes del evento', recipient: 'client', trigger: 'Cron diario', channel: 'whatsapp' },
-  { eventType: 'client_verification_codes', label: 'Codigos verificacion', description: 'Codigos inicio/fin evento', recipient: 'client', trigger: 'Cron diario', channel: 'whatsapp' },
-  { eventType: 'client_booking_completed', label: 'Reserva completada', description: 'Evento finalizado', recipient: 'client', trigger: 'Verificacion / auto-complete', channel: 'whatsapp' },
-  { eventType: 'client_event_started', label: 'Evento iniciado', description: 'Proveedor verifico start_code', recipient: 'client', trigger: 'Verificacion start_code', channel: 'whatsapp' },
-  { eventType: 'client_booking_rejected', label: 'Reserva rechazada', description: 'Admin rechaza reserva', recipient: 'client', trigger: 'Admin rechaza booking', channel: 'whatsapp' },
+  // Provider (18)
+  { eventType: 'provider_welcome', label: 'Bienvenida proveedor', description: 'Al registrarse como proveedor', recipient: 'provider', trigger: 'Registro', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Registro' },
+  { eventType: 'provider_service_approved', label: 'Servicio aprobado', description: 'Admin aprueba un servicio', recipient: 'provider', trigger: 'Admin aprueba servicio', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Publicacion de servicio' },
+  { eventType: 'provider_service_rejected', label: 'Servicio rechazado', description: 'Admin rechaza un servicio', recipient: 'provider', trigger: 'Admin rechaza servicio', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Publicacion de servicio' },
+  { eventType: 'provider_service_needs_revision', label: 'Servicio requiere revision', description: 'Admin solicita ajustes', recipient: 'provider', trigger: 'Admin solicita revision', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Publicacion de servicio' },
+  { eventType: 'provider_new_booking', label: 'Nueva reserva', description: 'Cliente confirma reserva', recipient: 'provider', trigger: 'Pago confirmado (Stripe)', channel: 'whatsapp', journey: 'reserva', phase: 'Pago autorizado' },
+  { eventType: 'provider_booking_accepted', label: 'Reserva aceptada', description: 'Proveedor acepta la reserva', recipient: 'provider', trigger: 'Proveedor acepta booking', channel: 'whatsapp', journey: 'reserva', phase: 'Aceptacion del proveedor' },
+  { eventType: 'provider_booking_cancelled', label: 'Reserva cancelada', description: 'Se cancela una reserva', recipient: 'provider', trigger: 'Cancelacion', channel: 'whatsapp', journey: 'reserva', phase: 'Cancelacion / Rechazo' },
+  { eventType: 'provider_event_reminder', label: 'Recordatorio evento', description: '24h antes del evento', recipient: 'provider', trigger: 'Cron diario', channel: 'whatsapp', journey: 'reserva', phase: 'Recordatorios' },
+  { eventType: 'provider_start_code', label: 'Codigo de inicio', description: 'Codigo para iniciar evento', recipient: 'provider', trigger: 'Cron diario', channel: 'whatsapp', journey: 'reserva', phase: 'Codigos de verificacion' },
+  { eventType: 'provider_booking_completed', label: 'Reserva completada', description: 'Evento finalizado', recipient: 'provider', trigger: 'Verificacion / auto-complete', channel: 'whatsapp', journey: 'reserva', phase: 'Cierre' },
+  { eventType: 'provider_new_review', label: 'Nueva resena', description: 'Cliente deja resena', recipient: 'provider', trigger: 'Review creada', channel: 'whatsapp', journey: 'reserva', phase: 'Cierre' },
+  { eventType: 'provider_fiscal_approved', label: 'Fiscal aprobado', description: 'Datos fiscales aprobados', recipient: 'provider', trigger: 'Admin aprueba fiscal', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Datos fiscales' },
+  { eventType: 'provider_fiscal_rejected', label: 'Fiscal rechazado', description: 'Datos fiscales rechazados', recipient: 'provider', trigger: 'Admin rechaza fiscal', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Datos fiscales' },
+  { eventType: 'provider_banking_approved', label: 'Banco aprobado', description: 'Datos bancarios aprobados', recipient: 'provider', trigger: 'Admin aprueba banco', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Datos bancarios' },
+  { eventType: 'provider_banking_rejected', label: 'Banco rechazado', description: 'Datos bancarios rechazados', recipient: 'provider', trigger: 'Admin rechaza banco', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Datos bancarios' },
+  { eventType: 'provider_admin_comment', label: 'Comentario admin', description: 'Admin comenta en servicio', recipient: 'provider', trigger: 'Admin crea comentario', channel: 'whatsapp', journey: 'operaciones', phase: 'Comentarios admin' },
+  { eventType: 'provider_booking_rejected', label: 'Reserva rechazada', description: 'Admin rechaza reserva', recipient: 'provider', trigger: 'Admin rechaza booking', channel: 'whatsapp', journey: 'reserva', phase: 'Cancelacion / Rechazo' },
+  // Client (10)
+  { eventType: 'client_welcome', label: 'Bienvenida cliente', description: 'Al registrarse como cliente', recipient: 'client', trigger: 'Registro', channel: 'whatsapp', journey: 'operaciones', phase: 'Registro de cliente' },
+  { eventType: 'client_payment_authorized', label: 'Pago autorizado', description: 'Tarjeta autorizada exitosamente', recipient: 'client', trigger: 'Webhook Stripe (auth)', channel: 'whatsapp', journey: 'reserva', phase: 'Pago autorizado' },
+  { eventType: 'client_booking_confirmed', label: 'Reserva confirmada', description: 'Pago exitoso', recipient: 'client', trigger: 'Pago confirmado (Stripe)', channel: 'whatsapp', journey: 'reserva', phase: 'Aceptacion del proveedor' },
+  { eventType: 'client_booking_cancelled', label: 'Reserva cancelada', description: 'Se cancela una reserva', recipient: 'client', trigger: 'Cancelacion', channel: 'whatsapp', journey: 'reserva', phase: 'Cancelacion / Rechazo' },
+  { eventType: 'client_event_reminder', label: 'Recordatorio evento', description: '24h antes del evento', recipient: 'client', trigger: 'Cron diario', channel: 'whatsapp', journey: 'reserva', phase: 'Recordatorios' },
+  { eventType: 'client_verification_codes', label: 'Codigos verificacion', description: 'Codigos inicio/fin evento', recipient: 'client', trigger: 'Cron diario', channel: 'whatsapp', journey: 'reserva', phase: 'Codigos de verificacion' },
+  { eventType: 'client_booking_completed', label: 'Reserva completada', description: 'Evento finalizado', recipient: 'client', trigger: 'Verificacion / auto-complete', channel: 'whatsapp', journey: 'reserva', phase: 'Cierre' },
+  { eventType: 'client_event_started', label: 'Evento iniciado', description: 'Proveedor verifico start_code', recipient: 'client', trigger: 'Verificacion start_code', channel: 'whatsapp', journey: 'reserva', phase: 'Ejecucion del evento' },
+  { eventType: 'client_booking_rejected', label: 'Reserva rechazada', description: 'Admin rechaza reserva', recipient: 'client', trigger: 'Admin rechaza booking', channel: 'whatsapp', journey: 'reserva', phase: 'Cancelacion / Rechazo' },
   // Admin (1)
-  { eventType: 'admin_manual', label: 'Mensaje manual', description: 'Mensaje enviado por admin', recipient: 'admin', trigger: 'Manual', channel: 'whatsapp' },
+  { eventType: 'admin_manual', label: 'Mensaje manual', description: 'Mensaje enviado por admin', recipient: 'admin', trigger: 'Manual', channel: 'whatsapp', journey: 'operaciones', phase: 'Mensajes manuales' },
 ];
+
+/** Lookup rapido: eventType → phase label */
+export function getPhaseLabel(eventType: string): string | null {
+  const tp = TOUCHPOINT_CONFIG.find(t => t.eventType === eventType);
+  return tp?.phase ?? null;
+}
 
 export const BANNER_KEY_LABELS: Record<string, string> = {
   showcase_promo: 'Tarjeta Promo Showcase',
