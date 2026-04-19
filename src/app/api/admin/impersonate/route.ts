@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
+import { logAdminAction } from '@/lib/audit';
+import { getClientIp } from '@/lib/rate-limit';
 
 const schema = z.object({
   providerId: z.string().uuid(),
@@ -44,6 +46,15 @@ export async function POST(request: Request) {
     }
 
     console.log(`[Admin Impersonate] Token generated for provider ${provider.email} by admin ${auth.user.email}`);
+
+    logAdminAction({
+      adminId: auth.user.id,
+      action: 'impersonate_provider',
+      targetType: 'user',
+      targetId: providerId,
+      details: { provider_email: provider.email },
+      ip: getClientIp(request),
+    });
 
     // Return URL to client-side page that will verify the token and establish session
     const url = `/auth/magic-login?token_hash=${linkData.properties.hashed_token}&type=magiclink&next=/dashboard/proveedor`;

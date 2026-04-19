@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { logAdminAction } from '@/lib/audit';
+import { getClientIp } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 import type { AdminLevel } from '@/types/database';
@@ -111,6 +113,15 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    logAdminAction({
+      adminId: auth.userId!,
+      action: 'user_update',
+      targetType: 'user',
+      targetId: id,
+      details: updates,
+      ip: getClientIp(request),
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[Admin Users] Unhandled error:', err);
@@ -179,6 +190,15 @@ export async function POST(request: NextRequest) {
       // User was created successfully, just warn about the email
     }
 
+    logAdminAction({
+      adminId: auth.userId!,
+      action: 'user_invite',
+      targetType: 'user',
+      targetId: newUser.user.id,
+      details: { email, full_name, admin_level: level },
+      ip: getClientIp(request),
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[Admin Users] POST unhandled error:', err);
@@ -235,6 +255,14 @@ export async function DELETE(request: NextRequest) {
       console.error('[Admin Users] Delete auth user error:', authError);
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
+
+    logAdminAction({
+      adminId: auth.userId!,
+      action: 'user_delete',
+      targetType: 'user',
+      targetId: id,
+      ip: getClientIp(request),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

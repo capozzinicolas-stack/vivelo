@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { sendTemporaryPassword } from '@/lib/email';
+import { isRateLimited, getClientIp } from '@/lib/rate-limit';
 import crypto from 'crypto';
 
 function generateTempPassword(): string {
@@ -14,6 +15,12 @@ function generateTempPassword(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: max 3 recovery requests per IP per 5 minutes
+    const ip = getClientIp(request);
+    if (isRateLimited('auth-recover', ip, { windowMs: 5 * 60_000, max: 3 })) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Intenta en unos minutos.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const { email } = body;
 

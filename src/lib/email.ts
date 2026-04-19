@@ -1,10 +1,29 @@
 import { Resend } from 'resend';
+import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
 const EMAIL_FROM = process.env.EMAIL_FROM || 'Vivelo <noreply@solovivelo.com>';
+
+/** Fire-and-forget: log email failure to DB for admin visibility */
+function logEmailFailure(emailType: string, recipient: string, subject: string, error: unknown): void {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const supabase = createAdminSupabaseClient();
+  supabase
+    .from('failed_emails')
+    .insert({
+      email_type: emailType,
+      recipient,
+      subject,
+      error_message: errorMessage,
+      error_details: error instanceof Error ? { name: error.name, stack: error.stack } : {},
+    })
+    .then(({ error: dbErr }) => {
+      if (dbErr) console.error('[Email] Failed to log email failure to DB:', dbErr.message);
+    });
+}
 
 interface BookingEmailData {
   clientName: string;
@@ -53,6 +72,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     console.log('[Email] Booking confirmation sent to', data.clientEmail);
   } catch (error) {
     console.error('[Email] Failed to send booking confirmation:', error);
+    logEmailFailure('booking_confirmation', data.clientEmail, `Confirmacion de reserva - ${data.serviceTitle}`, error);
   }
 }
 
@@ -99,6 +119,7 @@ export async function sendCancellationNotice(data: CancellationEmailData) {
     console.log('[Email] Cancellation notice sent to', data.clientEmail);
   } catch (error) {
     console.error('[Email] Failed to send cancellation notice:', error);
+    logEmailFailure('cancellation_notice', data.clientEmail, `Cancelacion de reserva - ${data.serviceTitle}`, error);
   }
 }
 
@@ -144,6 +165,7 @@ export async function sendTemporaryPassword(data: TemporaryPasswordEmailData) {
     console.log('[Email] Temporary password sent to', data.userEmail);
   } catch (error) {
     console.error('[Email] Failed to send temporary password:', error);
+    logEmailFailure('temporary_password', data.userEmail, subject, error);
   }
 }
 
@@ -174,6 +196,7 @@ export async function sendNewsletterWelcome(email: string) {
     console.log('[Email] Newsletter welcome sent to', email);
   } catch (error) {
     console.error('[Email] Failed to send newsletter welcome:', error);
+    logEmailFailure('newsletter_welcome', email, 'Bienvenido a Vivelo — Ofertas exclusivas para ti', error);
   }
 }
 
@@ -225,6 +248,7 @@ export async function sendEventCodes(data: EventCodesEmailData) {
     console.log('[Email] Event codes sent to', data.clientEmail);
   } catch (error) {
     console.error('[Email] Failed to send event codes:', error);
+    logEmailFailure('event_codes', data.clientEmail, `Codigos de verificacion para tu evento — ${data.serviceTitle}`, error);
   }
 }
 
@@ -269,6 +293,7 @@ export async function sendEventReminder(data: EventReminderEmailData) {
     console.log('[Email] Event reminder sent to', data.clientEmail);
   } catch (error) {
     console.error('[Email] Failed to send event reminder:', error);
+    logEmailFailure('event_reminder', data.clientEmail, `Recordatorio: tu evento es manana — ${data.serviceTitle}`, error);
   }
 }
 
@@ -340,6 +365,7 @@ export async function sendServiceStatusEmail(data: ServiceStatusEmailData) {
     console.log('[Email] Service status email sent to', data.providerEmail);
   } catch (error) {
     console.error('[Email] Failed to send service status email:', error);
+    logEmailFailure('service_status', data.providerEmail, c.subject, error);
   }
 }
 
@@ -396,5 +422,6 @@ export async function sendServiceCommentNotification(data: ServiceCommentEmailDa
     console.log('[Email] Service comment notification sent to', data.providerEmail);
   } catch (error) {
     console.error('[Email] Failed to send service comment notification:', error);
+    logEmailFailure('service_comment', data.providerEmail, `${c.emoji} ${c.label} sobre tu servicio "${data.serviceTitle}"`, error);
   }
 }

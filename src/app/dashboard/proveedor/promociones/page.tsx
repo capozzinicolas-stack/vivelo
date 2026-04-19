@@ -33,26 +33,31 @@ export default function ProviderPromocionesPage() {
   const [deleteTarget, setDeleteTarget] = useState<PromotionWithSubs | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (signal?: AbortSignal) => {
     if (!user) return;
     setLoading(true);
     try {
       const [promosRes, svcs] = await Promise.all([
-        fetch('/api/provider/promotions').then(r => r.json()),
+        fetch('/api/provider/promotions', { signal }).then(r => r.json()),
         getServicesByProvider(user.id),
       ]);
+      if (signal?.aborted) return;
       setPromotions(promosRes.promotions || []);
       setServices(svcs);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('[Promociones] load error:', err);
       toast({ title: 'Error cargando promociones', variant: 'destructive' });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [user, toast]);
 
   useEffect(() => {
-    if (user?.id) loadData();
+    if (!user?.id) return;
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
   }, [user?.id, loadData]);
 
   const activeCount = useMemo(() => promotions.filter(p => p.status === 'active').length, [promotions]);

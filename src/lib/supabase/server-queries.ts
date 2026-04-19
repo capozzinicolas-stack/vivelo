@@ -29,7 +29,8 @@ export async function getServiceByIdServer(id: string): Promise<Service | null> 
 
   let provider = null;
   try {
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', fallback.provider_id).single();
+    const adminSb = createAdminSupabaseClient();
+    const { data: p } = await adminSb.from('profiles').select('*').eq('id', fallback.provider_id).single();
     if (p) provider = p;
   } catch { /* ignore */ }
   return { ...fallback, extras: [], provider } as unknown as Service;
@@ -54,7 +55,8 @@ export async function getServiceBySlugServer(slug: string): Promise<Service | nu
 
   let provider = null;
   try {
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', fallback.provider_id).single();
+    const adminSb = createAdminSupabaseClient();
+    const { data: p } = await adminSb.from('profiles').select('*').eq('id', fallback.provider_id).single();
     if (p) provider = p;
   } catch { /* ignore */ }
   return { ...fallback, extras: [], provider } as unknown as Service;
@@ -137,7 +139,8 @@ export async function getRelatedServicesServer(categoryId: string, excludeId: st
 // ─── PROFILES ───────────────────────────────────────────────
 
 export async function getProfileByIdServer(id: string): Promise<Profile | null> {
-  const supabase = createServerSupabaseClient();
+  // Use admin client to bypass RLS — profiles SELECT is now restricted to owner/admin only
+  const supabase = createAdminSupabaseClient();
   const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
   if (error) {
     console.warn('[getProfileByIdServer] Failed:', error.message);
@@ -147,7 +150,8 @@ export async function getProfileByIdServer(id: string): Promise<Profile | null> 
 }
 
 export async function getProfileBySlugServer(slug: string): Promise<Profile | null> {
-  const supabase = createServerSupabaseClient();
+  // Use admin client to bypass RLS — profiles SELECT is now restricted to owner/admin only
+  const supabase = createAdminSupabaseClient();
   const { data, error } = await supabase.from('profiles').select('*').eq('slug', slug).single();
   if (error) {
     console.warn('[getProfileBySlugServer] Failed:', error.message);

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAdminLevel, isAuthError } from '@/lib/auth/api-auth';
 import { createAdminSupabaseClient } from '@/lib/supabase/admin';
 import { validateBody, UpdateFiscalStatusSchema } from '@/lib/validations/api-schemas';
+import { logAdminAction } from '@/lib/audit';
+import { getClientIp } from '@/lib/rate-limit';
 
 interface RouteParams {
   params: { providerId: string };
@@ -53,6 +55,15 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 
   console.log(`[Fiscal Admin] Provider ${providerId} fiscal status changed to ${body.fiscal_status} by admin ${auth.user.id}`);
+
+  logAdminAction({
+    adminId: auth.user.id,
+    action: 'fiscal_status_update',
+    targetType: 'fiscal',
+    targetId: providerId,
+    details: { fiscal_status: body.fiscal_status, admin_notes: body.admin_notes },
+    ip: getClientIp(request),
+  });
 
   // WhatsApp notification (non-blocking)
   try {

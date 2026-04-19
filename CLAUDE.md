@@ -1113,10 +1113,11 @@ Usa `uploadServiceMedia()` de `src/lib/supabase/storage.ts` — sube al bucket `
 | Severidad | Problema | Ubicacion | Estado |
 |-----------|----------|-----------|--------|
 | ~~**ALTA**~~ | ~~Trigger de signup no copia `role` del metadata al perfil — todos los usuarios quedan como 'client'~~ | `00001_create_profiles.sql` trigger `handle_new_user` | ✅ Resuelto (migracion `00118`) — trigger ahora copia `phone` y `role` del metadata + backfill |
-| **ALTA** | Datos bancarios (RFC, CLABE) visibles via RLS para cualquier usuario autenticado — se filtra solo a nivel de app | `profiles` table RLS policies | Pendiente |
-| **MEDIA** | Fallback de `checkVendorAvailability` hardcodea `max_concurrent=1` si el RPC falla | `queries.ts:1105-1107` | Pendiente |
-| **MEDIA** | No hay rate limiting en endpoints de auth (`/login`, `/register`) | `src/app/login`, `src/app/register` | Pendiente |
-| **MEDIA** | No hay audit logging para acciones de admin (cambios de rol, moderacion) | Admin API routes | Pendiente |
+| ~~**ALTA**~~ | ~~Datos bancarios (RFC, CLABE) visibles via RLS para cualquier usuario autenticado~~ | `profiles` table RLS policies | ✅ Resuelto (migracion `00122`) — RLS restringido a owner/admin, server-queries usa admin client, vista `profiles_public` enmascara datos bancarios |
+| ~~**MEDIA**~~ | ~~Fallback de `checkVendorAvailability` hardcodea `max_concurrent=1` si el RPC falla~~ | `queries.ts` | ✅ Resuelto — fallback ahora consulta `profiles.max_concurrent_services` del proveedor |
+| ~~**MEDIA**~~ | ~~No hay rate limiting en endpoints de auth (`/api/auth/recover`, `/api/admin/auth/recover`)~~ | Recovery endpoints | ✅ Resuelto — rate limit 3 req/5min por IP via `src/lib/rate-limit.ts` |
+| ~~**MEDIA**~~ | ~~No hay audit logging para acciones de admin (cambios de rol, moderacion)~~ | Admin API routes | ✅ Resuelto (migracion `00123`) — tabla `admin_audit_log` + `logAdminAction()` en users, impersonate, fiscal status |
+| ~~**MEDIA**~~ | ~~Emails fallan silenciosamente sin persistencia~~ | `src/lib/email.ts` | ✅ Resuelto (migracion `00123`) — tabla `failed_emails` + `logEmailFailure()` en los 8 catch blocks |
 | **BAJA** | `buffer_before_days` y `buffer_after_days` existen en schema pero nunca se usan en codigo | `availability.ts` | Deuda tecnica |
 | **BAJA** | ~~Webhook `charge.refunded` no actualiza `orders.status`~~ | `bookings/cancel/route.ts` | ✅ Resuelto (C3) — order status se actualiza en `/api/bookings/cancel` tras cancelar booking |
 

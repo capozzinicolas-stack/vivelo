@@ -1214,7 +1214,21 @@ export async function checkVendorAvailability(vendorId: string, startDatetime: s
 
   const overlapping = overlappingCount ?? 0;
   const hasBlock = (blockCount ?? 0) > 0;
-  const maxConcurrent = 1;
+
+  // Fetch actual max_concurrent_services from provider profile instead of hardcoding
+  let maxConcurrent = 1;
+  try {
+    const { data: providerProfile } = await supabase
+      .from('profiles')
+      .select('max_concurrent_services')
+      .eq('id', vendorId)
+      .single();
+    if (providerProfile?.max_concurrent_services) {
+      maxConcurrent = providerProfile.max_concurrent_services;
+    }
+  } catch {
+    // Keep default of 1 if query fails
+  }
 
   return {
     available: overlapping < maxConcurrent && !hasBlock,
