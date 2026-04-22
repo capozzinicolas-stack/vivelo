@@ -32,6 +32,7 @@ const TEMPLATE_MAP: Record<string, string> = {
   client_booking_rejected: 'vivelo_reserva_rechazada',
   client_payment_authorized: 'vivelo_pago_autorizado',
   provider_booking_accepted: 'vivelo_proveedor_reserva_aceptada',
+  provider_no_service_reminder: 'vivelo_proveedor_recordatorio_servicio',
   admin_manual: 'vivelo_mensaje_admin',
 };
 

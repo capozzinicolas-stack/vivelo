@@ -20,6 +20,7 @@ export type WaEventType =
   | 'provider_new_review' | 'provider_fiscal_approved' | 'provider_fiscal_rejected'
   | 'provider_banking_approved' | 'provider_banking_rejected' | 'provider_admin_comment'
   | 'provider_booking_rejected' | 'provider_booking_accepted'
+  | 'provider_no_service_reminder'
   | 'client_welcome' | 'client_booking_confirmed'
   | 'client_booking_cancelled' | 'client_event_reminder' | 'client_verification_codes'
   | 'client_booking_completed' | 'client_event_started' | 'client_booking_rejected'
@@ -47,6 +48,7 @@ const TEMPLATE_MAP: Record<WaEventType, string> = {
   provider_admin_comment: 'vivelo_proveedor_comentario_admin',
   provider_booking_rejected: 'vivelo_proveedor_reserva_rechazada',
   provider_booking_accepted: 'vivelo_proveedor_reserva_aceptada',
+  provider_no_service_reminder: 'vivelo_proveedor_recordatorio_servicio',
   client_welcome: 'vivelo_cliente_bienvenida',
   client_booking_confirmed: 'vivelo_reserva_confirmada',
   client_booking_cancelled: 'vivelo_reserva_cancelada',
@@ -786,6 +788,26 @@ export function waProviderBookingAccepted(data: {
     bookingId: data.bookingId,
     serviceId: data.serviceId,
   }).catch(err => console.error('[WhatsApp] provider_booking_accepted error:', err));
+}
+
+// Provider onboarding nudge
+
+export function waProviderNoServiceReminder(data: {
+  providerId: string;
+  providerPhone: string | null;
+  providerName: string;
+}) {
+  if (!data.providerPhone) return;
+  sendWhatsAppEvent({
+    eventType: 'provider_no_service_reminder',
+    recipientId: data.providerId,
+    recipientPhone: data.providerPhone,
+    recipientName: data.providerName,
+    variables: {
+      nombre: data.providerName,
+      link: 'https://solovivelo.com/dashboard/proveedor/servicios/nuevo',
+    },
+  }).catch(err => console.error('[WhatsApp] provider_no_service_reminder error:', err));
 }
 
 // Admin events

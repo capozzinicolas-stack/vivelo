@@ -430,16 +430,17 @@ El codigo existe pero **no se esta usando en produccion**. No desarrollar ni exp
 - **Env vars**: `MIRLO_API_KEY`, `MIRLO_ORGANIZATION_ID`, `MIRLO_ORGANIZATION_ADDRESS`, `MIRLO_WEBHOOK_SECRET` (para APIs de Mirlo)
 - **Mock mode**: Si `MIRLO_API_KEY` falta o es `'mirlo_placeholder'` → todo se logea pero no se envia
 - **Cliente Mirlo**: `src/lib/mirlo.ts` — fetch wrapper, `getTemplateIdByName()` con cache por cold start, sin funciones de broadcast
-- **Servicio WA**: `src/lib/whatsapp.ts` — 27 event types, `sendWhatsAppEvent()` + 27 funciones de conveniencia fire-and-forget. Template name resuelto via `TEMPLATE_MAP` + cache de Mirlo
+- **Servicio WA**: `src/lib/whatsapp.ts` — 28 event types, `sendWhatsAppEvent()` + 28 funciones de conveniencia fire-and-forget. Template name resuelto via `TEMPLATE_MAP` + cache de Mirlo
 - **Telefono**: `profiles.phone` guarda 10 digitos (ej: `5512345678`), se convierte a E.164 (`+525512345678`). Si `phone` es null → skip silencioso
-- **DB**: 1 tabla `whatsapp_events` + 2 enums (`wa_event_type` con 27 valores, `wa_log_status`), migracion `00117` (reemplaza 00116)
-- **27 event types**: provider_welcome, provider_service_approved/rejected/needs_revision, provider_new_booking, provider_booking_cancelled/rejected/completed, provider_event_reminder, provider_start_code, provider_new_review, provider_fiscal_approved/rejected, provider_banking_approved/rejected, provider_admin_comment, client_welcome, client_booking_confirmed/cancelled/rejected/completed, client_event_reminder, client_verification_codes, client_event_started, client_payment_authorized, provider_booking_accepted, admin_manual
+- **DB**: 1 tabla `whatsapp_events` + 2 enums (`wa_event_type` con 28 valores, `wa_log_status`), migracion `00117` (reemplaza 00116)
+- **28 event types**: provider_welcome, provider_service_approved/rejected/needs_revision, provider_new_booking, provider_booking_cancelled/rejected/completed, provider_event_reminder, provider_start_code, provider_new_review, provider_fiscal_approved/rejected, provider_banking_approved/rejected, provider_admin_comment, provider_no_service_reminder, client_welcome, client_booking_confirmed/cancelled/rejected/completed, client_event_reminder, client_verification_codes, client_event_started, client_payment_authorized, provider_booking_accepted, admin_manual
 - **Hooks non-blocking (11 archivos)**: Stripe webhook (confirmed + provider new booking), cancel (client + provider), send-event-codes (client codes + provider start_code), service-status-email (approved + rejected + needs_revision), send-event-reminders (client + provider), register-form (welcome), auto-complete (client + provider), verify-code (event started + completed), fiscal status (approved/rejected), admin comments, admin bookings status (rejected)
+- **Cron `provider-no-service-reminder`** (diario 15:00 UTC): Busca proveedores registrados hace >= 3 dias sin ningun servicio (any status) y sin reminder previo. Envia 1 solo WhatsApp por proveedor. Dedup via check de `whatsapp_events` existente
 - **APIs Mirlo**: `GET /api/mirlo/provider-status?phone=X` y `GET /api/mirlo/client-status?phone=X` — read-only, auth via `X-Mirlo-Secret` header
 - **Welcome endpoint**: `POST /api/whatsapp/welcome` — publico con dedup 24h, llamado desde register-form
 - **Admin notify**: `POST /api/admin/whatsapp/notify` — admin-only, para hooks client-side
-- **Admin dashboard**: `/admin-portal/dashboard/whatsapp` — metricas only (stats cards, distribucion por tipo, tabla de eventos recientes con filtros). Sin gestion de templates ni envios manuales
-- **Admin APIs**: `GET /api/admin/whatsapp/messages` (lista events con filtros), `GET /api/admin/whatsapp/stats` (aggregates)
+- **Admin dashboard**: `/admin-portal/dashboard/whatsapp` — 4 tabs: Flujos (mapa visual de journeys con fases y chips coloreados), Touchpoints (tabla con columna Fase), Actividad (metricas + tabla de eventos), Por Reserva (busqueda por booking ID o telefono con timeline). Default tab: Flujos
+- **Admin APIs**: `GET /api/admin/whatsapp/messages` (lista events con filtros, soporta `booking_id` y `phone`), `GET /api/admin/whatsapp/stats` (aggregates)
 - **Types**: `WaEventType`, `WaLogStatus`, `WhatsAppEvent` en `database.ts`. Schemas: `WelcomeWhatsAppSchema`, `AdminWhatsAppNotifySchema` en `api-schemas.ts`
 - **NO se toca**: commission.ts, cancellation.ts, booking-state-machine.ts, patron de snapshots, checkout flow
 

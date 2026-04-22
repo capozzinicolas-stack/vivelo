@@ -20,6 +20,7 @@ export type WaEventType =
   | 'client_booking_cancelled' | 'client_event_reminder' | 'client_verification_codes'
   | 'client_booking_completed' | 'client_event_started' | 'client_booking_rejected'
   | 'client_payment_authorized' | 'provider_booking_accepted'
+  | 'provider_no_service_reminder'
   | 'admin_manual';
 export type WaLogStatus = 'pending' | 'accepted' | 'sent' | 'delivered' | 'read' | 'failed';
 

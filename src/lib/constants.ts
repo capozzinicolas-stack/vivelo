@@ -348,7 +348,7 @@ export const WHATSAPP_JOURNEYS: WhatsAppJourney[] = [
     icon: 'UserPlus',
     phases: [
       { id: 'registro', label: 'Registro', touchpoints: ['provider_welcome'] },
-      { id: 'servicio', label: 'Publicacion de servicio', touchpoints: ['provider_service_approved', 'provider_service_rejected', 'provider_service_needs_revision'] },
+      { id: 'servicio', label: 'Publicacion de servicio', touchpoints: ['provider_no_service_reminder', 'provider_service_approved', 'provider_service_rejected', 'provider_service_needs_revision'] },
       { id: 'fiscal', label: 'Datos fiscales', touchpoints: ['provider_fiscal_approved', 'provider_fiscal_rejected'] },
       { id: 'banco', label: 'Datos bancarios', touchpoints: ['provider_banking_approved', 'provider_banking_rejected'] },
     ],
@@ -393,6 +393,7 @@ export const TOUCHPOINT_CONFIG: Array<{
   { eventType: 'provider_banking_rejected', label: 'Banco rechazado', description: 'Datos bancarios rechazados', recipient: 'provider', trigger: 'Admin rechaza banco', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Datos bancarios' },
   { eventType: 'provider_admin_comment', label: 'Comentario admin', description: 'Admin comenta en servicio', recipient: 'provider', trigger: 'Admin crea comentario', channel: 'whatsapp', journey: 'operaciones', phase: 'Comentarios admin' },
   { eventType: 'provider_booking_rejected', label: 'Reserva rechazada', description: 'Admin rechaza reserva', recipient: 'provider', trigger: 'Admin rechaza booking', channel: 'whatsapp', journey: 'reserva', phase: 'Cancelacion / Rechazo' },
+  { eventType: 'provider_no_service_reminder', label: 'Recordatorio sin servicio', description: '3 dias sin dar de alta servicio', recipient: 'provider', trigger: 'Cron diario', channel: 'whatsapp', journey: 'onboarding_proveedor', phase: 'Publicacion de servicio' },
   // Client (10)
   { eventType: 'client_welcome', label: 'Bienvenida cliente', description: 'Al registrarse como cliente', recipient: 'client', trigger: 'Registro', channel: 'whatsapp', journey: 'operaciones', phase: 'Registro de cliente' },
   { eventType: 'client_payment_authorized', label: 'Pago autorizado', description: 'Tarjeta autorizada exitosamente', recipient: 'client', trigger: 'Webhook Stripe (auth)', channel: 'whatsapp', journey: 'reserva', phase: 'Pago autorizado' },

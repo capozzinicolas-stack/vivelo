@@ -38,6 +38,7 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   provider_banking_rejected: 'Banco rechazado',
   provider_admin_comment: 'Comentario admin',
   provider_booking_rejected: 'Reserva rechazada (proveedor)',
+  provider_no_service_reminder: 'Recordatorio sin servicio',
   client_welcome: 'Bienvenida cliente',
   client_payment_authorized: 'Pago autorizado',
   client_booking_confirmed: 'Reserva confirmada',
