@@ -15,7 +15,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Camera, Save, Upload, CheckCircle, XCircle, Clock, AlertTriangle, Copy, Share2, Gift, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import DatosFiscalesSection from '@/components/dashboard/datos-fiscales-section';
 import type { BankingStatus } from '@/types/database';
+
+const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i;
 
 const BANKING_STATUS_CONFIG: Record<BankingStatus, { label: string; color: string; icon: React.ElementType }> = {
   not_submitted: { label: 'No enviado', color: 'bg-gray-100 text-gray-800', icon: AlertTriangle },
@@ -41,6 +44,7 @@ export default function ProveedorPerfilPage() {
   const [bio, setBio] = useState(user?.bio || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || '');
 
+  const [rfc, setRfc] = useState(user?.rfc || '');
   const [clabe, setClabe] = useState('');
   const [bankDocFile, setBankDocFile] = useState<File | null>(null);
 
@@ -168,6 +172,11 @@ export default function ProveedorPerfilPage() {
     setBankingError('');
     setBankingMessage('');
 
+    if (rfc.trim() && !RFC_REGEX.test(rfc.trim())) {
+      setBankingError('RFC invalido (ej: XAXX010101000)');
+      return;
+    }
+
     const clabeDigits = clabe.replace(/\D/g, '');
     if (clabeDigits.length !== 18) {
       setBankingError('La CLABE debe tener exactamente 18 digitos');
@@ -185,11 +194,15 @@ export default function ProveedorPerfilPage() {
         }
       }
 
+      if (rfc.trim()) {
+        await updateProfile(user.id, { rfc: rfc.trim().toUpperCase() });
+      }
       await updateProviderBanking(user.id, {
         clabe: clabeDigits,
         ...(documentUrl ? { bank_document_url: documentUrl } : {}),
       });
       updateUser({
+        ...(rfc.trim() ? { rfc: rfc.trim().toUpperCase() } : {}),
         clabe: clabeDigits,
         bank_document_url: documentUrl || null,
         banking_status: 'pending_review',
@@ -322,7 +335,7 @@ export default function ProveedorPerfilPage() {
       </Card>
 
       {/* Banking Card */}
-      <Card>
+      <Card id="datos-bancarios">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -344,6 +357,20 @@ export default function ProveedorPerfilPage() {
               <strong>Motivo de rechazo:</strong> {user.banking_rejection_reason}
             </div>
           )}
+
+          {/* RFC */}
+          <div className="space-y-2">
+            <Label htmlFor="rfc">RFC</Label>
+            <Input
+              id="rfc"
+              value={rfc}
+              onChange={(e) => setRfc(e.target.value.toUpperCase())}
+              placeholder="XAXX010101000"
+              maxLength={13}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">RFC con homonimia (12 o 13 caracteres)</p>
+          </div>
 
           {/* Show current CLABE masked */}
           {user.clabe && (
@@ -399,6 +426,9 @@ export default function ProveedorPerfilPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Datos Fiscales Section */}
+      <DatosFiscalesSection />
 
       {/* Change Password Card */}
       <Card>

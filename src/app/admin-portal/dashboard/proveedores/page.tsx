@@ -87,7 +87,7 @@ export default function AdminProveedoresPage() {
         type: 'system',
         title: 'Datos bancarios verificados',
         message: 'Tus datos bancarios han sido verificados. Ya puedes recibir pagos.',
-        link: '/dashboard/proveedor/configuracion',
+        link: '/dashboard/proveedor/perfil#datos-bancarios',
       });
       setPendingBanking(prev => prev.filter(x => x.id !== p.id));
       toast({ title: 'Banking verificado', description: `Datos de "${p.full_name}" aprobados.` });
@@ -109,7 +109,7 @@ export default function AdminProveedoresPage() {
         type: 'system',
         title: 'Datos bancarios rechazados',
         message: `Tus datos bancarios fueron rechazados: ${reason}`,
-        link: '/dashboard/proveedor/configuracion#datos-bancarios',
+        link: '/dashboard/proveedor/perfil#datos-bancarios',
       });
       setPendingBanking(prev => prev.filter(x => x.id !== p.id));
       setRejectionReasons(prev => { const n = { ...prev }; delete n[p.id]; return n; });

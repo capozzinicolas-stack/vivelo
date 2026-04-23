@@ -25,7 +25,7 @@ export function ProviderOnboardingBanner({ profile }: { profile: Profile }) {
             {profile.banking_rejection_reason || 'Contacta a soporte para mas informacion.'}
           </p>
           <Button asChild size="sm" variant="outline" className="mt-2 border-red-300 text-red-700 hover:bg-red-100">
-            <Link href="/dashboard/proveedor/configuracion#datos-bancarios">Actualizar datos</Link>
+            <Link href="/dashboard/proveedor/perfil#datos-bancarios">Actualizar datos</Link>
           </Button>
         </div>
         <button onClick={() => setDismissed(true)} className="text-red-400 hover:text-red-600">
@@ -48,7 +48,7 @@ export function ProviderOnboardingBanner({ profile }: { profile: Profile }) {
                 <Building2 className="h-4 w-4 text-amber-600" />
                 <span className="text-amber-800">Completa los datos de tu empresa para que tus clientes te conozcan</span>
                 <Button asChild size="sm" variant="link" className="h-auto p-0 text-amber-700 font-medium">
-                  <Link href="/dashboard/proveedor/configuracion#datos-empresa">Completar</Link>
+                  <Link href="/dashboard/proveedor/perfil">Completar</Link>
                 </Button>
               </>
             ) : (
@@ -64,7 +64,7 @@ export function ProviderOnboardingBanner({ profile }: { profile: Profile }) {
                 <Landmark className="h-4 w-4 text-amber-600" />
                 <span className="text-amber-800">Agrega tus datos bancarios para poder recibir pagos</span>
                 <Button asChild size="sm" variant="link" className="h-auto p-0 text-amber-700 font-medium">
-                  <Link href="/dashboard/proveedor/configuracion#datos-bancarios">Agregar</Link>
+                  <Link href="/dashboard/proveedor/perfil#datos-bancarios">Agregar</Link>
                 </Button>
               </>
             ) : (
